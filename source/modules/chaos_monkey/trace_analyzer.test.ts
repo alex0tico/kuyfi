@@ -71,7 +71,7 @@ test('root fn_call + auth error → PRECONDITION_FAIL', t => {
 	t.is(analysis.nestedCallCount, 0);
 	t.true(analysis.hasAuthError);
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'PRECONDITION_FAIL');
 });
 
@@ -97,7 +97,7 @@ test('root fn_call + WasmVm/InvalidAction (the real observed Testnet shape) → 
 	t.is(analysis.errors[0]?.category, 'WASM_VM');
 	t.is(analysis.errors[0]?.code, 'scecInvalidAction');
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 
@@ -114,7 +114,7 @@ test('root fn_call + WasmVm/ExceededLimit → UNEXPECTED_ERROR, not UNCONTROLLED
 	const analysis = analyzeDiagnosticTrace(events);
 	t.is(analysis.nestedCallCount, 0);
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 
@@ -132,7 +132,10 @@ test('root fn_call + WasmVm/ArithDomain (clearly supported runtime fault: docume
 	t.is(analysis.nestedCallCount, 0);
 	t.is(analysis.failureLocation, 'ROOT');
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	// hasUnverifiedAddressArg=true here on purpose: a strong runtime-safety
+	// fault is evidence about the crafted numeric attack value, not about an
+	// unrelated Address parameter's semantics — it must escalate either way.
+	const {signal} = classifyErrorFromTrace(analysis, true);
 	t.is(signal, 'UNCONTROLLED_PANIC');
 });
 
@@ -154,7 +157,7 @@ test('root fn_call → nested fn_call → failure attributed to the NESTED contr
 	t.is(analysis.involvedContractIds.length, 2);
 	t.is(analysis.failureLocation, 'NESTED');
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 
@@ -169,16 +172,17 @@ test('root fn_call → nested fn_call → strong fault attributed to the NESTED 
 	t.is(analysis.nestedCallCount, 1);
 	t.is(analysis.failureLocation, 'NESTED');
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 
-test('root fn_call → nested fn_call returns → root itself then fails (confirmed ROOT attribution despite nesting) → POTENTIAL_VULN', t => {
+test('root fn_call → nested fn_call returns → root itself then fails, NO Address param involved → POTENTIAL_VULN', t => {
 	// The nested call completed (fn_return) and the ROOT contract's own
 	// subsequent code is what trapped — attribution is confirmed, and the
 	// "trivial precondition check at entry" explanation doesn't fit since
-	// real nested-call activity happened first. This is the one case where
-	// nesting legitimately strengthens the verdict.
+	// real nested-call activity happened first. hasUnverifiedAddressArg=false
+	// means there is no fabricated-address explanation available either, so
+	// this is the one case where nesting legitimately strengthens the verdict.
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
@@ -190,7 +194,54 @@ test('root fn_call → nested fn_call returns → root itself then fails (confir
 	t.is(analysis.nestedCallCount, 1);
 	t.is(analysis.failureLocation, 'ROOT');
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
+	t.is(signal, 'POTENTIAL_VULN');
+});
+
+test('GATE 1 — identical trace as above, but the call DOES include an unverified Address param → UNEXPECTED_ERROR, NOT POTENTIAL_VULN', t => {
+	// This reproduces the exact shape of the 18 inflated add_liquidity
+	// findings from the first acceptance run: root-attributed generic trap
+	// after real nested-call activity. type-correct input != semantically
+	// valid input — the fuzzer's Address arguments (e.g. `to`) are fabricated,
+	// unfunded, unauthorized keypairs, never real externally-known addresses.
+	// A generic trap reached only after crossing into another contract is
+	// exactly the shape produced by that fake address tripping a downstream
+	// precondition (missing balance/trustline on a token call, for example).
+	// We cannot rule that story out, so we must not escalate to a HIGH finding.
+	const events = [
+		fnCallEvent(CONTRACT_UNDER_TEST, 'add_liquidity'),
+		fnCallEvent(NESTED_CONTRACT, 'transfer'),
+		fnReturnEvent(NESTED_CONTRACT, 'transfer'),
+		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+	];
+
+	const analysis = analyzeDiagnosticTrace(events);
+	t.is(analysis.nestedCallCount, 1);
+	t.is(analysis.failureLocation, 'ROOT');
+
+	const {signal, details} = classifyErrorFromTrace(analysis, true);
+	t.is(signal, 'UNEXPECTED_ERROR');
+	t.not(signal, 'POTENTIAL_VULN');
+	t.true(details.includes('Address'));
+});
+
+test('GATE 1 — same nested+root-attributed shape, but a STRONG runtime fault (ArithDomain) still escalates even with an unverified Address param', t => {
+	// Strong fault codes are unaffected by hasUnverifiedAddressArg: an
+	// arithmetic-overflow fault is evidence about the crafted numeric attack
+	// value, not about the Address parameter's real-world semantics — there
+	// is no plausible "the fake address explains this" story for this code.
+	const events = [
+		fnCallEvent(CONTRACT_UNDER_TEST, 'add_liquidity'),
+		fnCallEvent(NESTED_CONTRACT, 'transfer'),
+		fnReturnEvent(NESTED_CONTRACT, 'transfer'),
+		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain())),
+	];
+
+	const analysis = analyzeDiagnosticTrace(events);
+	t.is(analysis.nestedCallCount, 1);
+	t.is(analysis.failureLocation, 'ROOT');
+
+	const {signal} = classifyErrorFromTrace(analysis, true);
 	t.is(signal, 'POTENTIAL_VULN');
 });
 
@@ -206,7 +257,7 @@ test('root fn_call + fn_return, no error event → parses cleanly, no crash', t 
 
 	// If this trace were (hypothetically) handed to the classifier on a
 	// failure path, it must not fabricate a vulnerability from an absent error.
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 
@@ -223,7 +274,7 @@ test('diagnosticEvents.length === 0 → falls back to the legacy string classifi
 		diagnosticEvents: [],
 	};
 
-	const parsed = parseInvokeResult(result, false, 'initialize', 'total_fee_bps::ZERO', true);
+	const parsed = parseInvokeResult(result, false, 'initialize', 'total_fee_bps::ZERO', true, true);
 	// Matches the pre-existing string-based mapping for "Error(Contract,...)".
 	t.is(parsed.signal, 'SECURE');
 });
@@ -245,7 +296,7 @@ test('diagnosticEvents present takes priority over errorMessage even when the st
 		],
 	};
 
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true);
+	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, true);
 	t.is(parsed.signal, 'SECURE'); // PRECONDITION_FAIL from the trace, wrapped to SECURE for an expectedToFail vector
 });
 
@@ -271,7 +322,7 @@ test('UNAUTHORIZED_CALL rejected via an ambiguous root panic → execution layer
 		],
 	};
 
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true);
+	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, true);
 	t.is(parsed.signal, 'UNEXPECTED_ERROR');
 	t.not(parsed.signal, 'SECURE');
 });
@@ -290,7 +341,7 @@ test('UNAUTHORIZED_CALL rejected via a genuine structural auth error → vector 
 		],
 	};
 
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true);
+	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, true);
 	t.is(parsed.signal, 'SECURE');
 });
 
@@ -310,7 +361,7 @@ test('error topic without a decodable ScError payload → marked malformed, UNEX
 	t.true(analysis.malformed);
 	t.is(analysis.errors.length, 0);
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 
@@ -324,7 +375,7 @@ test('completely invalid event object → does not throw, returns an empty-but-u
 	t.deepEqual(analysis.errors, []);
 	t.is(analysis.rootCall, null);
 
-	const {signal} = classifyErrorFromTrace(analysis);
+	const {signal} = classifyErrorFromTrace(analysis, false);
 	t.is(signal, 'UNEXPECTED_ERROR');
 });
 

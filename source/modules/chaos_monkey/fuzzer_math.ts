@@ -5,6 +5,7 @@ import {parseInvokeResult} from './result_parser.js';
 import {baseline, attackVals} from './type_gen.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {ParsedResult} from './result_parser.js';
+import {hasAddressTypeParam} from './fuzzer_access.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTypeDef = any;
@@ -41,7 +42,17 @@ export async function fuzzMathVectors(
 	if (target.params.length === 0) return [];
 
 	const results: FuzzResult[] = [];
-	const baselines: xdr.ScVal[] = target.params.map(p => baseline(p.type, registry));
+	const rawBaselines = target.params.map(p => baseline(p.type, registry));
+
+	// Any parameter that can't be safely resolved (unknown/unregistered UDT,
+	// or a depth/cycle limit hit while expanding a nested UDT) means we can't
+	// build a single valid call for this function at all — every vector needs
+	// a full, type-correct argument list. Skip the whole function rather than
+	// substitute a fabricated value for the unresolved parameter.
+	if (rawBaselines.some(b => b === null)) return [];
+
+	const baselines = rawBaselines as xdr.ScVal[];
+	const hasUnverifiedAddressArg = hasAddressTypeParam(target.params);
 
 	for (let i = 0; i < target.params.length; i++) {
 		const param = target.params[i]!;
@@ -68,6 +79,7 @@ export async function fuzzMathVectors(
 				target.functionName,
 				vectorName,
 				target.isAdminFunction,
+				hasUnverifiedAddressArg,
 			);
 			results.push({target, vectorName, result: parsed});
 		}

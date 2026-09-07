@@ -8,6 +8,7 @@ import {rpc as SorobanRpc, xdr} from '@stellar/stellar-sdk';
 import * as KuyfiClient from '../src/kuyfi_client/dist/index.js';
 import {runChaosMonkey, formatReportForTerminal} from './modules/chaos_monkey/index.js';
 import {typeName} from './modules/chaos_monkey/type_gen.js';
+import {buildUdtRegistry} from './modules/chaos_monkey/udt_registry.js';
 import type {ChaosReport, UdtRegistry} from './modules/chaos_monkey/index.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -271,22 +272,8 @@ function ScannerView({
 					}
 				}
 
-				// Build UDT struct registry from scSpecEntryUdtStructV0 entries
-				const udtRegistry: UdtRegistry = new Map();
-				for (const e of entries) {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					if ((e as any).switch().name === 'scSpecEntryUdtStructV0') {
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const s = (e as any).udtStructV0();
-						const udtName = (s.name() as Buffer).toString('utf-8');
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const fields: ScannedParam[] = s.fields().map((f: any) => ({
-							name: (f.name() as Buffer).toString('utf-8'),
-							type: f.type() as AnyTypeDef,
-						}));
-						udtRegistry.set(udtName, fields);
-					}
-				}
+				// Build the UDT registry (struct/union/enum) from the same entries[].
+				const udtRegistry: UdtRegistry = buildUdtRegistry(entries);
 
 				const parsedFunctions: ContractFunction[] = entries
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any

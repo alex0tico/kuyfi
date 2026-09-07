@@ -266,7 +266,11 @@ const STRONG_RUNTIME_FAULT_CODES = new Set(['scecArithDomain', 'scecIndexBounds'
  *     strong fault code (scecArithDomain/scecIndexBounds), nestedCallCount=0  → UNCONTROLLED_PANIC (confident
  *         runtime-safety fault at root — real robustness signal, not yet confirmed exploitable)
  *     strong fault code, nestedCallCount>=1 (root-attributed)                → POTENTIAL_VULN (confident fault +
- *         real nested activity + confirmed root attribution — strongest justified escalation)
+ *         real nested activity + confirmed root attribution — strongest justified escalation. UNAFFECTED by
+ *         hasUnverifiedAddressArg: an arithmetic-overflow/index-bounds fault is evidence about the NUMERIC
+ *         attack value we deliberately crafted, not about whether an unrelated Address parameter's real-world
+ *         semantics — funded, authorized, a real deployed contract — happen to hold. There is no plausible
+ *         "the fake address explains this" story for this code family.)
  *     other/generic code (scecInvalidAction, scecInternalError,
  *     scecMissingValue, scecExceededLimit, ...), nestedCallCount=0
  *       → UNEXPECTED_ERROR — CONSERVATIVE, NOT PRECONDITION_FAIL. A root-level
@@ -280,12 +284,24 @@ const STRONG_RUNTIME_FAULT_CODES = new Set(['scecArithDomain', 'scecIndexBounds'
  *         two real Testnet traces (initialize, swap_exact_in — both
  *         WasmVm/InvalidAction, single fn_call frame) this analyzer was
  *         built and verified against.
- *     other/generic code, nestedCallCount>=1 (root-attributed)               → POTENTIAL_VULN (real nested-call
- *         activity recorded before a trap confirmed to be the root's own — the
- *         "trivial precondition check at entry" explanation doesn't fit)
+ *     other/generic code, nestedCallCount>=1 (root-attributed), hasUnverifiedAddressArg=false
+ *       → POTENTIAL_VULN (real nested-call activity recorded before a trap confirmed to be the root's own,
+ *         AND no Address-typed parameter exists whose fabricated/unverified semantics could explain the
+ *         nested call reaching a wall — the "trivial precondition check at entry" explanation doesn't fit,
+ *         and neither does "our fake address tripped a downstream precondition")
+ *     other/generic code, nestedCallCount>=1 (root-attributed), hasUnverifiedAddressArg=true
+ *       → UNEXPECTED_ERROR, NOT POTENTIAL_VULN. type-correct input != semantically valid input: the call
+ *         includes at least one Address parameter this fuzzer fabricated (a random, unfunded, unauthorized
+ *         keypair — see type_gen.ts baseline()), never a real externally-supplied address. A generic host
+ *         trap reached only after nested/cross-contract activity is EXACTLY the shape produced when that
+ *         fabricated address trips a downstream contract's own precondition (missing balance/trustline/auth
+ *         on a token call, for example) and the root contract's error handling for that case happens to
+ *         panic instead of returning a clean Error. We cannot rule that story out, so we do not escalate —
+ *         "runtime behavior suspicious, but semantic preconditions are not established."
  */
 export function classifyErrorFromTrace(
 	analysis: DiagnosticTraceAnalysis,
+	hasUnverifiedAddressArg: boolean,
 ): {signal: VulnerabilitySignal; details: string} {
 	if (analysis.errors.length === 0) {
 		return {
@@ -357,15 +373,33 @@ export function classifyErrorFromTrace(
 						};
 			}
 
-			return analysis.nestedCallCount === 0
-				? {
-						signal: 'UNEXPECTED_ERROR',
-						details: `Structured trace shows a root-level generic host trap (${lastError.code ?? 'undecodable ScError'}) with no nested-call activity and no auth signal — cannot distinguish a genuine unguarded panic from a precondition guard implemented via panic. Inconclusive from the trace alone; flagged for manual review, not confirmed as either safe or a bug. ${depthNote}.`,
-					}
-				: {
-						signal: 'POTENTIAL_VULN',
-						details: `Structured trace shows a generic host trap (${lastError.code ?? 'undecodable ScError'}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — the trivial "precondition check at entry" explanation doesn't fit. ${depthNote}.`,
-					};
+			if (analysis.nestedCallCount === 0) {
+				return {
+					signal: 'UNEXPECTED_ERROR',
+					details: `Structured trace shows a root-level generic host trap (${lastError.code ?? 'undecodable ScError'}) with no nested-call activity and no auth signal — cannot distinguish a genuine unguarded panic from a precondition guard implemented via panic. Inconclusive from the trace alone; flagged for manual review, not confirmed as either safe or a bug. ${depthNote}.`,
+				};
+			}
+
+			// Nested activity happened AND the trap is confirmed root-attributed —
+			// but if the call includes an Address parameter, that address is a
+			// fuzzer-fabricated, unfunded, unauthorized keypair (never a real
+			// externally-supplied one — see type_gen.ts baseline()). A generic
+			// trap reached only after crossing into another contract is exactly
+			// the shape produced by that fake address tripping a downstream
+			// precondition (missing balance/trustline/auth), not necessarily a
+			// bug in the contract under test. Semantic validity of the input is
+			// UNKNOWN, so we do not escalate on nesting alone in that case.
+			if (hasUnverifiedAddressArg) {
+				return {
+					signal: 'UNEXPECTED_ERROR',
+					details: `Structured trace shows a generic host trap (${lastError.code ?? 'undecodable ScError'}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — runtime behavior is suspicious (real nested-call activity occurred), but this call includes at least one Address parameter this fuzzer fabricated (unfunded/unauthorized), so semantic validity of the input is not established. Not escalated: could be the root contract mishandling a downstream precondition failure caused by our fake address, not a genuine bug. ${depthNote}.`,
+				};
+			}
+
+			return {
+				signal: 'POTENTIAL_VULN',
+				details: `Structured trace shows a generic host trap (${lastError.code ?? 'undecodable ScError'}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — the trivial "precondition check at entry" explanation doesn't fit, and this call has no Address-typed parameter whose fabricated semantics could otherwise explain the nested call hitting a wall. ${depthNote}.`,
+			};
 		}
 
 		// AUTH is handled earlier via analysis.hasAuthError — unreachable here,
@@ -390,9 +424,10 @@ function classifyError(
 	vectorName: string,
 	functionName: string,
 	diagnosticEvents: xdr.DiagnosticEvent[],
+	hasUnverifiedAddressArg: boolean,
 ): {signal: VulnerabilitySignal; details: string} {
 	if (diagnosticEvents.length > 0) {
-		return classifyErrorFromTrace(analyzeDiagnosticTrace(diagnosticEvents));
+		return classifyErrorFromTrace(analyzeDiagnosticTrace(diagnosticEvents), hasUnverifiedAddressArg);
 	}
 
 	return classifyErrorFromString(msg, code, vectorName, functionName);
@@ -424,6 +459,15 @@ function classifyError(
  *   - failure → the execution classification is reported as-is, with no
  *     vector-level reinterpretation (there's no "expected to fail" framing
  *     to layer on top of a plain function call).
+ *
+ * `hasUnverifiedAddressArg` tells the trace classifier whether this call's
+ * arguments include an Address-typed parameter — which this fuzzer always
+ * fills with a fabricated, unfunded, unauthorized keypair (see
+ * type_gen.ts baseline()), never a real externally-known address. It is
+ * used to withhold a POTENTIAL_VULN escalation when the only evidence for
+ * it (nested-call activity before a root-attributed generic trap) could
+ * equally be explained by that fabricated address failing a downstream
+ * precondition — see classifyErrorFromTrace().
  */
 export function parseInvokeResult(
 	result: InvokeResult,
@@ -431,6 +475,7 @@ export function parseInvokeResult(
 	functionName: string,
 	vectorName: string,
 	isAdminFunction: boolean,
+	hasUnverifiedAddressArg: boolean,
 ): ParsedResult {
 	if (result.errorCode === 'TIMEOUT') {
 		return {
@@ -450,6 +495,7 @@ export function parseInvokeResult(
 			vectorName,
 			functionName,
 			result.diagnosticEvents,
+			hasUnverifiedAddressArg,
 		);
 
 		if (expectedToFail) {
