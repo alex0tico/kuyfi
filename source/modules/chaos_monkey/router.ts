@@ -22,6 +22,16 @@ export interface InvokeResult {
 	errorCode: string | null;
 	errorMessage: string | null;
 	simulationFailed: boolean;
+	/**
+	 * Structured DiagnosticEvent array as returned by Soroban RPC, preserved
+	 * as-is (never stringified). Source depends on the outcome:
+	 *   - simulation error  → simResult.events (always present, per SDK)
+	 *   - SEND_ERROR        → sendResult.diagnosticEvents ?? []
+	 *   - success / TX_FAILED → pollResult.diagnosticEventsXdr ?? []
+	 *   - TIMEOUT / EXCEPTION → [] (no RPC response to read events from)
+	 * Always an array — absence of events is [], never omitted or thrown.
+	 */
+	diagnosticEvents: xdr.DiagnosticEvent[];
 }
 
 const BASE_FEE = '100';
@@ -65,6 +75,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 				errorCode: 'SIMULATION_ERROR',
 				errorMessage: simResult.error,
 				simulationFailed: true,
+				diagnosticEvents: simResult.events,
 			};
 		}
 
@@ -81,6 +92,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 				errorCode: 'SEND_ERROR',
 				errorMessage: 'Network rejected transaction before broadcast',
 				simulationFailed: false,
+				diagnosticEvents: sendResult.diagnosticEvents ?? [],
 			};
 		}
 
@@ -101,6 +113,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 					errorCode: null,
 					errorMessage: null,
 					simulationFailed: false,
+					diagnosticEvents: pollResult.diagnosticEventsXdr ?? [],
 				};
 			}
 
@@ -112,6 +125,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 					errorCode: 'TX_FAILED',
 					errorMessage: 'Transaction failed during on-chain execution',
 					simulationFailed: false,
+					diagnosticEvents: pollResult.diagnosticEventsXdr ?? [],
 				};
 			}
 			// NOT_FOUND — still pending, keep polling
@@ -124,6 +138,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 			errorCode: 'TIMEOUT',
 			errorMessage: `Transaction not confirmed after ${MAX_POLL_ATTEMPTS} polling attempts`,
 			simulationFailed: false,
+			diagnosticEvents: [],
 		};
 	} catch (error) {
 		return {
@@ -133,6 +148,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 			errorCode: 'EXCEPTION',
 			errorMessage: error instanceof Error ? error.message : String(error),
 			simulationFailed: false,
+			diagnosticEvents: [],
 		};
 	}
 }

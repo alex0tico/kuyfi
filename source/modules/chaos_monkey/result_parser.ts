@@ -1,4 +1,7 @@
+import type {xdr} from '@stellar/stellar-sdk';
 import type {InvokeResult} from './router.js';
+import {analyzeDiagnosticTrace} from './trace_analyzer.js';
+import type {DiagnosticTraceAnalysis} from './trace_analyzer.js';
 
 export type VulnerabilitySignal =
 	| 'SECURE'
@@ -78,7 +81,17 @@ export function signalToSeverity(signal: VulnerabilitySignal, isAdminFunction: b
  */
 const INIT_FUNCTION_PATTERNS = ['initialize', 'init', 'setup'];
 
-function classifyError(
+/**
+ * String/errorCode-based classifier — FALLBACK ONLY.
+ *
+ * Used exclusively when diagnosticEvents.length === 0 (no structured trace
+ * available, e.g. an RPC provider with diagnostics disabled, or a TIMEOUT/
+ * EXCEPTION outcome that never produced an RPC response to read events
+ * from). When a structured trace is available, classifyErrorFromTrace() is
+ * used instead and this function is not consulted — the two sources are
+ * never blended for a single result.
+ */
+export function classifyErrorFromString(
 	msg: string | null,
 	code: string | null,
 	vectorName: string,
@@ -208,19 +221,209 @@ function classifyError(
 	};
 }
 
+// Codes with a documented Soroban/XDR meaning that essentially never arises
+// from a deliberate contract-level guard: arithmetic overflow/div-by-zero and
+// out-of-bounds indexing are runtime-safety faults, not error-signaling idioms
+// a contract author would use on purpose. scecExceededLimit was previously
+// included here but is NOT — it commonly fires on host-level size/resource
+// limits, including exactly the oversized-input attack vectors this fuzzer
+// itself sends (OVERSIZE_SYMBOL, LARGE_BYTES, ...), where tripping the limit
+// is the CORRECT/expected host behavior, not evidence of a bug.
+const STRONG_RUNTIME_FAULT_CODES = new Set(['scecArithDomain', 'scecIndexBounds']);
+
+/**
+ * Structured-trace classifier — PRIMARY SOURCE when diagnosticEvents is
+ * non-empty. Reasons purely from the real xdr.DiagnosticEvent[] array (via
+ * analyzeDiagnosticTrace()), never from errorMessage text.
+ *
+ * Guiding rule: ambiguity must not become either a vulnerability claim or a
+ * security claim. Where the trace doesn't contain positive evidence for one
+ * specific cause, the result is UNEXPECTED_ERROR — the taxonomy's honest
+ * "inconclusive, needs review" bucket (MEDIUM, appears in findings, but
+ * asserts neither SECURE nor POTENTIAL_VULN).
+ *
+ * Decision table:
+ *   no decodable error event in trace          → UNEXPECTED_ERROR (trace present but doesn't explain the failure)
+ *   any error anywhere has category AUTH       → PRECONDITION_FAIL (confident: sceAuth is a structural, XDR-typed
+ *       signal that the Soroban auth framework itself rejected the call)
+ *   last error category CONTRACT               → SECURE (confident: contract's own business-logic rejection)
+ *   last error category CONTEXT                → SECURE (confident: reserved/context function)
+ *   last error category OBJECT                 → SECURE (confident: host address/object mismatch, expected with
+ *       random test addresses)
+ *   last error category STORAGE                → UNEXPECTED_ERROR (reached storage before failing — verify auth ordering)
+ *   last error category OTHER (sceCrypto/sceEvents/sceBudget/sceValue)      → UNEXPECTED_ERROR (rare, no strong
+ *       domain reasoning yet)
+ *   last error WASM_VM/UNKNOWN, nestedCallCount>=1 AND failureLocation!=='ROOT'
+ *     → UNEXPECTED_ERROR, REGARDLESS OF CODE. The failure is attributed (or its
+ *       attribution is unknown) to a NESTED/callee contract, not the contract
+ *       under test — do not automatically credit or blame the root contract for
+ *       a callee's fault. This is exactly SOW category (c), "nested failed
+ *       cross-contract call": we can name the pattern, but the trace alone
+ *       doesn't tell us whether it's the root's bug (didn't validate before
+ *       calling out) or the callee's own precondition (e.g. missing balance).
+ *   last error WASM_VM/UNKNOWN, root-attributed (nestedCallCount===0, OR
+ *   nestedCallCount>=1 AND failureLocation==='ROOT'):
+ *     strong fault code (scecArithDomain/scecIndexBounds), nestedCallCount=0  → UNCONTROLLED_PANIC (confident
+ *         runtime-safety fault at root — real robustness signal, not yet confirmed exploitable)
+ *     strong fault code, nestedCallCount>=1 (root-attributed)                → POTENTIAL_VULN (confident fault +
+ *         real nested activity + confirmed root attribution — strongest justified escalation)
+ *     other/generic code (scecInvalidAction, scecInternalError,
+ *     scecMissingValue, scecExceededLimit, ...), nestedCallCount=0
+ *       → UNEXPECTED_ERROR — CONSERVATIVE, NOT PRECONDITION_FAIL. A root-level
+ *         generic host trap with no nested-call activity and no auth signal
+ *         cannot be distinguished, from the trace alone, between a genuine
+ *         unguarded panic and a precondition guard implemented via
+ *         panic!()/.unwrap() instead of a clean Error(Contract,...).
+ *         PRECONDITION_FAIL would assert a cause (benign precondition) the
+ *         trace doesn't actually prove — UNEXPECTED_ERROR states the honest
+ *         "inconclusive" position instead. This is exactly the shape of the
+ *         two real Testnet traces (initialize, swap_exact_in — both
+ *         WasmVm/InvalidAction, single fn_call frame) this analyzer was
+ *         built and verified against.
+ *     other/generic code, nestedCallCount>=1 (root-attributed)               → POTENTIAL_VULN (real nested-call
+ *         activity recorded before a trap confirmed to be the root's own — the
+ *         "trivial precondition check at entry" explanation doesn't fit)
+ */
+export function classifyErrorFromTrace(
+	analysis: DiagnosticTraceAnalysis,
+): {signal: VulnerabilitySignal; details: string} {
+	if (analysis.errors.length === 0) {
+		return {
+			signal: 'UNEXPECTED_ERROR',
+			details: analysis.malformed
+				? `Structured trace present but could not be decoded safely (${analysis.callFrames.length} call frame(s) parsed) — cannot explain the failure from the trace.`
+				: `Structured trace present (${analysis.callFrames.length} call frame(s)) but recorded no error event — cannot explain the failure from the trace.`,
+		};
+	}
+
+	if (analysis.hasAuthError) {
+		return {
+			signal: 'PRECONDITION_FAIL',
+			details: `Structured trace shows an auth rejection (ScError type sceAuth) — test account is not an authorized signer for this call. nestedCallCount=${analysis.nestedCallCount}.`,
+		};
+	}
+
+	const lastError = analysis.errors[analysis.errors.length - 1]!;
+
+	switch (lastError.category) {
+		case 'CONTRACT':
+			return {
+				signal: 'SECURE',
+				details: `Structured trace shows a contract-level rejection (${lastError.code ?? 'ScError(Contract)'}) — expected business-logic validation.`,
+			};
+		case 'CONTEXT':
+			return {
+				signal: 'SECURE',
+				details: 'Structured trace shows a reserved/context error — expected for reserved functions.',
+			};
+		case 'OBJECT':
+			return {
+				signal: 'SECURE',
+				details: 'Structured trace shows a host object/address-type error — expected with random test addresses.',
+			};
+		case 'STORAGE':
+			return {
+				signal: 'UNEXPECTED_ERROR',
+				details: 'Structured trace shows the call reached a storage operation before failing — verify auth is enforced before this point.',
+			};
+		case 'OTHER':
+			return {
+				signal: 'UNEXPECTED_ERROR',
+				details: `Structured trace shows an uncommon host error category (${lastError.code ?? 'unknown'}) — no strong domain classification yet.`,
+			};
+		case 'WASM_VM':
+		case 'UNKNOWN': {
+			const depthNote = `nestedCallCount=${analysis.nestedCallCount}, failureLocation=${analysis.failureLocation}`;
+			const rootAttributed = analysis.nestedCallCount === 0 || analysis.failureLocation === 'ROOT';
+
+			if (!rootAttributed) {
+				return {
+					signal: 'UNEXPECTED_ERROR',
+					details: `Structured trace shows a failure after ${analysis.nestedCallCount} nested call frame(s), attributed to a nested/callee contract rather than the contract under test (${lastError.code ?? 'undecodable ScError'}) — cannot conclude this is the target contract's fault (could be its own bug for not validating before calling out, or the callee's own precondition, e.g. missing balance). ${depthNote}.`,
+				};
+			}
+
+			const isStrongFault = lastError.code !== null && STRONG_RUNTIME_FAULT_CODES.has(lastError.code);
+
+			if (isStrongFault) {
+				return analysis.nestedCallCount === 0
+					? {
+							signal: 'UNCONTROLLED_PANIC',
+							details: `Structured trace shows a root-level runtime-safety fault (${lastError.code}) with no nested-call activity — a real robustness signal (arithmetic/bounds fault), not yet confirmed exploitable. ${depthNote}.`,
+						}
+					: {
+							signal: 'POTENTIAL_VULN',
+							details: `Structured trace shows a runtime-safety fault (${lastError.code}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — stronger candidate, real execution activity recorded before the trap. ${depthNote}.`,
+						};
+			}
+
+			return analysis.nestedCallCount === 0
+				? {
+						signal: 'UNEXPECTED_ERROR',
+						details: `Structured trace shows a root-level generic host trap (${lastError.code ?? 'undecodable ScError'}) with no nested-call activity and no auth signal — cannot distinguish a genuine unguarded panic from a precondition guard implemented via panic. Inconclusive from the trace alone; flagged for manual review, not confirmed as either safe or a bug. ${depthNote}.`,
+					}
+				: {
+						signal: 'POTENTIAL_VULN',
+						details: `Structured trace shows a generic host trap (${lastError.code ?? 'undecodable ScError'}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — the trivial "precondition check at entry" explanation doesn't fit. ${depthNote}.`,
+					};
+		}
+
+		// AUTH is handled earlier via analysis.hasAuthError — unreachable here,
+		// but kept as a safe, conservative default rather than an assertion.
+		default:
+			return {
+				signal: 'UNEXPECTED_ERROR',
+				details: `Structured trace produced an unrecognized error category (${lastError.category as string}) — conservative fallback.`,
+			};
+	}
+}
+
+/**
+ * Dispatches to the structured-trace classifier when a real DiagnosticEvent[]
+ * trace is available, falling back to the legacy string/errorCode classifier
+ * only when it isn't. The two sources are never combined for one result —
+ * whichever is used produces the signal on its own.
+ */
+function classifyError(
+	msg: string | null,
+	code: string | null,
+	vectorName: string,
+	functionName: string,
+	diagnosticEvents: xdr.DiagnosticEvent[],
+): {signal: VulnerabilitySignal; details: string} {
+	if (diagnosticEvents.length > 0) {
+		return classifyErrorFromTrace(analyzeDiagnosticTrace(diagnosticEvents));
+	}
+
+	return classifyErrorFromString(msg, code, vectorName, functionName);
+}
+
 /**
  * Maps a raw InvokeResult to a structured ParsedResult.
  *
+ * This function draws a deliberate line between two different questions:
+ *   A. Execution classification — "what happened technically?" This is
+ *      entirely classifyError()'s job (trace-primary or string-fallback).
+ *   B. Vector outcome — "what does that mean for the attack vector we were
+ *      running?" This is this function's job, layered ON TOP of (A).
+ *
+ * For an access-control vector (expectedToFail = true), a rejected call is
+ * only reinterpreted as a vector-level SECURE ("the access-control check
+ * worked") when the execution layer gave a CONFIDENT non-vulnerability
+ * verdict — SECURE (contract/context/object rejection) or PRECONDITION_FAIL
+ * (a structural auth rejection, or a confident string-fallback match). Any
+ * other execution signal — POTENTIAL_VULN, UNCONTROLLED_PANIC, and
+ * critically UNEXPECTED_ERROR (the taxonomy's "inconclusive" bucket) — is
+ * passed through unchanged. The trace classifier itself never knows which
+ * vector produced the call it's looking at, so it must not have its
+ * inconclusive verdicts silently upgraded into a vector-level security claim
+ * here; only a confident execution verdict earns that upgrade.
+ *
  * Math vectors (expectedToFail = false):
  *   - success → SECURE
- *   - TX_FAILED → PRECONDITION_FAIL (LOW) — simulation passed, on-chain state issue
- *   - other failure → classify the error message; WASM panics are POTENTIAL_VULN
- *     (deep call trace) or UNCONTROLLED_PANIC (trap right at function entry)
- *
- * Access control vectors (expectedToFail = true):
- *   - success → POTENTIAL_VULN (access bypass)
- *   - failure → SECURE if rejected for expected reasons; POTENTIAL_VULN /
- *     UNCONTROLLED_PANIC for WASM panics
+ *   - failure → the execution classification is reported as-is, with no
+ *     vector-level reinterpretation (there's no "expected to fail" framing
+ *     to layer on top of a plain function call).
  */
 export function parseInvokeResult(
 	result: InvokeResult,
@@ -241,15 +444,28 @@ export function parseInvokeResult(
 	}
 
 	if (!result.success) {
-		const classified = classifyError(result.errorMessage, result.errorCode, vectorName, functionName);
+		const classified = classifyError(
+			result.errorMessage,
+			result.errorCode,
+			vectorName,
+			functionName,
+			result.diagnosticEvents,
+		);
 
 		if (expectedToFail) {
-			// Access control vector: contract rejected the attack — SECURE unless it
-			// was actually a WASM panic (POTENTIAL_VULN or UNCONTROLLED_PANIC)
-			if (classified.signal === 'POTENTIAL_VULN' || classified.signal === 'UNCONTROLLED_PANIC') {
+			// Access control vector: only a CONFIDENT non-vulnerability execution
+			// verdict earns a vector-level SECURE ("the access-control check
+			// worked"). SECURE = confident business-logic/context/object
+			// rejection; PRECONDITION_FAIL = a confident auth rejection (either
+			// the trace's structural sceAuth, or the string fallback's own
+			// confident matches). Anything else — including UNEXPECTED_ERROR,
+			// the taxonomy's inconclusive bucket — is passed through unchanged:
+			// the rejection may still be a correct access-control outcome, but
+			// this layer does not assert that on ambiguous evidence.
+			if (classified.signal === 'SECURE' || classified.signal === 'PRECONDITION_FAIL') {
 				return {
-					signal: classified.signal,
-					severity: signalToSeverity(classified.signal, isAdminFunction),
+					signal: 'SECURE',
+					severity: 'INFO',
 					details: classified.details,
 					rawErrorCode: result.errorCode,
 					functionName,
@@ -258,8 +474,8 @@ export function parseInvokeResult(
 			}
 
 			return {
-				signal: 'SECURE',
-				severity: 'INFO',
+				signal: classified.signal,
+				severity: signalToSeverity(classified.signal, isAdminFunction),
 				details: classified.details,
 				rawErrorCode: result.errorCode,
 				functionName,
