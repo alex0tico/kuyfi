@@ -1,5 +1,11 @@
 import test from 'ava';
-import {selectCliMode, runHeadlessAudit, describeAuditError, defaultReportFileName} from './cli_runtime.js';
+import {
+	selectCliMode,
+	runHeadlessAudit,
+	describeAuditError,
+	defaultReportFileName,
+	defaultPdfReportFileName,
+} from './cli_runtime.js';
 import {ScanError} from './scanner.js';
 import type {ScanResult} from './scanner.js';
 import type {ChaosReport} from './chaos_monkey/index.js';
@@ -177,6 +183,102 @@ test('defaultReportFileName is stable and filesystem-safe', t => {
 	t.is(defaultReportFileName('kyf-20260909T120000Z-a1b2c3d4'), 'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.json');
 	// Defensive sanitization even if reportId's format ever changes.
 	t.is(defaultReportFileName('weird/../id'), 'kuyfi-report-weird_.._id.json');
+});
+
+// --- D2.4 — --pdf output and the --json --pdf single-run guarantee ---------
+
+test('defaultPdfReportFileName mirrors defaultReportFileName\'s convention, with a .pdf extension', t => {
+	t.is(defaultPdfReportFileName('kyf-20260909T120000Z-a1b2c3d4'), 'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.pdf');
+	t.is(defaultPdfReportFileName('weird/../id'), 'kuyfi-report-weird_.._id.pdf');
+});
+
+test('headless with --pdf writes a PDF file via renderSecurityReportPdf, without calling the real PDF renderer', async t => {
+	const contractId = `C${'I'.repeat(55)}`;
+	let renderedReport: {reportId: string} | undefined;
+	let writtenPath: string | undefined;
+	let writtenIsBuffer = false;
+
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => fakeChaosReport(contractId),
+		writePdf: true,
+		renderPdf: async report => {
+			renderedReport = report;
+			return Buffer.from('%PDF-fake-content');
+		},
+		writeFile: async (path, data) => {
+			writtenPath = path as string;
+			writtenIsBuffer = Buffer.isBuffer(data);
+		},
+	});
+
+	t.is(result.exitCode, 0);
+	t.truthy(result.pdfFilePath);
+	t.is(writtenPath, result.pdfFilePath ?? undefined);
+	t.true(writtenIsBuffer);
+	t.true(result.output!.includes('PDF report written to'));
+	t.regex(result.pdfFilePath!, /\.pdf$/);
+	t.truthy(renderedReport, 'the injected renderPdf must have been invoked');
+});
+
+test('a PDF file collision (EEXIST) does not silently overwrite: exitCode 1, clear message, distinct from JSON wording', async t => {
+	const contractId = `C${'J'.repeat(55)}`;
+
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => fakeChaosReport(contractId),
+		writePdf: true,
+		renderPdf: async () => Buffer.from('%PDF-fake-content'),
+		writeFile: async () => {
+			const error = new Error('file already exists') as NodeJS.ErrnoException;
+			error.code = 'EEXIST';
+			throw error;
+		},
+	});
+
+	t.is(result.exitCode, 1);
+	t.is(result.pdfFilePath, null);
+	t.true(result.errorOutput!.toLowerCase().includes('refusing to overwrite'));
+	t.true(result.errorOutput!.endsWith('.pdf'));
+});
+
+test('--json --pdf together: runAudit and buildSecurityReport each run exactly once, and both files come from the SAME SecurityReport (same reportId)', async t => {
+	const contractId = `C${'K'.repeat(55)}`;
+	let auditCallCount = 0;
+	let renderCallCount = 0;
+	let jsonReportId: string | undefined;
+	let pdfReportId: string | undefined;
+	const writes: Array<{path: string; isBuffer: boolean}> = [];
+
+	const result = await runHeadlessAudit(contractId, {
+		runAudit: async () => {
+			auditCallCount++;
+			return {scan: fakeScanResult(contractId), chaos: fakeChaosReport(contractId)};
+		},
+		writeJson: true,
+		writePdf: true,
+		renderPdf: async report => {
+			renderCallCount++;
+			pdfReportId = report.reportId;
+			return Buffer.from('%PDF-fake-content');
+		},
+		writeFile: async (path, data) => {
+			writes.push({path: path as string, isBuffer: Buffer.isBuffer(data)});
+			if (!Buffer.isBuffer(data)) {
+				jsonReportId = (JSON.parse(data as string) as {reportId: string}).reportId;
+			}
+		},
+	});
+
+	t.is(auditCallCount, 1, 'runAudit must run exactly once');
+	t.is(renderCallCount, 1, 'the PDF renderer must run exactly once');
+	t.is(writes.length, 2, 'exactly one JSON write and one PDF write');
+	t.is(result.exitCode, 0);
+	t.truthy(result.reportFilePath);
+	t.truthy(result.pdfFilePath);
+	t.not(result.reportFilePath, result.pdfFilePath);
+	t.truthy(jsonReportId);
+	t.is(jsonReportId, pdfReportId, 'JSON and PDF must share the exact same reportId — one SecurityReport, not two');
 });
 
 test('describeAuditError maps every ScanError code to a distinct, clear message', t => {

@@ -8,10 +8,11 @@ import { selectCliMode, runHeadlessAudit } from './modules/cli_runtime.js';
 const cli = meow(
 	`
 	Usage
-	  $ kuyfi [CONTRACT_ID] [--json]
+	  $ kuyfi [CONTRACT_ID] [--json] [--pdf]
 
 	Options
 	  --json    Also write a SecurityReport JSON file (kuyfi-report-<id>.json)
+	  --pdf     Also write a SecurityReport PDF file (kuyfi-report-<id>.pdf)
 
 	Examples
 	  $ kuyfi
@@ -23,11 +24,15 @@ const cli = meow(
 
 	  $ kuyfi CDV...(56 chars) --json
 	      Same, and also write kuyfi-report-<reportId>.json in the current directory.
+
+	  $ kuyfi CDV...(56 chars) --json --pdf
+	      Same, writing both files from the SAME SecurityReport (one audit run).
 `,
 	{
 		importMeta: import.meta,
 		flags: {
 			json: {type: 'boolean', default: false},
+			pdf: {type: 'boolean', default: false},
 		},
 	},
 );
@@ -49,6 +54,7 @@ async function main() {
 				console.log(message);
 			},
 			writeJson: cli.flags.json,
+			writePdf: cli.flags.pdf,
 		});
 
 		if (result.errorOutput) {

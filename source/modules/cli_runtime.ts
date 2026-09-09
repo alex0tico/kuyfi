@@ -3,6 +3,8 @@ import {isValidContractId, ScanError} from './scanner.js';
 import {runAudit, formatAuditSummary} from './audit.js';
 import type {RunAuditOptions} from './audit.js';
 import {buildSecurityReport, serializeSecurityReport} from './security_report.js';
+import type {SecurityReport} from './security_report.js';
+import {renderSecurityReportPdf} from './pdf_report.js';
 
 export type CliMode =
 	| {kind: 'tui'}
@@ -45,6 +47,8 @@ export interface HeadlessRunResult {
 	errorOutput: string | null;
 	/** Set only when --json was requested AND the file write succeeded. */
 	reportFilePath: string | null;
+	/** Set only when --pdf was requested AND the file write succeeded. */
+	pdfFilePath: string | null;
 }
 
 /** `kuyfi-report-<reportId>.json` — reportId is already filename-safe by construction, but this stays defensive if that ever changes. */
@@ -53,64 +57,117 @@ export function defaultReportFileName(reportId: string): string {
 	return `kuyfi-report-${safe}.json`;
 }
 
+/** `kuyfi-report-<reportId>.pdf` — same naming/sanitization convention as the JSON output. */
+export function defaultPdfReportFileName(reportId: string): string {
+	const safe = reportId.replace(/[^A-Za-z0-9._-]/g, '_');
+	return `kuyfi-report-${safe}.pdf`;
+}
+
+/** Shared collision-safe write policy for both --json and --pdf: 'wx' throws EEXIST rather than silently overwriting. */
+function describeWriteError(error: unknown, fileName: string, kind: 'JSON' | 'PDF'): string {
+	const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined;
+	if (code === 'EEXIST') {
+		return `Refusing to overwrite existing file: ${fileName}`;
+	}
+
+	return `Failed to write ${kind} report: ${error instanceof Error ? error.message : String(error)}`;
+}
+
 /**
  * Runs one full headless audit and maps the outcome to a process exit code.
  * A THROWN error (invalid scan, RPC failure, Chaos Monkey internal failure)
  * is a tool failure → exitCode 1. A completed run is exitCode 0 regardless
  * of what severities the findings inside it carry — a security finding is
- * never confused with a tool error. When `writeJson` is set, building and
- * writing the SecurityReport happens AFTER the audit succeeds, from the
- * SAME AuditRun — never a second scan/Chaos Monkey run.
+ * never confused with a tool error.
+ *
+ * When either `writeJson` or `writePdf` is set, buildSecurityReport() is
+ * called EXACTLY ONCE, after the audit succeeds, from the SAME AuditRun —
+ * never a second scan/Chaos Monkey run, and JSON/PDF (when both are
+ * requested) are always written from that one SecurityReport, so they
+ * always share the same reportId/generatedAt/target/summary/findings.
  *
  * A file-write failure (including refusing to silently overwrite an
  * existing file) IS a tool failure → exitCode 1, same as any other I/O
  * failure — it happens after a successful audit, so it does not retroactively
- * change the audit's own outcome, only the process's final exit code.
+ * change the audit's own outcome, only the process's final exit code. If
+ * JSON succeeds and PDF then fails (or vice versa), the run is still
+ * reported as a tool failure — the successfully-written path is still
+ * surfaced via its own result field for diagnostics.
  */
 export async function runHeadlessAudit(
 	contractId: string,
 	options: RunAuditOptions & {
 		runAudit?: typeof runAudit;
 		writeJson?: boolean;
+		writePdf?: boolean;
 		writeFile?: typeof fsWriteFile;
+		renderPdf?: typeof renderSecurityReportPdf;
 	} = {},
 ): Promise<HeadlessRunResult> {
 	const audit = options.runAudit ?? runAudit;
 	const write = options.writeFile ?? fsWriteFile;
+	const render = options.renderPdf ?? renderSecurityReportPdf;
 
 	let auditRun;
 	try {
 		auditRun = await audit(contractId, options);
 	} catch (error) {
-		return {exitCode: 1, output: null, errorOutput: describeAuditError(error), reportFilePath: null};
+		return {exitCode: 1, output: null, errorOutput: describeAuditError(error), reportFilePath: null, pdfFilePath: null};
 	}
 
 	const {scan, chaos} = auditRun;
 	const summaryText = formatAuditSummary(scan, chaos);
 
-	if (!options.writeJson) {
-		return {exitCode: 0, output: summaryText, errorOutput: null, reportFilePath: null};
+	if (!options.writeJson && !options.writePdf) {
+		return {exitCode: 0, output: summaryText, errorOutput: null, reportFilePath: null, pdfFilePath: null};
 	}
 
-	const securityReport = buildSecurityReport(auditRun);
-	const fileName = defaultReportFileName(securityReport.reportId);
+	// ONE SecurityReport, shared by both formats — never rebuilt per format.
+	const securityReport: SecurityReport = buildSecurityReport(auditRun);
+	const outputLines = [summaryText];
+	let reportFilePath: string | null = null;
+	let pdfFilePath: string | null = null;
 
-	try {
-		// 'wx' = create-exclusive: throws EEXIST rather than silently overwriting.
-		await write(fileName, serializeSecurityReport(securityReport), {encoding: 'utf8', flag: 'wx'});
-	} catch (writeError) {
-		const code = writeError instanceof Error ? (writeError as NodeJS.ErrnoException).code : undefined;
-		const message =
-			code === 'EEXIST'
-				? `Refusing to overwrite existing file: ${fileName}`
-				: `Failed to write JSON report: ${writeError instanceof Error ? writeError.message : String(writeError)}`;
-		return {exitCode: 1, output: null, errorOutput: message, reportFilePath: null};
+	if (options.writeJson) {
+		const fileName = defaultReportFileName(securityReport.reportId);
+		try {
+			await write(fileName, serializeSecurityReport(securityReport), {encoding: 'utf8', flag: 'wx'});
+			reportFilePath = fileName;
+			outputLines.push(`JSON report written to: ${fileName}`);
+		} catch (writeError) {
+			return {
+				exitCode: 1,
+				output: null,
+				errorOutput: describeWriteError(writeError, fileName, 'JSON'),
+				reportFilePath: null,
+				pdfFilePath: null,
+			};
+		}
+	}
+
+	if (options.writePdf) {
+		const fileName = defaultPdfReportFileName(securityReport.reportId);
+		try {
+			const pdfBuffer = await render(securityReport);
+			await write(fileName, pdfBuffer, {flag: 'wx'});
+			pdfFilePath = fileName;
+			outputLines.push(`PDF report written to: ${fileName}`);
+		} catch (writeError) {
+			return {
+				exitCode: 1,
+				output: null,
+				errorOutput: describeWriteError(writeError, fileName, 'PDF'),
+				reportFilePath,
+				pdfFilePath: null,
+			};
+		}
 	}
 
 	return {
 		exitCode: 0,
-		output: `${summaryText}\n\nJSON report written to: ${fileName}`,
+		output: outputLines.join('\n\n'),
 		errorOutput: null,
-		reportFilePath: fileName,
+		reportFilePath,
+		pdfFilePath,
 	};
 }

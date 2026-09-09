@@ -1,0 +1,406 @@
+import PDFDocument from 'pdfkit';
+import type {SecurityReport, PublicFinding, PublicUdtDef, PublicVerificationTransaction} from './security_report.js';
+
+/**
+ * Renders SecurityReport → PDF. Deliberately imports NOTHING from
+ * trace_analyzer.ts, result_parser.ts, fuzzer_*.ts, or router.ts — only
+ * security_report.ts's already-public types. This file does not know how
+ * Kuyfi decided a finding; it only knows how to print one.
+ *
+ * No re-scan, no re-Chaos-Monkey run, no reclassification, no new reportId:
+ * every value drawn below is read directly off the SecurityReport passed in.
+ */
+
+const DARK = '#0E1113';
+const GOLD = '#B8860B'; // slightly darkened from #EBB700 for legible text/rule contrast on white paper
+const PURPLE = '#8E2F87';
+const GRAY = '#555555';
+const LIGHT_GRAY = '#888888';
+
+const PAGE_MARGIN = 50;
+
+function contentWidth(doc: PDFKit.PDFDocument): number {
+	return doc.page.width - doc.page.margins.left - doc.page.margins.right;
+}
+
+/** Forces a page break if the next block wouldn't fit in the remaining space. Not a full layout engine — just prevents the worst orphaned-heading cases. */
+function ensureSpace(doc: PDFKit.PDFDocument, minHeight: number): void {
+	const bottom = doc.page.height - doc.page.margins.bottom;
+	if (doc.y + minHeight > bottom) {
+		doc.addPage();
+	}
+}
+
+function rule(doc: PDFKit.PDFDocument, color = GOLD): void {
+	const y = doc.y;
+	doc
+		.save()
+		.moveTo(doc.page.margins.left, y)
+		.lineTo(doc.page.width - doc.page.margins.right, y)
+		.lineWidth(1.5)
+		.strokeColor(color)
+		.stroke()
+		.restore();
+	doc.moveDown(0.6);
+}
+
+function sectionHeading(doc: PDFKit.PDFDocument, title: string): void {
+	ensureSpace(doc, 60);
+	doc.moveDown(0.5);
+	doc.fillColor(DARK).font('Helvetica-Bold').fontSize(16).text(title, {width: contentWidth(doc)});
+	doc.moveDown(0.3);
+	rule(doc);
+	doc.fillColor(DARK).font('Helvetica').fontSize(10);
+}
+
+function subHeading(doc: PDFKit.PDFDocument, title: string): void {
+	ensureSpace(doc, 30);
+	doc.moveDown(0.4);
+	doc.fillColor(PURPLE).font('Helvetica-Bold').fontSize(12).text(title, {width: contentWidth(doc)});
+	doc.moveDown(0.2);
+	doc.fillColor(DARK).font('Helvetica').fontSize(10);
+}
+
+function keyValueRow(doc: PDFKit.PDFDocument, label: string, value: string): void {
+	// Must happen BEFORE capturing `y` below: if a page break happened while
+	// drawing the label (because the row started near the bottom margin),
+	// drawing the value at the pre-break `y` would land it on the wrong
+	// page, at the wrong position — this way both columns always share a
+	// `y` already known to be on the current page.
+	ensureSpace(doc, 34); // headroom for a value that wraps onto a second line
+	const width = contentWidth(doc);
+	const labelWidth = 150;
+	const y = doc.y;
+	doc.font('Helvetica-Bold').fontSize(10).fillColor(GRAY).text(label, doc.page.margins.left, y, {width: labelWidth});
+	const afterLabelY = doc.y;
+	doc
+		.font('Helvetica')
+		.fontSize(10)
+		.fillColor(DARK)
+		.text(value, doc.page.margins.left + labelWidth, y, {width: width - labelWidth});
+	doc.y = Math.max(doc.y, afterLabelY);
+	doc.x = doc.page.margins.left; // pdfkit leaves the cursor at the value column's x after an absolute-positioned call — reset it so the next ambient-cursor .text() call doesn't inherit it and overflow the right margin.
+	doc.moveDown(0.3);
+}
+
+function bulletLine(doc: PDFKit.PDFDocument, text: string, options: {mono?: boolean} = {}): void {
+	doc
+		.font(options.mono ? 'Courier' : 'Helvetica')
+		.fontSize(9.5)
+		.fillColor(DARK)
+		.text(`•  ${text}`, {width: contentWidth(doc)});
+	doc.moveDown(0.15);
+}
+
+function clickableUrl(doc: PDFKit.PDFDocument, url: string): void {
+	doc
+		.font('Courier')
+		.fontSize(9)
+		.fillColor(PURPLE)
+		.text(url, {width: contentWidth(doc), link: url, underline: true});
+	doc.fillColor(DARK);
+	doc.moveDown(0.2);
+}
+
+// ─── Section 1: Cover ───────────────────────────────────────────────────────
+
+function renderCover(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+	doc.rect(0, 0, doc.page.width, 180).fill(DARK);
+
+	doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(34).text('KUYFI', PAGE_MARGIN, 60);
+	doc.fillColor(GOLD).font('Helvetica-Bold').fontSize(16).text('BLACK-BOX SECURITY REPORT', PAGE_MARGIN, 105);
+	doc.fillColor('#CCCCCC').font('Helvetica-Oblique').fontSize(11).text('Before the Breach.', PAGE_MARGIN, 130);
+
+	doc.y = 220;
+	doc.fillColor(DARK);
+
+	keyValueRow(doc, 'Contract ID', report.target.contractId);
+	keyValueRow(doc, 'Network', report.target.network.toUpperCase());
+	keyValueRow(doc, 'Report ID', report.reportId);
+	keyValueRow(doc, 'Generated At', report.generatedAt);
+	keyValueRow(doc, 'Tool Version', `Kuyfi ${report.tool.version}`);
+	keyValueRow(doc, 'Schema Version', report.schemaVersion);
+
+	doc.moveDown(2);
+	doc
+		.font('Helvetica')
+		.fontSize(9)
+		.fillColor(LIGHT_GRAY)
+		.text(
+			'This report is generated by automated black-box fuzzing against a deployed Soroban smart contract. It is not a manual audit and does not constitute a formal security certification.',
+			{width: contentWidth(doc)},
+		);
+}
+
+// ─── Section 2: Executive Summary ──────────────────────────────────────────
+
+function renderExecutiveSummary(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+	sectionHeading(doc, '2. Executive Summary');
+
+	keyValueRow(doc, 'Functions detected', String(report.scan.totalFunctions));
+	keyValueRow(doc, 'UDTs detected', String(report.scan.udts.length));
+	keyValueRow(doc, 'Vectors executed', String(report.execution.vectorsExecuted));
+	keyValueRow(doc, 'Broadcast transactions', String(report.execution.broadcastTransactions));
+	keyValueRow(doc, 'Transactions with hash', String(report.execution.transactionsWithHash));
+	keyValueRow(doc, 'Total findings', String(report.summary.totalFindings));
+
+	doc.moveDown(0.3);
+	subHeading(doc, 'Findings by Severity');
+	const s = report.summary.bySeverity;
+	keyValueRow(doc, 'Critical', String(s.critical));
+	keyValueRow(doc, 'High', String(s.high));
+	keyValueRow(doc, 'Medium', String(s.medium));
+	keyValueRow(doc, 'Low', String(s.low));
+	keyValueRow(doc, 'Info', String(s.info));
+}
+
+// ─── Section 3: Attack Surface ──────────────────────────────────────────────
+
+function renderAttackSurface(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+	sectionHeading(doc, '3. Attack Surface');
+
+	subHeading(doc, 'Target');
+	keyValueRow(doc, 'Contract ID', report.target.contractId);
+	keyValueRow(doc, 'Network', report.target.network.toUpperCase());
+	keyValueRow(doc, 'Bytecode size', `${report.target.bytecodeSize} bytes`);
+
+	subHeading(doc, `Functions Detected (${report.scan.functions.length})`);
+	for (const fn of report.scan.functions) {
+		ensureSpace(doc, 30);
+		const params = fn.parameters.length === 0 ? '()' : `(${fn.parameters.map(p => `${p.name}: ${p.type}`).join(', ')})`;
+		bulletLine(doc, `${fn.name}${params} -> ${fn.hasReturn ? 'returns value' : 'void'}`, {mono: true});
+	}
+
+	subHeading(doc, `UDTs Detected (${report.scan.udts.length})`);
+	for (const udt of report.scan.udts) {
+		renderUdt(doc, udt);
+	}
+}
+
+function renderUdt(doc: PDFKit.PDFDocument, udt: PublicUdtDef): void {
+	ensureSpace(doc, 50);
+	doc.font('Helvetica-Bold').fontSize(9.5).fillColor(PURPLE).text(`${udt.kind.toUpperCase()} ${udt.name}`, {width: contentWidth(doc)});
+	doc.fillColor(DARK);
+
+	if (udt.kind === 'struct') {
+		for (const f of udt.fields) bulletLine(doc, `${f.name}: ${f.type}`, {mono: true});
+	} else if (udt.kind === 'enum') {
+		for (const c of udt.cases) bulletLine(doc, `${c.name} = ${c.value}`, {mono: true});
+	} else {
+		for (const c of udt.cases) {
+			const payload = c.valueTypes.length > 0 ? `(${c.valueTypes.join(', ')})` : '';
+			bulletLine(doc, `${c.name}${payload}`, {mono: true});
+		}
+	}
+
+	doc.moveDown(0.3);
+}
+
+// ─── Section 4: Chaos Execution ─────────────────────────────────────────────
+
+function renderChaosExecution(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+	sectionHeading(doc, '4. Chaos Execution');
+
+	doc
+		.font('Helvetica')
+		.fontSize(9.5)
+		.fillColor(GRAY)
+		.text(
+			'Kuyfi performs black-box fuzzing against the deployed Soroban contract using its on-chain contract specification.',
+			{width: contentWidth(doc)},
+		);
+	doc.fillColor(DARK);
+	doc.moveDown(0.5);
+
+	keyValueRow(doc, 'Vectors executed', String(report.execution.vectorsExecuted));
+	keyValueRow(doc, 'Broadcast transactions', String(report.execution.broadcastTransactions));
+	keyValueRow(doc, 'Transactions with hash', String(report.execution.transactionsWithHash));
+	keyValueRow(doc, 'Verification transactions', String(report.execution.verificationTransactions.length));
+}
+
+// ─── Section 5: Findings ─────────────────────────────────────────────────────
+
+function renderFindings(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+	sectionHeading(doc, '5. Findings');
+
+	if (report.findings.length === 0) {
+		ensureSpace(doc, 90);
+		doc.font('Helvetica-Bold').fontSize(12).fillColor(PURPLE).text('NO REPORTABLE FINDINGS', {width: contentWidth(doc)});
+		doc.moveDown(0.4);
+		doc
+			.font('Helvetica')
+			.fontSize(9.5)
+			.fillColor(DARK)
+			.text(
+				'No reportable security findings were produced by this audit run. This does not constitute a formal proof that the contract is vulnerability-free.',
+				{width: contentWidth(doc)},
+			);
+		return;
+	}
+
+	for (const finding of report.findings) {
+		renderFinding(doc, finding);
+	}
+}
+
+function renderFinding(doc: PDFKit.PDFDocument, finding: PublicFinding): void {
+	ensureSpace(doc, 120);
+
+	doc
+		.font('Helvetica-Bold')
+		.fontSize(11)
+		.fillColor(PURPLE)
+		.text(`[${finding.id}] ${finding.severity} — ${finding.signal}`, {width: contentWidth(doc)});
+	doc.fillColor(DARK);
+	doc.moveDown(0.2);
+
+	keyValueRow(doc, 'Function', finding.functionName);
+	keyValueRow(doc, 'Attack vector', finding.vectorName);
+	doc.font('Helvetica').fontSize(9.5).fillColor(DARK).text(`Details: ${finding.details}`, {width: contentWidth(doc)});
+	doc.moveDown(0.3);
+
+	subHeading(doc, 'Evidence');
+	keyValueRow(doc, 'Simulation failed', String(finding.evidence.simulationFailed));
+	keyValueRow(doc, 'Broadcasted', String(finding.evidence.transaction.broadcasted));
+	if (finding.evidence.transaction.hash) {
+		keyValueRow(doc, 'Transaction hash', finding.evidence.transaction.hash);
+	}
+
+	if (finding.evidence.transaction.ledger !== null) {
+		keyValueRow(doc, 'Ledger', String(finding.evidence.transaction.ledger));
+	}
+
+	if (finding.evidence.transaction.explorerUrl) {
+		doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GRAY).text('Explorer URL', {width: contentWidth(doc)});
+		clickableUrl(doc, finding.evidence.transaction.explorerUrl);
+	}
+
+	subHeading(doc, 'Trace Summary');
+	const trace = finding.evidence.trace;
+	keyValueRow(
+		doc,
+		'Root call',
+		trace.rootCall ? `${trace.rootCall.functionName ?? '(unknown)'} @ ${trace.rootCall.contractId ?? '(unknown)'}` : '(none)',
+	);
+	keyValueRow(doc, 'Nested call count', String(trace.nestedCallCount));
+	keyValueRow(doc, 'Involved contracts', trace.involvedContractIds.length > 0 ? trace.involvedContractIds.join(', ') : '(none)');
+	keyValueRow(doc, 'Auth error', String(trace.hasAuthError));
+	keyValueRow(doc, 'Failure location', trace.failureLocation);
+	keyValueRow(doc, 'Malformed trace', String(trace.malformed));
+	if (trace.errors.length > 0) {
+		doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GRAY).text('Errors', {width: contentWidth(doc)});
+		for (const e of trace.errors) {
+			bulletLine(doc, `${e.category}${e.code ? ` (${e.code})` : ''}${e.contractId ? ` @ ${e.contractId}` : ''}`, {mono: true});
+		}
+	}
+
+	doc.moveDown(0.6);
+	rule(doc, LIGHT_GRAY);
+}
+
+// ─── Section 6: Verification ─────────────────────────────────────────────────
+
+function renderVerification(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+	sectionHeading(doc, '6. Verification');
+
+	doc
+		.font('Helvetica')
+		.fontSize(9.5)
+		.fillColor(GRAY)
+		.text(
+			'Real Testnet transactions broadcast during this audit run, provided so every claim above can be independently verified on-chain.',
+			{width: contentWidth(doc)},
+		);
+	doc.fillColor(DARK);
+	doc.moveDown(0.4);
+
+	if (report.execution.verificationTransactions.length === 0) {
+		doc.font('Helvetica-Oblique').fontSize(9.5).fillColor(GRAY).text('No transaction ever reached broadcast during this run.', {
+			width: contentWidth(doc),
+		});
+		return;
+	}
+
+	for (const tx of report.execution.verificationTransactions) {
+		renderVerificationTx(doc, tx);
+	}
+}
+
+function renderVerificationTx(doc: PDFKit.PDFDocument, tx: PublicVerificationTransaction): void {
+	ensureSpace(doc, 90);
+	doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`${tx.functionName} — ${tx.vectorName}`, {width: contentWidth(doc)});
+	doc.moveDown(0.15);
+	if (tx.hash) keyValueRow(doc, 'Transaction hash', tx.hash);
+	if (tx.ledger !== null) keyValueRow(doc, 'Ledger', String(tx.ledger));
+	if (tx.explorerUrl) {
+		doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GRAY).text('Explorer URL', {width: contentWidth(doc)});
+		clickableUrl(doc, tx.explorerUrl);
+	}
+
+	doc.moveDown(0.4);
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
+
+/**
+ * Renders a SecurityReport to PDF bytes. Pure with respect to the report:
+ * every value drawn comes directly from `report`'s fields — no
+ * recalculation of severities, no reclassification, no reading
+ * chaos.summary, no scanning, no RPC calls, no new reportId, and no
+ * mutation of `report` itself.
+ */
+export async function renderSecurityReportPdf(report: SecurityReport): Promise<Buffer> {
+	const doc = new PDFDocument({
+		size: 'A4',
+		margin: PAGE_MARGIN,
+		bufferPages: true,
+		info: {
+			Title: `Kuyfi Security Report — ${report.target.contractId}`,
+			Author: 'Kuyfi',
+		},
+	});
+
+	const chunks: Buffer[] = [];
+	doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+	const finished = new Promise<Buffer>((resolve, reject) => {
+		doc.on('end', () => {
+			resolve(Buffer.concat(chunks));
+		});
+		doc.on('error', reject);
+	});
+
+	renderCover(doc, report);
+	doc.addPage();
+	renderExecutiveSummary(doc, report);
+	renderAttackSurface(doc, report);
+	renderChaosExecution(doc, report);
+	renderFindings(doc, report);
+	renderVerification(doc, report);
+
+	// Footer with page numbers, stamped after all content is laid out —
+	// requires bufferPages so earlier pages are still mutable at this point.
+	// The footer sits inside the page's own bottom margin by design; pdfkit's
+	// overflow protection doesn't know that and would otherwise treat this
+	// draw as content overflowing the page, silently inserting a blank extra
+	// page per real page — temporarily zeroing the bottom margin for this one
+	// draw call avoids that without affecting real content layout at all.
+	const range = doc.bufferedPageRange();
+	for (let i = range.start; i < range.start + range.count; i++) {
+		doc.switchToPage(i);
+		const realBottomMargin = doc.page.margins.bottom;
+		doc.page.margins.bottom = 0;
+		doc
+			.font('Helvetica')
+			.fontSize(8)
+			.fillColor(LIGHT_GRAY)
+			.text(`Kuyfi — page ${i + 1} of ${range.count}`, PAGE_MARGIN, doc.page.height - 35, {
+				width: contentWidth(doc),
+				align: 'center',
+				lineBreak: false,
+			});
+		doc.page.margins.bottom = realBottomMargin;
+	}
+
+	doc.end();
+	return finished;
+}
