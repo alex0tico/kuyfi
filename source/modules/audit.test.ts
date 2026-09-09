@@ -28,6 +28,7 @@ function fakeChaosReport(contractId: string): ChaosReport {
 			broadcastTransactions: 0,
 			transactionsWithHash: 0,
 		},
+		verificationTransactions: [],
 	};
 }
 

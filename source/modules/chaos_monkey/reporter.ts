@@ -3,6 +3,22 @@ import type {FuzzResult} from './fuzzer_math.js';
 
 export type {ExecutionEvidence} from './result_parser.js';
 
+/**
+ * A small, deterministic sample of real transaction evidence from the whole
+ * run — NOT the full result set. Exists because findings[] filters out
+ * SECURE/PRECONDITION_FAIL results, so an audit with zero findings would
+ * otherwise expose no verifiable Testnet transaction at all even when the
+ * run broadcast dozens of them. Added in D2.3.
+ */
+export interface VerificationTransaction {
+	functionName: string;
+	vectorName: string;
+	broadcasted: boolean;
+	success: boolean;
+	transactionHash: string | null;
+	ledger: number | null;
+}
+
 export interface Finding {
 	id: string;
 	severity: Severity;
@@ -42,6 +58,14 @@ export interface ChaosReport {
 		broadcastTransactions: number;
 		transactionsWithHash: number;
 	};
+	/**
+	 * Up to two entries: the first broadcasted+hashed result whose tx
+	 * confirmed SUCCESS, and the first whose tx did not — whichever exist.
+	 * Empty only when nothing in the run ever broadcast. See
+	 * VerificationTransaction's doc comment for why this exists separately
+	 * from findings[].
+	 */
+	verificationTransactions: VerificationTransaction[];
 }
 
 const SEVERITY_ORDER: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
@@ -65,12 +89,19 @@ export function buildReport(contractId: string, results: FuzzResult[]): ChaosRep
 	const uniqueFunctions = new Set(results.map(r => r.target.functionName));
 	const findings: Finding[] = [];
 	let findingIndex = 1;
+	let firstSuccessBroadcast: FuzzResult | null = null;
+	let firstFailedBroadcast: FuzzResult | null = null;
 
 	for (const r of results) {
 		const {severity, signal, evidence} = r.result;
 
 		if (evidence.broadcasted) summary.broadcastTransactions++;
 		if (evidence.transactionHash !== null) summary.transactionsWithHash++;
+
+		if (evidence.broadcasted && evidence.transactionHash !== null) {
+			if (evidence.success && firstSuccessBroadcast === null) firstSuccessBroadcast = r;
+			if (!evidence.success && firstFailedBroadcast === null) firstFailedBroadcast = r;
+		}
 
 		switch (severity) {
 			case 'CRITICAL':
@@ -109,6 +140,17 @@ export function buildReport(contractId: string, results: FuzzResult[]): ChaosRep
 	// Sort findings: CRITICAL first, then by SEVERITY_ORDER
 	findings.sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
 
+	const verificationTransactions: VerificationTransaction[] = [firstSuccessBroadcast, firstFailedBroadcast]
+		.filter((r): r is FuzzResult => r !== null)
+		.map(r => ({
+			functionName: r.result.functionName,
+			vectorName: r.result.vectorName,
+			broadcasted: r.result.evidence.broadcasted,
+			success: r.result.evidence.success,
+			transactionHash: r.result.evidence.transactionHash,
+			ledger: r.result.evidence.ledger,
+		}));
+
 	return {
 		contractId,
 		scannedAt: new Date().toISOString(),
@@ -117,6 +159,7 @@ export function buildReport(contractId: string, results: FuzzResult[]): ChaosRep
 		totalVectorsRun: results.length,
 		findings,
 		summary,
+		verificationTransactions,
 	};
 }
 

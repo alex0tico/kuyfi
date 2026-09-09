@@ -1,6 +1,8 @@
+import {writeFile as fsWriteFile} from 'node:fs/promises';
 import {isValidContractId, ScanError} from './scanner.js';
 import {runAudit, formatAuditSummary} from './audit.js';
 import type {RunAuditOptions} from './audit.js';
+import {buildSecurityReport, serializeSecurityReport} from './security_report.js';
 
 export type CliMode =
 	| {kind: 'tui'}
@@ -41,6 +43,14 @@ export interface HeadlessRunResult {
 	exitCode: 0 | 1;
 	output: string | null;
 	errorOutput: string | null;
+	/** Set only when --json was requested AND the file write succeeded. */
+	reportFilePath: string | null;
+}
+
+/** `kuyfi-report-<reportId>.json` — reportId is already filename-safe by construction, but this stays defensive if that ever changes. */
+export function defaultReportFileName(reportId: string): string {
+	const safe = reportId.replace(/[^A-Za-z0-9._-]/g, '_');
+	return `kuyfi-report-${safe}.json`;
 }
 
 /**
@@ -48,18 +58,59 @@ export interface HeadlessRunResult {
  * A THROWN error (invalid scan, RPC failure, Chaos Monkey internal failure)
  * is a tool failure → exitCode 1. A completed run is exitCode 0 regardless
  * of what severities the findings inside it carry — a security finding is
- * never confused with a tool error.
+ * never confused with a tool error. When `writeJson` is set, building and
+ * writing the SecurityReport happens AFTER the audit succeeds, from the
+ * SAME AuditRun — never a second scan/Chaos Monkey run.
+ *
+ * A file-write failure (including refusing to silently overwrite an
+ * existing file) IS a tool failure → exitCode 1, same as any other I/O
+ * failure — it happens after a successful audit, so it does not retroactively
+ * change the audit's own outcome, only the process's final exit code.
  */
 export async function runHeadlessAudit(
 	contractId: string,
-	options: RunAuditOptions & {runAudit?: typeof runAudit} = {},
+	options: RunAuditOptions & {
+		runAudit?: typeof runAudit;
+		writeJson?: boolean;
+		writeFile?: typeof fsWriteFile;
+	} = {},
 ): Promise<HeadlessRunResult> {
 	const audit = options.runAudit ?? runAudit;
+	const write = options.writeFile ?? fsWriteFile;
+
+	let auditRun;
+	try {
+		auditRun = await audit(contractId, options);
+	} catch (error) {
+		return {exitCode: 1, output: null, errorOutput: describeAuditError(error), reportFilePath: null};
+	}
+
+	const {scan, chaos} = auditRun;
+	const summaryText = formatAuditSummary(scan, chaos);
+
+	if (!options.writeJson) {
+		return {exitCode: 0, output: summaryText, errorOutput: null, reportFilePath: null};
+	}
+
+	const securityReport = buildSecurityReport(auditRun);
+	const fileName = defaultReportFileName(securityReport.reportId);
 
 	try {
-		const {scan, chaos} = await audit(contractId, options);
-		return {exitCode: 0, output: formatAuditSummary(scan, chaos), errorOutput: null};
-	} catch (error) {
-		return {exitCode: 1, output: null, errorOutput: describeAuditError(error)};
+		// 'wx' = create-exclusive: throws EEXIST rather than silently overwriting.
+		await write(fileName, serializeSecurityReport(securityReport), {encoding: 'utf8', flag: 'wx'});
+	} catch (writeError) {
+		const code = writeError instanceof Error ? (writeError as NodeJS.ErrnoException).code : undefined;
+		const message =
+			code === 'EEXIST'
+				? `Refusing to overwrite existing file: ${fileName}`
+				: `Failed to write JSON report: ${writeError instanceof Error ? writeError.message : String(writeError)}`;
+		return {exitCode: 1, output: null, errorOutput: message, reportFilePath: null};
 	}
+
+	return {
+		exitCode: 0,
+		output: `${summaryText}\n\nJSON report written to: ${fileName}`,
+		errorOutput: null,
+		reportFilePath: fileName,
+	};
 }

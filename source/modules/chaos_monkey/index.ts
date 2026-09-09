@@ -13,6 +13,7 @@ import type {ChaosReport} from './reporter.js';
 
 export type {ChaosReport} from './reporter.js';
 export type {Finding} from './reporter.js';
+export type {VerificationTransaction} from './reporter.js';
 export {formatReportForTerminal} from './reporter.js';
 export type {FuzzResult} from './fuzzer_math.js';
 export type {ParsedResult, ExecutionEvidence} from './result_parser.js';

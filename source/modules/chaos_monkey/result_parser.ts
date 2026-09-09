@@ -28,6 +28,14 @@ export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
  */
 export interface ExecutionEvidence {
 	broadcasted: boolean;
+	/**
+	 * Mirrors InvokeResult.success — whether the transaction actually
+	 * confirmed SUCCESS on-chain (as opposed to broadcasted-but-TX_FAILED,
+	 * or never broadcast at all). Added in D2.3 so a report can distinguish
+	 * "first successful broadcast" from "first failed broadcast" when
+	 * selecting verification transaction evidence — see reporter.ts.
+	 */
+	success: boolean;
 	transactionHash: string | null;
 	ledger: number | null;
 	simulationFailed: boolean;
@@ -516,6 +524,7 @@ export function parseInvokeResult(
 	// approved D1 classification code path is untouched by this change.
 	const evidence: ExecutionEvidence = {
 		broadcasted: result.broadcasted,
+		success: result.success,
 		transactionHash: result.transactionHash,
 		ledger: result.ledger,
 		simulationFailed: result.simulationFailed,

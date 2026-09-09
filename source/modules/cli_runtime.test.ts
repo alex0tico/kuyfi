@@ -1,5 +1,5 @@
 import test from 'ava';
-import {selectCliMode, runHeadlessAudit, describeAuditError} from './cli_runtime.js';
+import {selectCliMode, runHeadlessAudit, describeAuditError, defaultReportFileName} from './cli_runtime.js';
 import {ScanError} from './scanner.js';
 import type {ScanResult} from './scanner.js';
 import type {ChaosReport} from './chaos_monkey/index.js';
@@ -46,6 +46,7 @@ function fakeChaosReport(contractId: string, overrides: Partial<ChaosReport['sum
 			transactionsWithHash: 0,
 			...overrides,
 		},
+		verificationTransactions: [],
 	};
 }
 
@@ -91,6 +92,91 @@ test('CASE H (continued) — a Chaos Monkey internal failure also propagates as 
 	t.is(result.exitCode, 1);
 	t.is(result.output, null);
 	t.regex(result.errorOutput!, /funding failed/);
+});
+
+// --- D2.3 — CASE O/P/Q/R: --json file output, via the writeFile injection seam (no real disk I/O) ---
+
+test('CASE Q — headless without --json behaves exactly as D2.2 (no file, no reportFilePath)', async t => {
+	const contractId = `C${'E'.repeat(55)}`;
+
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => fakeChaosReport(contractId),
+	});
+
+	t.is(result.exitCode, 0);
+	t.is(result.reportFilePath, null);
+	t.truthy(result.output);
+	t.false(result.output!.includes('JSON report written'));
+});
+
+test('CASE R / CASE O — headless with --json writes a valid SecurityReport JSON file and reports its path', async t => {
+	const contractId = `C${'F'.repeat(55)}`;
+	let writtenPath: string | undefined;
+	let writtenContent: string | undefined;
+
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => fakeChaosReport(contractId),
+		writeJson: true,
+		writeFile: async (path, data) => {
+			writtenPath = path as string;
+			writtenContent = data as string;
+		},
+	});
+
+	t.is(result.exitCode, 0);
+	t.truthy(result.reportFilePath);
+	t.is(writtenPath, result.reportFilePath ?? undefined);
+	t.true(result.output!.includes('JSON report written to'));
+
+	// The file content is a valid, parseable SecurityReport — not a raw AuditRun/ChaosReport dump.
+	const parsed = JSON.parse(writtenContent!) as {schemaVersion: string; target: {contractId: string}};
+	t.is(parsed.schemaVersion, '1.0.0');
+	t.is(parsed.target.contractId, contractId);
+});
+
+test('CASE P — an existing-file collision (EEXIST) does not silently overwrite: exitCode 1, clear message', async t => {
+	const contractId = `C${'G'.repeat(55)}`;
+
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => fakeChaosReport(contractId),
+		writeJson: true,
+		writeFile: async () => {
+			const error = new Error('file already exists') as NodeJS.ErrnoException;
+			error.code = 'EEXIST';
+			throw error;
+		},
+	});
+
+	t.is(result.exitCode, 1);
+	t.is(result.reportFilePath, null);
+	t.is(result.output, null);
+	t.true(result.errorOutput!.toLowerCase().includes('refusing to overwrite'));
+});
+
+test('a non-EEXIST file write failure is also a tool failure (exitCode 1), distinctly worded from a collision', async t => {
+	const contractId = `C${'H'.repeat(55)}`;
+
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => fakeChaosReport(contractId),
+		writeJson: true,
+		writeFile: async () => {
+			throw new Error('disk full');
+		},
+	});
+
+	t.is(result.exitCode, 1);
+	t.true(result.errorOutput!.includes('disk full'));
+	t.false(result.errorOutput!.toLowerCase().includes('refusing to overwrite'));
+});
+
+test('defaultReportFileName is stable and filesystem-safe', t => {
+	t.is(defaultReportFileName('kyf-20260909T120000Z-a1b2c3d4'), 'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.json');
+	// Defensive sanitization even if reportId's format ever changes.
+	t.is(defaultReportFileName('weird/../id'), 'kuyfi-report-weird_.._id.json');
 });
 
 test('describeAuditError maps every ScanError code to a distinct, clear message', t => {

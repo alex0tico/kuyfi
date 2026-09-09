@@ -8,7 +8,10 @@ import { selectCliMode, runHeadlessAudit } from './modules/cli_runtime.js';
 const cli = meow(
 	`
 	Usage
-	  $ kuyfi [CONTRACT_ID]
+	  $ kuyfi [CONTRACT_ID] [--json]
+
+	Options
+	  --json    Also write a SecurityReport JSON file (kuyfi-report-<id>.json)
 
 	Examples
 	  $ kuyfi
@@ -17,8 +20,16 @@ const cli = meow(
 	  $ kuyfi CDV...(56 chars)
 	      Run a headless scan + Chaos Monkey audit against a Testnet contract
 	      and print a summary. Does not open the TUI.
+
+	  $ kuyfi CDV...(56 chars) --json
+	      Same, and also write kuyfi-report-<reportId>.json in the current directory.
 `,
-	{importMeta: import.meta},
+	{
+		importMeta: import.meta,
+		flags: {
+			json: {type: 'boolean', default: false},
+		},
+	},
 );
 
 async function main() {
@@ -37,6 +48,7 @@ async function main() {
 			onProgress(message: string) {
 				console.log(message);
 			},
+			writeJson: cli.flags.json,
 		});
 
 		if (result.errorOutput) {
