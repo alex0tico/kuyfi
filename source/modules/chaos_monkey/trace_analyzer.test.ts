@@ -266,7 +266,9 @@ test('root fn_call + fn_return, no error event → parses cleanly, no crash', t 
 test('diagnosticEvents.length === 0 → falls back to the legacy string classifier', t => {
 	const result: InvokeResult = {
 		success: false,
+		broadcasted: false,
 		transactionHash: null,
+		ledger: null,
 		resultValue: null,
 		errorCode: 'SIMULATION_ERROR',
 		errorMessage: 'HostError: Error(Contract, #1)',
@@ -285,7 +287,9 @@ test('diagnosticEvents present takes priority over errorMessage even when the st
 	// string must not be consulted at all.
 	const result: InvokeResult = {
 		success: false,
+		broadcasted: false,
 		transactionHash: null,
+		ledger: null,
 		resultValue: null,
 		errorCode: 'SIMULATION_ERROR',
 		errorMessage: 'HostError: Error(Contract, #1)',
@@ -311,7 +315,9 @@ test('UNAUTHORIZED_CALL rejected via an ambiguous root panic → execution layer
 	// "access control worked" (SECURE) that the execution evidence doesn't support.
 	const result: InvokeResult = {
 		success: false,
+		broadcasted: false,
 		transactionHash: null,
+		ledger: null,
 		resultValue: null,
 		errorCode: 'SIMULATION_ERROR',
 		errorMessage: 'HostError: Error(WasmVm, InvalidAction)',
@@ -330,7 +336,9 @@ test('UNAUTHORIZED_CALL rejected via an ambiguous root panic → execution layer
 test('UNAUTHORIZED_CALL rejected via a genuine structural auth error → vector layer DOES declare SECURE (confident execution evidence)', t => {
 	const result: InvokeResult = {
 		success: false,
+		broadcasted: false,
 		transactionHash: null,
+		ledger: null,
 		resultValue: null,
 		errorCode: 'SIMULATION_ERROR',
 		errorMessage: 'HostError: Error(Auth, InvalidAction)',

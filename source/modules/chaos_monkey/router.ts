@@ -17,7 +17,25 @@ export interface InvokeParams {
 
 export interface InvokeResult {
 	success: boolean;
+	/**
+	 * True iff sendTransaction() was actually called against the RPC node —
+	 * i.e. simulation succeeded and a signed envelope left the process.
+	 * false covers both SIMULATION_ERROR (never attempted) and SEND_ERROR
+	 * (the node rejected the envelope before it entered the network, per
+	 * the SDK's own SendTransactionStatus.ERROR semantics). A transaction
+	 * hash may still be present even when broadcasted is false (SEND_ERROR
+	 * carries the locally-computed envelope hash) — absence of a hash must
+	 * never be inferred from broadcasted alone; always check both fields.
+	 */
+	broadcasted: boolean;
 	transactionHash: string | null;
+	/**
+	 * Ledger sequence the transaction was included in, from
+	 * GetSuccessfulTransactionResponse.ledger / GetFailedTransactionResponse.ledger.
+	 * null whenever no polled getTransaction response reached SUCCESS/FAILED
+	 * (SIMULATION_ERROR, SEND_ERROR, TIMEOUT, EXCEPTION).
+	 */
+	ledger: number | null;
 	resultValue: xdr.ScVal | null;
 	errorCode: string | null;
 	errorMessage: string | null;
@@ -53,6 +71,11 @@ const MAX_POLL_ATTEMPTS = 20;
  * 7. Poll getTransaction every 1000ms up to 20 attempts
  */
 export async function invokeContract(params: InvokeParams): Promise<InvokeResult> {
+	// Tracks the hash of a transaction that DID reach sendTransaction() with a
+	// non-ERROR status, so evidence survives even if an exception is thrown
+	// later (e.g. a network hiccup mid-poll) — see the catch block below.
+	let sentTxHash: string | null = null;
+
 	try {
 		const account = await params.server.getAccount(params.keypair.publicKey());
 
@@ -70,7 +93,9 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 		if (SorobanRpc.Api.isSimulationError(simResult)) {
 			return {
 				success: false,
+				broadcasted: false,
 				transactionHash: null,
+				ledger: null,
 				resultValue: null,
 				errorCode: 'SIMULATION_ERROR',
 				errorMessage: simResult.error,
@@ -87,7 +112,9 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 		if (sendResult.status === 'ERROR') {
 			return {
 				success: false,
+				broadcasted: false,
 				transactionHash: sendResult.hash,
+				ledger: null,
 				resultValue: null,
 				errorCode: 'SEND_ERROR',
 				errorMessage: 'Network rejected transaction before broadcast',
@@ -97,6 +124,7 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 		}
 
 		const txHash = sendResult.hash;
+		sentTxHash = txHash;
 
 		for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
 			await new Promise<void>(resolve => {
@@ -108,7 +136,9 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 			if (pollResult.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS) {
 				return {
 					success: true,
+					broadcasted: true,
 					transactionHash: txHash,
+					ledger: pollResult.ledger,
 					resultValue: pollResult.returnValue ?? null,
 					errorCode: null,
 					errorMessage: null,
@@ -120,7 +150,9 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 			if (pollResult.status === SorobanRpc.Api.GetTransactionStatus.FAILED) {
 				return {
 					success: false,
+					broadcasted: true,
 					transactionHash: txHash,
+					ledger: pollResult.ledger,
 					resultValue: null,
 					errorCode: 'TX_FAILED',
 					errorMessage: 'Transaction failed during on-chain execution',
@@ -133,7 +165,9 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 
 		return {
 			success: false,
+			broadcasted: true,
 			transactionHash: txHash,
+			ledger: null,
 			resultValue: null,
 			errorCode: 'TIMEOUT',
 			errorMessage: `Transaction not confirmed after ${MAX_POLL_ATTEMPTS} polling attempts`,
@@ -143,7 +177,9 @@ export async function invokeContract(params: InvokeParams): Promise<InvokeResult
 	} catch (error) {
 		return {
 			success: false,
-			transactionHash: null,
+			broadcasted: sentTxHash !== null,
+			transactionHash: sentTxHash,
+			ledger: null,
 			resultValue: null,
 			errorCode: 'EXCEPTION',
 			errorMessage: error instanceof Error ? error.message : String(error),

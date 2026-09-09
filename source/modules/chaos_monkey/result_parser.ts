@@ -14,6 +14,26 @@ export type VulnerabilitySignal =
 
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
+/**
+ * JSON-safe execution evidence for one invocation, carried forward from
+ * InvokeResult so it survives past classification instead of being
+ * discarded. Never holds a raw SDK/XDR object — `trace` is the already
+ * JSON-safe DiagnosticTraceAnalysis (structured, not stringified), and
+ * `transactionHash`/`ledger` are plain values straight off InvokeResult.
+ *
+ * `broadcasted` and `transactionHash` are deliberately independent: a
+ * SEND_ERROR outcome can carry a locally-computed envelope hash while
+ * `broadcasted` is false (the node rejected it before it reached the
+ * network) — never infer one field from the other.
+ */
+export interface ExecutionEvidence {
+	broadcasted: boolean;
+	transactionHash: string | null;
+	ledger: number | null;
+	simulationFailed: boolean;
+	trace: DiagnosticTraceAnalysis;
+}
+
 export interface ParsedResult {
 	signal: VulnerabilitySignal;
 	severity: Severity;
@@ -21,6 +41,17 @@ export interface ParsedResult {
 	rawErrorCode: string | null;
 	functionName: string;
 	vectorName: string;
+	evidence: ExecutionEvidence;
+}
+
+/**
+ * Pure, Testnet-only URL builder — no mainnet path, per current project
+ * scope (Testnet-only sprint). Returns null for an empty/falsy hash so
+ * callers never have to special-case "no evidence" themselves.
+ */
+export function stellarExpertTestnetUrl(transactionHash: string | null): string | null {
+	if (!transactionHash) return null;
+	return `https://stellar.expert/explorer/testnet/tx/${transactionHash}`;
 }
 
 export function signalToSeverity(signal: VulnerabilitySignal, isAdminFunction: boolean): Severity {
@@ -477,6 +508,20 @@ export function parseInvokeResult(
 	isAdminFunction: boolean,
 	hasUnverifiedAddressArg: boolean,
 ): ParsedResult {
+	// Computed once, unconditionally, purely to carry evidence forward —
+	// this does NOT feed the classification decisions below. classifyError()
+	// (and classifyErrorFromTrace() inside it) independently re-derives its
+	// own trace analysis from result.diagnosticEvents exactly as before D2.1;
+	// the two calls are redundant but deliberately kept separate so the
+	// approved D1 classification code path is untouched by this change.
+	const evidence: ExecutionEvidence = {
+		broadcasted: result.broadcasted,
+		transactionHash: result.transactionHash,
+		ledger: result.ledger,
+		simulationFailed: result.simulationFailed,
+		trace: analyzeDiagnosticTrace(result.diagnosticEvents),
+	};
+
 	if (result.errorCode === 'TIMEOUT') {
 		return {
 			signal: 'TIMEOUT',
@@ -485,6 +530,7 @@ export function parseInvokeResult(
 			rawErrorCode: result.errorCode,
 			functionName,
 			vectorName,
+			evidence,
 		};
 	}
 
@@ -516,6 +562,7 @@ export function parseInvokeResult(
 					rawErrorCode: result.errorCode,
 					functionName,
 					vectorName,
+					evidence,
 				};
 			}
 
@@ -526,6 +573,7 @@ export function parseInvokeResult(
 				rawErrorCode: result.errorCode,
 				functionName,
 				vectorName,
+				evidence,
 			};
 		}
 
@@ -537,6 +585,7 @@ export function parseInvokeResult(
 			rawErrorCode: result.errorCode,
 			functionName,
 			vectorName,
+			evidence,
 		};
 	}
 
@@ -549,6 +598,7 @@ export function parseInvokeResult(
 			rawErrorCode: null,
 			functionName,
 			vectorName,
+			evidence,
 		};
 	}
 
@@ -559,5 +609,6 @@ export function parseInvokeResult(
 		rawErrorCode: null,
 		functionName,
 		vectorName,
+		evidence,
 	};
 }

@@ -1,5 +1,7 @@
-import type {Severity, VulnerabilitySignal} from './result_parser.js';
+import type {ExecutionEvidence, Severity, VulnerabilitySignal} from './result_parser.js';
 import type {FuzzResult} from './fuzzer_math.js';
+
+export type {ExecutionEvidence} from './result_parser.js';
 
 export interface Finding {
 	id: string;
@@ -8,6 +10,13 @@ export interface Finding {
 	vectorName: string;
 	signal: VulnerabilitySignal;
 	details: string;
+	/**
+	 * Structured, JSON-safe execution evidence for the invocation that
+	 * produced this finding — broadcast status, tx hash, ledger, and the
+	 * structured trace summary. Future JSON/PDF layers should read this,
+	 * never parse `details`.
+	 */
+	evidence: ExecutionEvidence;
 }
 
 export interface ChaosReport {
@@ -72,6 +81,7 @@ export function buildReport(contractId: string, results: FuzzResult[]): ChaosRep
 				vectorName: r.result.vectorName,
 				signal,
 				details: r.result.details,
+				evidence: r.result.evidence,
 			});
 		}
 	}
@@ -125,6 +135,10 @@ export function formatReportForTerminal(report: ChaosReport): string {
 			lines.push(`  Function : ${f.functionName}`);
 			lines.push(`  Vector   : ${f.vectorName}`);
 			lines.push(`  Details  : ${f.details}`);
+			if (f.evidence.broadcasted && f.evidence.transactionHash) {
+				lines.push(`  Tx       : ${f.evidence.transactionHash}`);
+			}
+
 			lines.push('');
 		}
 	}

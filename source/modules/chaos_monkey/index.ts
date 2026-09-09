@@ -14,7 +14,8 @@ export type {ChaosReport} from './reporter.js';
 export type {Finding} from './reporter.js';
 export {formatReportForTerminal} from './reporter.js';
 export type {FuzzResult} from './fuzzer_math.js';
-export type {ParsedResult} from './result_parser.js';
+export type {ParsedResult, ExecutionEvidence} from './result_parser.js';
+export {stellarExpertTestnetUrl} from './result_parser.js';
 export type {UdtRegistry, UdtField} from './type_gen.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
