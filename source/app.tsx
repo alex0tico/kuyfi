@@ -10,8 +10,13 @@ import {runChaosMonkey, formatReportForTerminal} from './modules/chaos_monkey/in
 import {typeName} from './modules/chaos_monkey/type_gen.js';
 import {scanContract, isValidContractId, ScanError} from './modules/scanner.js';
 import {TESTNET_RPC_URL} from './modules/network.js';
-import type {ChaosReport, UdtRegistry} from './modules/chaos_monkey/index.js';
-import type {ScannedParam, ScannedFunction} from './modules/scanner.js';
+import {buildSecurityReport} from './modules/security_report.js';
+import {exportSecurityReport} from './modules/report_export.js';
+import type {ExportOutcome, ExportFormat} from './modules/report_export.js';
+import type {ChaosReport} from './modules/chaos_monkey/index.js';
+import type {ScannedParam, ScanResult} from './modules/scanner.js';
+import type {AuditRun} from './modules/audit.js';
+import type {SecurityReport} from './modules/security_report.js';
 
 function useTerminalSize() {
 	const {stdout} = useStdout();
@@ -42,7 +47,7 @@ interface ScannerViewProps {
 	setContractId: React.Dispatch<React.SetStateAction<string>>;
 	onBackToMenu: () => void;
 	onQuit: () => void;
-	onScanComplete: (contractId: string, functions: ScannedFunction[], udtRegistry: UdtRegistry) => void;
+	onScanComplete: (scanResult: ScanResult) => void;
 	onLaunchChaos: () => void;
 }
 
@@ -245,7 +250,7 @@ function ScannerView({
 				if (!cancelled) {
 					setBytecodeSize(scanResult.bytecodeSize);
 					setFunctions(parsedFunctions);
-					onScanComplete(contractId, scanResult.functions, scanResult.udtRegistry);
+					onScanComplete(scanResult);
 				}
 			} catch (error: unknown) {
 				if (!cancelled) {
@@ -469,21 +474,49 @@ function reportBorderColor(report: ChaosReport): 'red' | 'yellow' | 'green' {
 }
 
 function ChaosMonkeyView({
-	contractId,
-	functions,
-	udtRegistry,
+	scanResult,
 	onBackToMenu,
 }: {
-	contractId: string;
-	functions: ScannedFunction[];
-	udtRegistry: UdtRegistry;
+	scanResult: ScanResult | null;
 	onBackToMenu: () => void;
 }) {
+	const contractId = scanResult?.contractId ?? '';
+	const functions = scanResult?.functions ?? [];
+	const udtRegistry = scanResult?.udtRegistry ?? new Map();
+
 	const [phase, setPhase] = useState<ChaosPhase>('idle');
 	const [logs, setLogs] = useState<string[]>([]);
 	const [report, setReport] = useState<ChaosReport | null>(null);
 	const [errorMsg, setErrorMsg] = useState('');
 	const hasStarted = useRef(false);
+
+	// Built exactly once per completed run, in the runChaosMonkey().then()
+	// callback below — never in a useEffect (which React 19 can invoke twice
+	// under StrictMode) and never rebuilt per export keypress. J/P/B all
+	// read this same cached object, so they always share reportId/
+	// generatedAt/findings/evidence.
+	const [securityReport, setSecurityReport] = useState<SecurityReport | null>(null);
+	const [isExporting, setIsExporting] = useState(false);
+	const [exportResults, setExportResults] = useState<ExportOutcome[]>([]);
+	const isExportingRef = useRef(false);
+
+	// Thin glue over exportSecurityReport() — the actual "what does J/P/B do"
+	// logic lives there (pure, fully unit-tested, no React/Ink involved).
+	const handleExport = useCallback(
+		async (format: ExportFormat) => {
+			if (isExportingRef.current || securityReport === null) return;
+			isExportingRef.current = true;
+			setIsExporting(true);
+			setExportResults([]);
+
+			const results = await exportSecurityReport(securityReport, format);
+
+			setExportResults(results);
+			setIsExporting(false);
+			isExportingRef.current = false;
+		},
+		[securityReport],
+	);
 
 	useInput(
 		useCallback(
@@ -502,10 +535,25 @@ function ChaosMonkeyView({
 
 					if (phase === 'done' && ch === 's') {
 						onBackToMenu();
+						return;
+					}
+
+					if (phase === 'done' && ch === 'j') {
+						void handleExport('json');
+						return;
+					}
+
+					if (phase === 'done' && ch === 'p') {
+						void handleExport('pdf');
+						return;
+					}
+
+					if (phase === 'done' && ch === 'b') {
+						void handleExport('both');
 					}
 				}
 			},
-			[phase, contractId, onBackToMenu],
+			[phase, contractId, onBackToMenu, handleExport],
 		),
 	);
 
@@ -523,6 +571,11 @@ function ChaosMonkeyView({
 			},
 		})
 			.then(r => {
+				if (scanResult) {
+					const auditRun: AuditRun = {scan: scanResult, chaos: r};
+					setSecurityReport(buildSecurityReport(auditRun));
+				}
+
 				setReport(r);
 				setPhase('done');
 			})
@@ -530,6 +583,7 @@ function ChaosMonkeyView({
 				setErrorMsg(err instanceof Error ? err.message : String(err));
 				setPhase('error');
 			});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [phase, contractId, functions]);
 
 	// ── idle: no target loaded ────────────────────────────────────────────────
@@ -670,6 +724,35 @@ function ChaosMonkeyView({
 					<Text color="cyan">{'[S]'}</Text>
 					<Text dimColor>{'  Scan another contract'}</Text>
 				</Box>
+				<Box marginTop={1}>
+					<Text color="cyan">{'[J]'}</Text>
+					<Text dimColor>{'  Export JSON    '}</Text>
+					<Text color="cyan">{'[P]'}</Text>
+					<Text dimColor>{'  Export PDF    '}</Text>
+					<Text color="cyan">{'[B]'}</Text>
+					<Text dimColor>{'  Export Both'}</Text>
+				</Box>
+				{isExporting && (
+					<Box marginTop={1}>
+						<Text color="yellow">
+							<Spinner type="dots" /> Exporting…
+						</Text>
+					</Box>
+				)}
+				{!isExporting && exportResults.length > 0 && (
+					<Box marginTop={1} flexDirection="column">
+						{exportResults.map((r, i) => (
+							<Box key={`${r.label}-${i}`} flexDirection="column" marginBottom={1}>
+								<Text color={r.success ? 'green' : 'red'} bold>
+									{r.success ? `${r.label} exported:` : `${r.label} export failed:`}
+								</Text>
+								<Text color={r.success ? 'green' : 'red'} wrap="wrap">
+									{r.success ? `./${r.message}` : r.message}
+								</Text>
+							</Box>
+						))}
+					</Box>
+				)}
 			</Box>
 		);
 	}
@@ -685,9 +768,7 @@ const App: React.FC = () => {
 	const [selectedModule, setSelectedModule] = useState(0);
 	const [menuNotice, setMenuNotice] = useState<string | null>(null);
 	const [contractId, setContractId] = useState('');
-	const [lastScannedContractId, setLastScannedContractId] = useState('');
-	const [lastScannedFunctions, setLastScannedFunctions] = useState<ScannedFunction[]>([]);
-	const [lastUdtRegistry, setLastUdtRegistry] = useState<UdtRegistry>(new Map());
+	const [lastScanResult, setLastScanResult] = useState<ScanResult | null>(null);
 
 	const leaveScannerToMenu = useCallback(() => {
 		setContractId('');
@@ -698,14 +779,9 @@ const App: React.FC = () => {
 		process.exit(0);
 	}, []);
 
-	const handleScanComplete = useCallback(
-		(cId: string, fns: ScannedFunction[], registry: UdtRegistry) => {
-			setLastScannedContractId(cId);
-			setLastScannedFunctions(fns);
-			setLastUdtRegistry(registry);
-		},
-		[],
-	);
+	const handleScanComplete = useCallback((scanResult: ScanResult) => {
+		setLastScanResult(scanResult);
+	}, []);
 
 	const handleLaunchChaos = useCallback(() => {
 		setView('chaos');
@@ -730,7 +806,7 @@ const App: React.FC = () => {
 				if (key.return) {
 					const row = MODULE_ROWS[selectedModule];
 					if (!row) return;
-					if (row.id === 'chaos' && lastScannedContractId === '') {
+					if (row.id === 'chaos' && lastScanResult === null) {
 						setMenuNotice('⚠  Run OSINT Scanner first to load a target contract.');
 					} else {
 						setMenuNotice(null);
@@ -745,7 +821,7 @@ const App: React.FC = () => {
 					const idx = Number(input) - 1;
 					const row = MODULE_ROWS[idx];
 					if (row) {
-						if (row.id === 'chaos' && lastScannedContractId === '') {
+						if (row.id === 'chaos' && lastScanResult === null) {
 							setSelectedModule(idx);
 							setMenuNotice('⚠  Run OSINT Scanner first to load a target contract.');
 						} else {
@@ -757,7 +833,7 @@ const App: React.FC = () => {
 					}
 				}
 			},
-			[view, selectedModule, lastScannedContractId],
+			[view, selectedModule, lastScanResult],
 		),
 		{isActive: view === 'menu'},
 	);
@@ -832,9 +908,7 @@ const App: React.FC = () => {
 			<Box>
 				<ViewShell onBack={() => setView('menu')}>
 					<ChaosMonkeyView
-						contractId={lastScannedContractId}
-						functions={lastScannedFunctions}
-						udtRegistry={lastUdtRegistry}
+						scanResult={lastScanResult}
 						onBackToMenu={() => setView('menu')}
 					/>
 				</ViewShell>

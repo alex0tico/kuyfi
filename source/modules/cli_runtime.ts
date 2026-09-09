@@ -2,9 +2,18 @@ import {writeFile as fsWriteFile} from 'node:fs/promises';
 import {isValidContractId, ScanError} from './scanner.js';
 import {runAudit, formatAuditSummary} from './audit.js';
 import type {RunAuditOptions} from './audit.js';
-import {buildSecurityReport, serializeSecurityReport} from './security_report.js';
+import {buildSecurityReport} from './security_report.js';
 import type {SecurityReport} from './security_report.js';
 import {renderSecurityReportPdf} from './pdf_report.js';
+import {
+	writeSecurityReportJson,
+	writeSecurityReportPdf,
+	describeWriteError,
+	defaultReportFileName,
+	defaultPdfReportFileName,
+} from './report_export.js';
+
+export {defaultReportFileName, defaultPdfReportFileName} from './report_export.js';
 
 export type CliMode =
 	| {kind: 'tui'}
@@ -51,28 +60,6 @@ export interface HeadlessRunResult {
 	pdfFilePath: string | null;
 }
 
-/** `kuyfi-report-<reportId>.json` — reportId is already filename-safe by construction, but this stays defensive if that ever changes. */
-export function defaultReportFileName(reportId: string): string {
-	const safe = reportId.replace(/[^A-Za-z0-9._-]/g, '_');
-	return `kuyfi-report-${safe}.json`;
-}
-
-/** `kuyfi-report-<reportId>.pdf` — same naming/sanitization convention as the JSON output. */
-export function defaultPdfReportFileName(reportId: string): string {
-	const safe = reportId.replace(/[^A-Za-z0-9._-]/g, '_');
-	return `kuyfi-report-${safe}.pdf`;
-}
-
-/** Shared collision-safe write policy for both --json and --pdf: 'wx' throws EEXIST rather than silently overwriting. */
-function describeWriteError(error: unknown, fileName: string, kind: 'JSON' | 'PDF'): string {
-	const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined;
-	if (code === 'EEXIST') {
-		return `Refusing to overwrite existing file: ${fileName}`;
-	}
-
-	return `Failed to write ${kind} report: ${error instanceof Error ? error.message : String(error)}`;
-}
-
 /**
  * Runs one full headless audit and maps the outcome to a process exit code.
  * A THROWN error (invalid scan, RPC failure, Chaos Monkey internal failure)
@@ -105,8 +92,6 @@ export async function runHeadlessAudit(
 	} = {},
 ): Promise<HeadlessRunResult> {
 	const audit = options.runAudit ?? runAudit;
-	const write = options.writeFile ?? fsWriteFile;
-	const render = options.renderPdf ?? renderSecurityReportPdf;
 
 	let auditRun;
 	try {
@@ -129,16 +114,15 @@ export async function runHeadlessAudit(
 	let pdfFilePath: string | null = null;
 
 	if (options.writeJson) {
-		const fileName = defaultReportFileName(securityReport.reportId);
 		try {
-			await write(fileName, serializeSecurityReport(securityReport), {encoding: 'utf8', flag: 'wx'});
-			reportFilePath = fileName;
-			outputLines.push(`JSON report written to: ${fileName}`);
+			const {path} = await writeSecurityReportJson(securityReport, {writeFile: options.writeFile});
+			reportFilePath = path;
+			outputLines.push(`JSON report written to: ${path}`);
 		} catch (writeError) {
 			return {
 				exitCode: 1,
 				output: null,
-				errorOutput: describeWriteError(writeError, fileName, 'JSON'),
+				errorOutput: describeWriteError(writeError, defaultReportFileName(securityReport.reportId), 'JSON'),
 				reportFilePath: null,
 				pdfFilePath: null,
 			};
@@ -146,17 +130,18 @@ export async function runHeadlessAudit(
 	}
 
 	if (options.writePdf) {
-		const fileName = defaultPdfReportFileName(securityReport.reportId);
 		try {
-			const pdfBuffer = await render(securityReport);
-			await write(fileName, pdfBuffer, {flag: 'wx'});
-			pdfFilePath = fileName;
-			outputLines.push(`PDF report written to: ${fileName}`);
+			const {path} = await writeSecurityReportPdf(securityReport, {
+				writeFile: options.writeFile,
+				renderPdf: options.renderPdf,
+			});
+			pdfFilePath = path;
+			outputLines.push(`PDF report written to: ${path}`);
 		} catch (writeError) {
 			return {
 				exitCode: 1,
 				output: null,
-				errorOutput: describeWriteError(writeError, fileName, 'PDF'),
+				errorOutput: describeWriteError(writeError, defaultPdfReportFileName(securityReport.reportId), 'PDF'),
 				reportFilePath,
 				pdfFilePath: null,
 			};
