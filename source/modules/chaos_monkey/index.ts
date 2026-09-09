@@ -1,4 +1,5 @@
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
+import {TESTNET_RPC_URL as RPC_URL} from '../network.js';
 import {generateEphemeralKeypair} from './keypair_factory.js';
 import {fuzzMathVectors} from './fuzzer_math.js';
 import {fuzzAccessVectors, isAdminFunctionByName} from './fuzzer_access.js';
@@ -20,8 +21,6 @@ export type {UdtRegistry, UdtField} from './type_gen.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTypeDef = any;
-
-const RPC_URL = 'https://soroban-testnet.stellar.org';
 
 export interface ChaosMonkeyOptions {
 	contractId: string;

@@ -1,7 +1,7 @@
 import {Keypair, rpc as SorobanRpc} from '@stellar/stellar-sdk';
+import {TESTNET_RPC_URL as RPC_URL} from '../network.js';
 
 const FRIENDBOT_URL = 'https://friendbot.stellar.org/?addr=';
-const RPC_URL = 'https://soroban-testnet.stellar.org';
 const MAX_RETRIES = 3;
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLL_ATTEMPTS = 10;

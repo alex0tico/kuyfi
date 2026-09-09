@@ -2,19 +2,16 @@ import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {Text, Box, useInput, useStdout} from 'ink';
 import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
-import {rpc as SorobanRpc, xdr} from '@stellar/stellar-sdk';
+import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 
 // @ts-ignore
 import * as KuyfiClient from '../src/kuyfi_client/dist/index.js';
 import {runChaosMonkey, formatReportForTerminal} from './modules/chaos_monkey/index.js';
 import {typeName} from './modules/chaos_monkey/type_gen.js';
-import {buildUdtRegistry} from './modules/chaos_monkey/udt_registry.js';
+import {scanContract, isValidContractId, ScanError} from './modules/scanner.js';
+import {TESTNET_RPC_URL} from './modules/network.js';
 import type {ChaosReport, UdtRegistry} from './modules/chaos_monkey/index.js';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyTypeDef = any;
-type ScannedParam = {name: string; type: AnyTypeDef};
-type ScannedFunction = {name: string; params: ScannedParam[]};
+import type {ScannedParam, ScannedFunction} from './modules/scanner.js';
 
 function useTerminalSize() {
 	const {stdout} = useStdout();
@@ -235,93 +232,42 @@ function ScannerView({
 			setFunctions([]);
 
 			try {
-				const server = new SorobanRpc.Server('https://soroban-testnet.stellar.org');
-				const wasmBytecode = await server.getContractWasmByContractId(contractId);
+				const server = new SorobanRpc.Server(TESTNET_RPC_URL);
+				const scanResult = await scanContract(contractId, server);
 
-				if (!wasmBytecode || wasmBytecode.length === 0) {
-					throw new Error('CONTRACT_NOT_FOUND');
-				}
-
-				const sizeInBytes = wasmBytecode.length;
-				const wasmModule = await WebAssembly.compile(Uint8Array.from(wasmBytecode));
-				const [specSection] = WebAssembly.Module.customSections(wasmModule, 'contractspecv0');
-
-				if (!specSection) {
-					throw new Error('XDR_ALIGN_FAILURE');
-				}
-
-				const buffer = Buffer.from(specSection);
-				let offset = 0;
-				const entries = [];
-				while (offset < buffer.length) {
-					let success = false;
-					for (let len = 4; len <= buffer.length - offset; len += 4) {
-						try {
-							const chunk = buffer.slice(offset, offset + len);
-							const entry = xdr.ScSpecEntry.fromXDR(chunk);
-							entries.push(entry);
-							offset += len;
-							success = true;
-							break;
-						} catch {
-						}
-					}
-
-					if (!success) {
-						throw new Error('XDR_ALIGN_FAILURE');
-					}
-				}
-
-				// Build the UDT registry (struct/union/enum) from the same entries[].
-				const udtRegistry: UdtRegistry = buildUdtRegistry(entries);
-
-				const parsedFunctions: ContractFunction[] = entries
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					.filter((e: any) => e.switch().name === 'scSpecEntryFunctionV0')
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					.map((e: any) => {
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const func = e.functionV0();
-						// eslint-disable-next-line @typescript-eslint/no-explicit-any
-						const inputSpecs: ScannedParam[] = func.inputs().map((i: any) => ({
-							name: i.name().toString('utf-8') as string,
-							type: i.type() as AnyTypeDef,
-						}));
-						return {
-							name: func.name().toString('utf-8') as string,
-							inputs: inputSpecs.map(s => `${s.name}: ${typeName(s.type)}`).join(', '),
-							outputs: func.outputs().length > 0 ? 'Has Return' : 'Void',
-							params: inputSpecs,
-						};
-					});
+				const parsedFunctions: ContractFunction[] = scanResult.functions.map(fn => ({
+					name: fn.name,
+					inputs: fn.params.map(p => `${p.name}: ${typeName(p.type)}`).join(', '),
+					outputs: fn.hasReturn ? 'Has Return' : 'Void',
+					params: fn.params,
+				}));
 
 				if (!cancelled) {
-					setBytecodeSize(sizeInBytes);
+					setBytecodeSize(scanResult.bytecodeSize);
 					setFunctions(parsedFunctions);
-					onScanComplete(
-						contractId,
-						parsedFunctions.map(fn => ({name: fn.name, params: fn.params})),
-						udtRegistry,
-					);
+					onScanComplete(contractId, scanResult.functions, scanResult.udtRegistry);
 				}
 			} catch (error: unknown) {
 				if (!cancelled) {
-					const msg = error instanceof Error ? error.message : String(error);
-					const rawMessage = msg.toLowerCase();
-					if (rawMessage.includes('fetch') || rawMessage.includes('network')) {
-						setRpcError('CRITICAL: No connection to Testnet or RPC unavailable.');
-					} else if (
-						msg === 'CONTRACT_NOT_FOUND' ||
-						rawMessage.includes('404') ||
-						rawMessage.includes('not found') ||
-						rawMessage.includes('null')
-					) {
-						setRpcError('CONTRACT NOT FOUND: Check the Contract ID exists on Testnet.');
-					} else if (msg === 'XDR_ALIGN_FAILURE') {
-						setRpcError(
-							'DECODE ERROR: WASM downloaded but contractspecv0 section is invalid or missing.',
-						);
+					if (error instanceof ScanError) {
+						switch (error.code) {
+							case 'RPC_UNAVAILABLE':
+								setRpcError('CRITICAL: No connection to Testnet or RPC unavailable.');
+								break;
+							case 'CONTRACT_NOT_FOUND':
+								setRpcError('CONTRACT NOT FOUND: Check the Contract ID exists on Testnet.');
+								break;
+							case 'XDR_ALIGN_FAILURE':
+								setRpcError(
+									'DECODE ERROR: WASM downloaded but contractspecv0 section is invalid or missing.',
+								);
+								break;
+							case 'UNKNOWN':
+								setRpcError(error.message || 'Soroban RPC query failed.');
+								break;
+						}
 					} else {
+						const msg = error instanceof Error ? error.message : String(error);
 						setRpcError(msg || 'Soroban RPC query failed.');
 					}
 				}
@@ -375,8 +321,7 @@ function ScannerView({
 	);
 
 	function onSubmit(newValue: string) {
-		const contractIdRegex = /^C[A-Z0-9]{55}$/;
-		if (!contractIdRegex.test(newValue)) {
+		if (!isValidContractId(newValue)) {
 			setInputError('Contract ID must start with C and be exactly 56 characters (A-Z, 0-9).');
 			return;
 		}

@@ -33,6 +33,14 @@ export interface ChaosReport {
 		low: number;
 		info: number;
 		preconditionFail: number;
+		/**
+		 * Tallied over EVERY result (not just findings[], which filters out
+		 * SECURE/PRECONDITION_FAIL) — this is the only place the full evidence
+		 * count survives once buildReport() finishes, so it must be computed
+		 * here rather than re-derived later from the filtered findings list.
+		 */
+		broadcastTransactions: number;
+		transactionsWithHash: number;
 	};
 }
 
@@ -44,13 +52,25 @@ const SEVERITY_ORDER: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']
  * Assigns sequential IDs starting from KYF-001.
  */
 export function buildReport(contractId: string, results: FuzzResult[]): ChaosReport {
-	const summary = {critical: 0, high: 0, medium: 0, low: 0, info: 0, preconditionFail: 0};
+	const summary = {
+		critical: 0,
+		high: 0,
+		medium: 0,
+		low: 0,
+		info: 0,
+		preconditionFail: 0,
+		broadcastTransactions: 0,
+		transactionsWithHash: 0,
+	};
 	const uniqueFunctions = new Set(results.map(r => r.target.functionName));
 	const findings: Finding[] = [];
 	let findingIndex = 1;
 
 	for (const r of results) {
-		const {severity, signal} = r.result;
+		const {severity, signal, evidence} = r.result;
+
+		if (evidence.broadcasted) summary.broadcastTransactions++;
+		if (evidence.transactionHash !== null) summary.transactionsWithHash++;
 
 		switch (severity) {
 			case 'CRITICAL':
@@ -123,6 +143,10 @@ export function formatReportForTerminal(report: ChaosReport): string {
 	lines.push(`    LOW              : ${report.summary.low}`);
 	lines.push(`    PRECONDITION_FAIL: ${report.summary.preconditionFail}`);
 	lines.push(`    INFO             : ${report.summary.info}`);
+	lines.push(SEP);
+	lines.push('  EVIDENCE');
+	lines.push(`    Broadcast transactions: ${report.summary.broadcastTransactions}`);
+	lines.push(`    Transactions with hash: ${report.summary.transactionsWithHash}`);
 	lines.push(SEP);
 
 	if (report.findings.length === 0) {
