@@ -11,13 +11,7 @@ You need a Stellar Testnet contract ID to follow along. Any deployed Testnet con
 ```bash
 git clone https://github.com/alex0tico/kuyfi_tui.git
 cd kuyfi_tui
-npm install
-
-cd src/kuyfi_client
-npm install
-npm run build
-cd ../..
-
+npm ci
 npm run build
 ```
 

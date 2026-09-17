@@ -2,177 +2,140 @@
 
 ## Overview
 
-Kuyfi is a Node.js terminal application. The TUI layer (React + Ink) runs in the foreground process and drives all Soroban RPC calls directly — there is no backend server or daemon.
+Kuyfi is a Node.js CLI/TUI application with **no backend server or daemon**. A single process either renders an interactive terminal UI or runs a headless audit and exits — both paths call into the exact same audit engine.
 
 ```
-User keyboard input
-       │
-       ▼
-┌─────────────────────────────┐
-│  TUI — React + Ink          │
-│  source/cli.tsx             │  Entry point; manages terminal resize
-│  source/app.tsx             │  SPA-style state router (menu/scanner/chaos/logs/about)
-└──────────┬──────────────────┘
-           │
-           ├─── OSINT Scanner ──────────────────────────────────────────────────┐
-           │    (source/app.tsx — ScannerView)                                  │
-           │                                                                    │
-           │    1. getContractWasmByContractId(contractId)   READ-ONLY RPC      │
-           │    2. WebAssembly.compile(wasmBytes)            in-process         │
-           │    3. customSections("contractspecv0")          in-process         │
-           │    4. Alignment-tolerant XDR parse loop         in-process         │
-           │    5. Build UDT registry + function list        in-process         │
-           │    6. Render attack surface map                 terminal           │
-           │                                                                    │
-           └─── Chaos Monkey ───────────────────────────────────────────────────┘
-                (source/modules/chaos_monkey/)
-
-                ┌─ keypair_factory.ts ─┐
-                │ Generate keypair     │  ← Friendbot HTTP (testnet only)
-                │ Fund via Friendbot   │
-                │ Poll account confirm │  ← getAccount (READ-ONLY)
-                └──────────┬───────────┘
-                           │
-                ┌─ index.ts (orchestrator) ─┐
-                │ For each function:         │
-                │   fuzzMathVectors()        │  ← fuzzer_math.ts
-                │   fuzzAccessVectors()      │  ← fuzzer_access.ts (admin only)
-                └──────────┬────────────────┘
-                           │
-                ┌─ router.ts (invokeContract) ─┐
-                │ getAccount                   │  READ-ONLY
-                │ TransactionBuilder.build()   │  in-process
-                │ simulateTransaction()        │  READ-ONLY (footprint + auth)
-                │ assembleTransaction()        │  in-process
-                │ sign with ephemeral keypair  │  in-process
-                │ sendTransaction()            │  ← WRITES to Testnet
-                │ poll getTransaction()        │  READ-ONLY
-                └──────────┬────────────────────┘
-                           │
-                ┌─ result_parser.ts ─┐
-                │ classifyError()    │  error taxonomy → VulnerabilitySignal
-                │ parseInvokeResult()│  signal + severity
-                └──────────┬─────────┘
-                           │
-                ┌─ reporter.ts ─────┐
-                │ buildReport()     │  aggregate → ChaosReport
-                │ formatReport()    │  terminal string
-                └───────────────────┘
+CLI ENTRY
+  source/cli.tsx                 meow argument parsing, mode selection
+        │
+        ├─── mode.kind === 'tui' ───────────────────────────────┐
+        │                                                       │
+        │    TUI                                                │
+        │    source/app.tsx              navigation orchestrator│
+        │    source/screens/              one component per screen
+        │    source/components/           shared chrome/branding
+        │    source/hooks/useTerminalSize.ts   size + resize recovery
+        │    source/ui/                  pure layout/format/ascii helpers
+        │                                                       │
+        └─── mode.kind === 'headless' ──────────────────────────┤
+             source/modules/cli_runtime.ts   same engine, no Ink at all
+                                                                 │
+                                                                 ▼
+                                              AUDIT ENGINE (source/modules/)
+                                              scanner.ts → chaos_monkey/ →
+                                              security_report.ts → report_export.ts
 ```
 
-## Components
+**UI ≠ audit engine.** Nothing under `source/screens/`, `source/components/`, `source/hooks/`, or `source/ui/` performs a scan, executes a fuzz vector, or builds a report — they only call into `source/modules/` and render whatever comes back. The headless CLI path (`cli_runtime.ts`) calls the identical `scanner.ts` / `chaos_monkey` / `security_report.ts` / `report_export.ts` functions the TUI does, with zero duplication. A bug fixed in the engine is fixed for both.
+
+## Data flow
+
+```
+Contract ID
+    │
+    ▼
+scanner.ts            fetch WASM, decode contractspecv0, build UDT registry
+    │
+    ▼
+chaos_monkey/          fuzz every discovered function, real Testnet transactions
+    │
+    ▼
+results + evidence     tx hashes, ledgers, DiagnosticEvent traces
+    │
+    ▼
+security_report.ts     one SecurityReport object (schemaVersion 1.0.0)
+    │
+    ▼
+report_export.ts       → pdf_report.ts (PDF)
+                        → JSON.stringify (JSON)
+```
+
+## TUI layer
 
 ### `source/cli.tsx` — Entry point
 
-Renders the `TerminalManager` wrapper, which listens for `process.stdout` resize events and forces a React re-render to prevent the visual "cascade" artifact that Ink otherwise leaves on terminal resize. Captures the Ink render instance to call `instance.clear()` before re-render.
+Parses CLI arguments (`meow`), decides `selectCliMode()` (`tui` / `headless` / `invalid`), and either calls `runHeadlessAudit()` directly or `render(<App />)`. No render options are passed — Ink's own resize handling and defaults are relied on directly (see the `hooks/useTerminalSize.ts` note below for why no second listener is added here).
 
-### `source/app.tsx` — TUI router + views
+### `source/app.tsx` — Navigation orchestrator
 
-State-based SPA router with four views: `menu`, `scanner`, `chaos`, `logs`, `about`. Keyboard input is handled with Ink's `useInput` hook, scoped per-view via the `isActive` parameter. The Scanner view passes its scanned functions and UDT registry to the Chaos Monkey view via lifted state in the `App` root.
+Owns only the state that must survive a screen switch: `view`, `selectedModule`, `menuNotice`, `contractId`, `lastScanResult`. Handles the main menu's keyboard input (arrows, `1`–`4`, `Enter`). Computes the current `LayoutMode` via `useTerminalSize()` + `getLayoutMode()`, and routes to whichever screen `view` selects, wrapping non-home screens in `ViewShell`. Contains no screen implementation of its own — ~187 lines total.
 
-### `source/modules/chaos_monkey/keypair_factory.ts`
+### `source/screens/`
 
-Generates a random `Keypair`, requests funding from the Stellar Friendbot faucet (Testnet only), and polls `getAccount` until the account appears on-chain before returning. **No keypair is persisted to disk.**
+One file per screen, each owning its own local state and effects:
 
-### `source/modules/chaos_monkey/fuzzer_math.ts` — Math boundary fuzzer
-
-Implements one-variable-at-a-time fuzzing. For each parametrized function:
-- All parameters receive a type-correct **baseline** value (zero equivalent for their type).
-- One parameter at a time is replaced with an **attack value** (boundary or edge case).
-- Each combination is submitted as a real on-chain transaction via `router.ts`.
-
-Attack values are generated by `type_gen.ts` based on the XDR `ScSpecTypeDef` of each parameter.
-
-### `source/modules/chaos_monkey/fuzzer_access.ts` — Access control fuzzer
-
-Runs three attack vectors against functions whose names match admin patterns (`initialize`, `pause`, `upgrade`, `set_admin`, etc.):
-
-| Vector | Description |
+| File | Responsibility |
 |---|---|
-| `UNAUTHORIZED_CALL` | Call the admin function from the random ephemeral keypair |
-| `REINIT_ATTACK` | Call `initialize`/`init`/`setup` on an already-deployed contract |
-| `SELF_CALL_ATTACK` | Call `set_admin`/`transfer_admin` with the attacker's own address as the new admin |
+| `HomeScreen.tsx` | Main menu UI; also the source of `ViewId` and `MODULE_ROWS` (the module registry `App` uses for keyboard navigation) |
+| `ScannerScreen.tsx` | OSINT Scanner UI — input, in-flight fetch effect, attack surface rendering |
+| `ChaosMonkeyScreen.tsx` | Chaos Monkey UI — campaign effect, live log stream, findings report, JSON/PDF export controls |
+| `LogsScreen.tsx` | Static system/RPC status display |
+| `AboutScreen.tsx` | Static project info display |
 
-All arguments use type-correct baseline values from `type_gen.ts` to ensure failures occur at the auth level, not at argument parsing.
+### `source/components/`
 
-### `source/modules/chaos_monkey/router.ts` — Transaction executor
+Reusable, stateless (or near-stateless) UI pieces shared across screens:
 
-Executes one Soroban contract call end-to-end. The flow is:
+| File | Responsibility |
+|---|---|
+| `AppHeader.tsx` | `TopStatusBar` (always-visible status line) + `AsciiHeader` (selects the large/compact logo lockup by column count) |
+| `ViewShell.tsx` | Back-button (`Esc`) handling + border chrome wrapped around every non-home screen |
+| `TooSmallNotice.tsx` | Shown when the terminal is below the minimum usable size |
+| `ResizingNotice.tsx` | Shown briefly while a terminal shrink is being debounced (see below) |
 
-```
-getAccount → TransactionBuilder.build → simulateTransaction
-  → (if simulation error) return SIMULATION_FAIL
-  → assembleTransaction → sign → sendTransaction
-  → poll getTransaction every 1 s, up to 20 attempts
-  → (if not confirmed) return TIMEOUT
-```
+### `source/hooks/useTerminalSize.ts` — Size + shrink-resize recovery
 
-Never throws — all errors are captured and returned as a typed `InvokeResult`.
+The single app-level resize listener (Ink maintains its own internal one separately, which this hook does not duplicate or fight). Beyond tracking `columns`/`rows`, it mitigates a known upstream Ink limitation ([vadimdemedes/ink#907](https://github.com/vadimdemedes/ink/issues/907), closed `NOT_PLANNED`): shrinking a terminal can cause already-painted content to reflow into more physical rows than Ink's own erase logic accounts for, leaving stale frame fragments on screen. On a detected shrink, the hook sets `isResizeSettling`, debounces further resize events for ~130ms, then performs one full-screen ANSI clear before flipping `isResizeSettling` back to `false` — which is a real React state transition, not a forced remount, so `ScannerScreen`/`ChaosMonkeyScreen` never unmount and an in-progress scan or Chaos Monkey campaign is never interrupted by a resize.
 
-### `source/modules/chaos_monkey/result_parser.ts` — Error taxonomy
+### `source/ui/`
 
-Maps raw `InvokeResult` to a `ParsedResult` with a `VulnerabilitySignal` and `Severity`:
+Pure, non-React helpers with no Ink/side effects:
 
-| Signal | Severity (admin fn) | Severity (other fn) | Trigger |
-|---|---|---|---|
-| `POTENTIAL_VULN` | CRITICAL | HIGH | WASM panic on type-correct input; or access vector call succeeded |
-| `UNEXPECTED_ERROR` | MEDIUM | MEDIUM | Storage reached before auth; or unclassified error |
-| `PRECONDITION_FAIL` | LOW | LOW | TX_FAILED (simulation passed; on-chain state issue) |
-| `TIMEOUT` | LOW | LOW | Not confirmed within 20 polls |
-| `SIMULATION_FAIL` | LOW | LOW | Simulation returned an error |
-| `SECURE` | INFO | INFO | Expected auth/contract/object/context rejection; or graceful success |
+| File | Responsibility |
+|---|---|
+| `layout.ts` | `getLayoutMode(columns, rows)` — classifies the terminal into `large` (≥100 cols) / `compact` (70–99) / `tooSmall` (<70 cols or <20 rows) |
+| `format.ts` | `truncateContractId`, `formatBytes` — shared string formatting |
+| `ascii/logo.ts`, `ascii/cats.ts`, `ascii/index.ts` | The header lockups and the About screen's cat, as plain string-array constants (see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for how to add a new one) |
 
-### `source/modules/chaos_monkey/reporter.ts` — Report builder
+## Audit engine (`source/modules/`)
 
-Aggregates all `FuzzResult` items into a `ChaosReport`. Filters SECURE and PRECONDITION_FAIL results out of the findings list (they go to the summary counters only). Assigns sequential IDs (`KYF-001`, `KYF-002`, …) and sorts by severity (CRITICAL first).
+### `scanner.ts` — Attack-surface reconstruction
 
-### `source/modules/chaos_monkey/type_gen.ts` — Type-aware value generator
+`getContractWasmByContractId(contractId)` (read-only RPC) → `WebAssembly.compile()` → `customSections('contractspecv0')` → an alignment-tolerant XDR parse loop that builds the function list (names, parameter types, return type) and the UDT registry, entirely from the deployed bytecode. No source code, no ABI file.
 
-Generates `ScVal` values for arbitrary `ScSpecTypeDef` types, including recursive types (Vec, Map, Option) and UDT structs (via the registry built from `scSpecEntryUdtStructV0` entries). Used by both fuzzers to produce type-correct baselines and attack vectors.
+### `chaos_monkey/` — Fuzzing engine
 
-### `src/kuyfi_client/` — Auto-generated Soroban bindings
+| File | Responsibility |
+|---|---|
+| `keypair_factory.ts` | Ephemeral keypair generation + Friendbot funding + on-chain confirmation. Never persists a key. |
+| `type_gen.ts` | Generates type-correct baseline and attack `ScVal` values from a parameter's XDR `ScSpecTypeDef`, including recursive types (`Vec`, `Map`, `Option`) and UDT structs |
+| `udt_registry.ts` | The UDT struct/union/enum registry type_gen.ts and the scanner share |
+| `fuzzer_math.ts` | Math boundary vectors: `ZERO`, `MAX_VALUE`, `NEGATIVE`, `MIN_BOUNDARY`, one variable at a time |
+| `fuzzer_access.ts` | Access-control vectors on admin-pattern functions: `UNAUTHORIZED_CALL`, `REINIT_ATTACK`, `SELF_CALL_ATTACK` |
+| `fuzzer_call_order.ts` | Call-order-dependent attack vectors |
+| `fuzzer_fee.ts` | Vectors targeting fee/basis-point-shaped parameters |
+| `fuzzer_liquidity.ts` | Vectors targeting liquidity/swap/reserve-shaped functions (AMM-pattern contracts) |
+| `router.ts` | `invokeContract()` — the transaction lifecycle: simulate → assemble → sign → broadcast → poll. Never throws; always returns a typed `InvokeResult`. |
+| `trace_analyzer.ts` | Parses a transaction's `DiagnosticEvent` trace into a structured error category (`AUTH`/`CONTRACT`/`CONTEXT`/`OBJECT`/`STORAGE`/`WASM_VM`/`OTHER`/`UNKNOWN`) |
+| `result_parser.ts` | Maps a `trace_analyzer` result to one of the six `VulnerabilitySignal`s (`SECURE`, `PRECONDITION_FAIL`, `UNEXPECTED_ERROR`, `POTENTIAL_VULN`, `TIMEOUT`, `SIMULATION_FAIL`) and a `Severity` (`CRITICAL`/`HIGH`/`MEDIUM`/`LOW`/`INFO`) |
+| `reporter.ts` | Aggregates all vector results into a `ChaosReport`; filters `SECURE`/`PRECONDITION_FAIL` out of the findings list (summary counters only); assigns sequential `KYF-NNN` finding IDs |
+| `index.ts` | `runChaosMonkey()` — the public orchestrator; re-exports the types `app.tsx`/screens need |
 
-A separate npm package generated by the Soroban CLI for a specific contract. The app imports it at `../src/kuyfi_client/dist/index.js`. This client must be built separately (`npm install && npm run build` inside `src/kuyfi_client/`).
+### `audit.ts`, `security_report.ts`, `report_export.ts`, `pdf_report.ts` — Reporting
 
----
+- `audit.ts` — combines a `ScanResult` + `ChaosReport` into one `AuditRun`.
+- `security_report.ts` — builds the canonical `SecurityReport` (`schemaVersion: "1.0.0"`) from an `AuditRun`: target info, scan summary, execution evidence (tx hashes, ledgers, explorer URLs), findings, and severity/signal counts.
+- `report_export.ts` — writes a `SecurityReport` to JSON and/or calls `pdf_report.ts`; used identically by the TUI's `[J]/[P]/[B]` keys and the headless `--json`/`--pdf` flags.
+- `pdf_report.ts` — renders the same `SecurityReport` as a PDF via `pdfkit`.
 
-## Data flow diagram
+### `cli_runtime.ts`, `network.ts`
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant TUI as TUI (React/Ink)
-    participant RPC as Soroban RPC (Testnet)
-    participant Chain as Stellar Ledger
-
-    User->>TUI: Enter Contract ID
-    TUI->>RPC: getContractWasmByContractId [READ-ONLY]
-    RPC-->>TUI: WASM bytes
-    TUI->>TUI: Decode contractspecv0 (XDR parse)
-    TUI-->>User: Attack surface map
-
-    User->>TUI: Press [C] — launch Chaos Monkey
-    TUI->>RPC: Friendbot fund ephemeral keypair
-    TUI->>RPC: getAccount (confirm funding) [READ-ONLY]
-
-    loop For each function × each attack vector
-        TUI->>RPC: simulateTransaction [READ-ONLY]
-        RPC-->>TUI: footprint + auth requirements
-        TUI->>TUI: assembleTransaction + sign (in-process)
-        TUI->>Chain: sendTransaction [WRITES to Testnet]
-        TUI->>RPC: poll getTransaction [READ-ONLY]
-        RPC-->>TUI: SUCCESS / FAILED / TIMEOUT
-        TUI->>TUI: classifyError → VulnerabilitySignal
-    end
-
-    TUI-->>User: ChaosReport (KYF-001… findings)
-```
-
----
+- `cli_runtime.ts` — the headless code path: `selectCliMode()`, `runHeadlessAudit()`, error-message formatting. Calls the same `scanner.ts`/`chaos_monkey`/`security_report.ts`/`report_export.ts` functions the TUI calls.
+- `network.ts` — the Testnet RPC URL constant.
 
 ## Security notes
 
 - **No private key storage.** Ephemeral keypairs are generated in memory and never written to disk or logged.
-- **Testnet only.** The RPC endpoint is hardcoded to `https://soroban-testnet.stellar.org`. Mainnet support is not present.
+- **Testnet only.** The RPC endpoint is hardcoded to `https://soroban-testnet.stellar.org`. Mainnet is not supported.
 - **Read-only phase first.** The OSINT Scanner issues no transactions — only `getContractWasmByContractId`.
-- **Real transactions.** The Chaos Monkey submits real signed transactions to Stellar Testnet. Each vector costs a small XLM fee paid from the Friendbot-funded ephemeral account.
+- **Real transactions.** Chaos Monkey submits real signed transactions to Stellar Testnet, each costing a small XLM fee from a Friendbot-funded ephemeral account.

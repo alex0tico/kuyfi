@@ -1,0 +1,12 @@
+# Rust's output directory
+target
+
+# Local settings / identities — never track keys or credentials
+.soroban
+.stellar
+
+# Auto-generated ledger snapshots from `cargo test` (soroban-sdk testutils)
+test_snapshots/
+
+# Cargo lockfile churn is noise for a throwaway test fixture
+Cargo.lock

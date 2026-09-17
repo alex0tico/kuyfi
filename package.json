@@ -82,10 +82,6 @@
 		"extends": "xo-react",
 		"prettier": true,
 		"semicolon": true,
-		"ignores": [
-			"test.tsx",
-			"rerun_chaos.mjs"
-		],
 		"rules": {
 			"react/prop-types": "off",
 			"unicorn/prevent-abbreviations": "off",

@@ -2,50 +2,52 @@
 
 ## Phase 1 — OSINT Scanner
 
-**Status: Stable**
+**Status: Shipped**
 
 - [x] Fetch WASM bytecode from any Soroban Testnet contract via RPC
 - [x] Alignment-tolerant XDR parse of `contractspecv0` custom section
-- [x] UDT struct registry built from `scSpecEntryUdtStructV0` entries
+- [x] UDT struct/union/enum registry from `scSpecEntryUdtStructV0`-family entries
 - [x] Attack surface map rendered in terminal (functions, typed params, return types)
-- [x] Terminal-resize-safe TUI (Ink + React)
-- [x] Keyboard navigation: `↑↓`, `1–4`, `Esc`
-
----
 
 ## Phase 2 — Chaos Monkey
 
-**Status: Beta / In Testing**
-
-The engine is fully developed and integrated into the TUI. Testing is ongoing against DeFi protocol contracts on Stellar Testnet.
+**Status: Shipped**
 
 - [x] Ephemeral keypair generation + Friendbot funding + on-chain confirmation
-- [x] Type-aware math boundary attacks (ZERO, MAX_VALUE, NEGATIVE, MIN_BOUNDARY)
-- [x] One-variable-at-a-time fuzzing with type-correct baselines for all other params
-- [x] Access control vectors: UNAUTHORIZED_CALL, REINIT_ATTACK, SELF_CALL_ATTACK
-- [x] Admin function pattern detection
-- [x] Full on-chain execution: simulate → assemble → sign → submit → poll
-- [x] Error taxonomy: WASM panics, auth errors, contract errors, storage errors
-- [x] Severity classification: CRITICAL / HIGH / MEDIUM / LOW / INFO
-- [x] Terminal report with sequential finding IDs (KYF-001…)
-- [ ] Stabilize across a broader range of contract patterns
+- [x] Type-aware math boundary attacks (`ZERO`, `MAX_VALUE`, `NEGATIVE`, `MIN_BOUNDARY`), one variable at a time
+- [x] Access control vectors (`UNAUTHORIZED_CALL`, `REINIT_ATTACK`, `SELF_CALL_ATTACK`) on admin-pattern functions
+- [x] Composite UDT-aware fuzzing (structs/unions/enums, recursive types)
+- [x] Additional attack-vector families: call-order, fee/basis-point parameters, liquidity/swap-shaped functions
+- [x] Full on-chain execution lifecycle: simulate → assemble → sign → submit → poll
+- [x] `DiagnosticEvent`-based execution-trace classification (structured error categories, not just success/failure)
+- [x] Six-signal finding taxonomy (`SECURE`, `PRECONDITION_FAIL`, `UNEXPECTED_ERROR`, `POTENTIAL_VULN`, `TIMEOUT`, `SIMULATION_FAIL`) with false-positive filtering
+- [x] Severity classification (`CRITICAL`/`HIGH`/`MEDIUM`/`LOW`/`INFO`)
+- [x] Sequential finding IDs (`KYF-001`…), sorted by severity
 
----
+## Phase 3 — Reporting & Distribution
 
-## Phase 3 — Audit Reports and Integrations
+**Status: Shipped**
 
-**Status: Planned**
+- [x] Headless CLI mode (`kuyfi <CONTRACT_ID>`) — same engine as the TUI, no interactive UI
+- [x] Stable JSON `SecurityReport` export (`schemaVersion: "1.0.0"`)
+- [x] PDF report export from the same `SecurityReport`
+- [x] TUI export workflow (`[J]`/`[P]`/`[B]` keys, same underlying export code as headless `--json`/`--pdf`)
+- [x] Execution evidence in every report: transaction hashes, ledgers, explorer URLs, execution traces
+- [x] npm CLI packaging readiness — `kuyfi` binary, package metadata, `prepack` build guarantee, verified isolated install
+- [x] Responsive TUI layout (large/compact/too-small tiers) and shrink-resize stabilization
+- [x] Modular TUI architecture (screens/components/hooks/ui separation)
+- [x] Reusable ASCII asset system
 
-- [ ] Export findings as structured JSON
-- [ ] Export findings as PDF (audit-ready format)
-- [ ] CI/CD integration — run Kuyfi as a pipeline step
-- [ ] Batch scanning of multiple contracts in one session
-- [ ] Monitoring dashboard — track contract findings over time
-- [ ] **kuyfi.io** — SaaS platform with hosted scanning and report delivery
-- [ ] Formal security certification process for scanned contracts
+## Phase 4 — Not yet started
 
----
+**Status: Planned, not committed to a specific scope**
+
+- [ ] Publish `kuyfi` to the public npm registry
+- [ ] Broader semantic input provenance for generated attack values (beyond type-correct boundaries)
+- [ ] Richer attack-vector coverage as real-world contract patterns are audited
+- [ ] Additional contract family support as evidence from real campaigns justifies it
+- [ ] Developer integrations (e.g. CI-friendly output formats) if real usage shows a need
 
 ## Notes
 
-Phases 1 and 2 operate exclusively on Stellar Testnet. Mainnet support is a Phase 3 consideration and will be introduced only alongside appropriate responsible-use controls.
+Kuyfi operates exclusively on Stellar Testnet. Mainnet support, other chains, a hosted/SaaS platform, and any form of certification are explicitly out of scope and not on this roadmap.
