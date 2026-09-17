@@ -19,28 +19,142 @@ import type {ScannedParam, ScanResult} from './modules/scanner.js';
 import type {AuditRun} from './modules/audit.js';
 import type {SecurityReport} from './modules/security_report.js';
 
+// ─── Responsive policy ────────────────────────────────────────────────────────
+//
+// LARGE:   columns >= 100 — full layout, full ASCII header.
+// COMPACT: 70 <= columns < 100 — compact header, same view structure.
+// TOO_SMALL: columns < 70 or rows < 20 — stable placeholder screen instead of
+// risking wrapped/overlapping content; the active view stays mounted and its
+// state (scan/audit in progress) keeps running in the background.
+export type LayoutMode = 'large' | 'compact' | 'tooSmall';
+
+export function getLayoutMode(columns: number, rows: number): LayoutMode {
+	if (columns < 70 || rows < 20) return 'tooSmall';
+	if (columns < 100) return 'compact';
+	return 'large';
+}
+
+function TooSmallNotice() {
+	return (
+		<Box flexDirection="column" padding={1}>
+			<Text color="yellow" bold>
+				{'Terminal too small'}
+			</Text>
+			<Text dimColor>{'Minimum recommended size: 70 × 24'}</Text>
+			<Text dimColor>{'Resize the terminal to continue.'}</Text>
+		</Box>
+	);
+}
+
+// ─── Shrink resize recovery (D3.4A.2) ──────────────────────────────────────────
+//
+// Upstream root cause (github.com/vadimdemedes/ink issue #907, closed
+// NOT_PLANNED — present in Ink 6.8 and 7.x alike): Ink erases the previous
+// frame by counting LOGICAL lines (`output.split('\n').length`), not the
+// PHYSICAL terminal rows that already-painted content reflows into when the
+// terminal narrows. On a width decrease, a real terminal (confirmed: macOS
+// Terminal.app) can reflow prior output to occupy more rows than Ink's
+// count — Ink then erases too few rows and stale frame content is left
+// behind, compounding with every further shrink. There is no general fix
+// available from Ink itself.
+//
+// This mitigates it without touching Ink internals: only a SHRINK
+// (narrower columns) arms a short debounce; while it's pending, every
+// further resize (shrink OR expand) just restarts the same timer — nothing
+// is drawn to the screen during a drag. Once resize events stop for
+// ~130ms, we do exactly ONE full-screen clear (bypassing Ink's own
+// under-counting erase math for this single transition) and flip
+// `isResizeSettling` back to false, which is a real state change that
+// makes React naturally render the actual current screen fresh onto the
+// now-blank terminal — no ghost tick, no forced remount.
+const RESIZE_SETTLE_MS = 130;
+
+export function didShrink(
+	newColumns: number,
+	previousColumns: number,
+): boolean {
+	return newColumns < previousColumns;
+}
+
+function ResizingNotice() {
+	return (
+		<Box flexDirection="column" padding={1}>
+			<Text color="cyan" bold>
+				{'KUYFI'}
+			</Text>
+			<Text dimColor>{'Resizing terminal…'}</Text>
+		</Box>
+	);
+}
+
 function useTerminalSize() {
 	const {stdout} = useStdout();
 	const [size, setSize] = useState({
 		columns: stdout.columns || 80,
 		rows: stdout.rows || 24,
 	});
+	const [isResizeSettling, setIsResizeSettling] = useState(false);
+
+	const previousColumnsRef = useRef(stdout.columns || 80);
+	const isSettlingRef = useRef(false);
+	const settleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
+		let unmounted = false;
+
+		function clearSettleTimer() {
+			if (settleTimerRef.current) {
+				clearTimeout(settleTimerRef.current);
+				settleTimerRef.current = null;
+			}
+		}
+
+		function settle() {
+			settleTimerRef.current = null;
+			if (unmounted) return;
+
+			const columns = stdout.columns || 80;
+			const rows = stdout.rows || 24;
+
+			// The one controlled clear this mitigation is built around — see
+			// the module comment above for why. Only ever reached from here,
+			// only once per settled resize sequence, only on a real TTY.
+			if (stdout.isTTY) {
+				stdout.write('[2J[H');
+			}
+
+			isSettlingRef.current = false;
+			setIsResizeSettling(false);
+			setSize({columns, rows});
+		}
+
 		function onResize() {
-			setSize({
-				columns: stdout.columns || 80,
-				rows: stdout.rows || 24,
-			});
+			const columns = stdout.columns || 80;
+			const rows = stdout.rows || 24;
+			const shrinking = didShrink(columns, previousColumnsRef.current);
+			previousColumnsRef.current = columns;
+
+			if (shrinking || isSettlingRef.current) {
+				isSettlingRef.current = true;
+				setIsResizeSettling(true);
+				clearSettleTimer();
+				settleTimerRef.current = setTimeout(settle, RESIZE_SETTLE_MS);
+				return;
+			}
+
+			// Pure expand while not settling — no special handling needed.
+			setSize({columns, rows});
 		}
 
 		stdout.on('resize', onResize);
 		return () => {
+			unmounted = true;
 			stdout.off('resize', onResize);
+			clearSettleTimer();
 		};
 	}, [stdout]);
 
-	return size;
+	return {...size, isResizeSettling};
 }
 
 interface ScannerViewProps {
@@ -50,6 +164,8 @@ interface ScannerViewProps {
 	onQuit: () => void;
 	onScanComplete: (scanResult: ScanResult) => void;
 	onLaunchChaos: () => void;
+	isTooSmall?: boolean;
+	isResizeSettling?: boolean;
 }
 
 interface ContractFunction {
@@ -114,7 +230,7 @@ const FULL_ASCII_LINES = [
 ];
 
 function AsciiHeader({columns}: {columns: number}) {
-	if (columns >= 90) {
+	if (columns >= 100) {
 		return (
 			<Box flexDirection="column" marginBottom={1}>
 				{FULL_ASCII_LINES.map((line, i) => (
@@ -208,6 +324,8 @@ function ScannerView({
 	onQuit,
 	onScanComplete,
 	onLaunchChaos,
+	isTooSmall = false,
+	isResizeSettling = false,
 }: ScannerViewProps) {
 	const [inputValue, setInputValue] = useState('');
 	const [inputError, setInputError] = useState('');
@@ -297,7 +415,10 @@ function ScannerView({
 			}
 		};
 
-		fetchContractBytecode();
+		// Fire-and-forget by design: every path inside fetchContractBytecode is
+		// wrapped in its own try/catch/finally and gated by `cancelled`, so no
+		// rejection can escape this effect. `void` marks that intentionally.
+		void fetchContractBytecode();
 		return () => {
 			cancelled = true;
 		};
@@ -357,6 +478,18 @@ function ScannerView({
 
 		setInputError('');
 		setContractId(newValue);
+	}
+
+	// Rendered after every hook above so the in-flight scan (if any) keeps
+	// running in the background — resizing back up shows wherever it got to.
+	// Priority: an active shrink-settle takes precedence over tooSmall, since
+	// the terminal's real size is unreliable/irrelevant until it settles.
+	if (isResizeSettling) {
+		return <ResizingNotice />;
+	}
+
+	if (isTooSmall) {
+		return <TooSmallNotice />;
 	}
 
 	return (
@@ -521,22 +654,34 @@ function reportBorderColor(report: ChaosReport): 'red' | 'yellow' | 'green' {
 	return 'green';
 }
 
+interface LogEntry {
+	id: number;
+	text: string;
+}
+
 function ChaosMonkeyView({
 	scanResult,
 	onBackToMenu,
+	isTooSmall = false,
+	isResizeSettling = false,
 }: {
 	scanResult: ScanResult | null;
 	onBackToMenu: () => void;
+	isTooSmall?: boolean;
+	isResizeSettling?: boolean;
 }) {
 	const contractId = scanResult?.contractId ?? '';
 	const functions = scanResult?.functions ?? [];
 	const udtRegistry = scanResult?.udtRegistry ?? new Map();
 
 	const [phase, setPhase] = useState<ChaosPhase>('idle');
-	const [logs, setLogs] = useState<string[]>([]);
+	const [logs, setLogs] = useState<LogEntry[]>([]);
 	const [report, setReport] = useState<ChaosReport | null>(null);
 	const [errorMsg, setErrorMsg] = useState('');
 	const hasStarted = useRef(false);
+	// Stable per-line identity for React keys — assigned once when a log
+	// line is born, never derived from its position in the (sliding) list.
+	const nextLogId = useRef(0);
 
 	// Built exactly once per completed run, in the runChaosMonkey().then()
 	// callback below — never in a useEffect (which React 19 can invoke twice
@@ -617,7 +762,7 @@ function ChaosMonkeyView({
 			functions,
 			udtRegistry,
 			onProgress(msg: string) {
-				setLogs(prev => [...prev, msg]);
+				setLogs(prev => [...prev, {id: nextLogId.current++, text: msg}]);
 			},
 		})
 			.then(r => {
@@ -635,6 +780,17 @@ function ChaosMonkeyView({
 			});
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [phase, contractId, functions]);
+
+	// Rendered after every hook above so a running/finished campaign keeps
+	// its state and effects alive — resizing back up shows the same run.
+	// Same priority as ScannerView: settling beats tooSmall.
+	if (isResizeSettling) {
+		return <ResizingNotice />;
+	}
+
+	if (isTooSmall) {
+		return <TooSmallNotice />;
+	}
 
 	// ── idle: no target loaded ────────────────────────────────────────────────
 	if (phase === 'idle' && contractId === '') {
@@ -706,19 +862,19 @@ function ChaosMonkeyView({
 					{'🐒 Chaos Monkey is running...'}
 				</Text>
 				<Box flexDirection="column" marginTop={1}>
-					{visibleLogs.map((line, i) => {
-						const col = logLineColor(line);
+					{visibleLogs.map(entry => {
+						const col = logLineColor(entry.text);
 						if (col) {
 							return (
-								<Text key={i} color={col}>
-									{line}
+								<Text key={entry.id} color={col}>
+									{entry.text}
 								</Text>
 							);
 						}
 
 						return (
-							<Text key={i} dimColor>
-								{line}
+							<Text key={entry.id} dimColor>
+								{entry.text}
 							</Text>
 						);
 					})}
@@ -823,7 +979,8 @@ function ChaosMonkeyView({
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const App: React.FC = () => {
-	const {columns} = useTerminalSize();
+	const {columns, rows, isResizeSettling} = useTerminalSize();
+	const layoutMode = getLayoutMode(columns, rows);
 	const [view, setView] = useState<ViewId>('menu');
 	const [selectedModule, setSelectedModule] = useState(0);
 	const [menuNotice, setMenuNotice] = useState<string | null>(null);
@@ -904,6 +1061,14 @@ const App: React.FC = () => {
 	);
 
 	if (view === 'menu') {
+		if (isResizeSettling) {
+			return <ResizingNotice />;
+		}
+
+		if (layoutMode === 'tooSmall') {
+			return <TooSmallNotice />;
+		}
+
 		return (
 			<Box flexDirection="column" padding={1}>
 				<TopStatusBar />
@@ -962,6 +1127,8 @@ const App: React.FC = () => {
 						onQuit={handleQuit}
 						onScanComplete={handleScanComplete}
 						onLaunchChaos={handleLaunchChaos}
+						isTooSmall={layoutMode === 'tooSmall'}
+						isResizeSettling={isResizeSettling}
 					/>
 				</ViewShell>
 			</Box>
@@ -975,6 +1142,8 @@ const App: React.FC = () => {
 					<ChaosMonkeyView
 						scanResult={lastScanResult}
 						onBackToMenu={() => setView('menu')}
+						isTooSmall={layoutMode === 'tooSmall'}
+						isResizeSettling={isResizeSettling}
 					/>
 				</ViewShell>
 			</Box>
@@ -982,6 +1151,14 @@ const App: React.FC = () => {
 	}
 
 	if (view === 'logs') {
+		if (isResizeSettling) {
+			return <ResizingNotice />;
+		}
+
+		if (layoutMode === 'tooSmall') {
+			return <TooSmallNotice />;
+		}
+
 		return (
 			<Box>
 				<ViewShell onBack={() => setView('menu')}>
@@ -1006,6 +1183,14 @@ const App: React.FC = () => {
 				</ViewShell>
 			</Box>
 		);
+	}
+
+	if (isResizeSettling) {
+		return <ResizingNotice />;
+	}
+
+	if (layoutMode === 'tooSmall') {
+		return <TooSmallNotice />;
 	}
 
 	return (

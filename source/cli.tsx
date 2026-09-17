@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React, {useState, useEffect} from 'react';
+import React from 'react';
 import {render} from 'ink';
 import meow from 'meow';
 import App from './app.js';
@@ -68,40 +68,19 @@ async function main() {
 	}
 
 	// mode.kind === 'tui' — unchanged interactive path.
-	let instance: any;
-
-	// Componente guardián que reacciona a los cambios físicos de la terminal
-	const TerminalManager = () => {
-		// Estado "fantasma" que solo sirve para forzar a React a redibujar
-		const [, setTick] = useState(0);
-
-		useEffect(() => {
-			const handleResize = () => {
-				// 1. Limpiamos el remanente visual (el bug de la cascada)
-				if (instance) {
-					instance.clear();
-				}
-
-				// 2. Forzamos el re-render de React al instante.
-				// Como solo actualizamos el envoltorio, <App /> mantiene intacto su estado interno.
-				setTick(prev => prev + 1);
-			};
-
-			// Escuchamos el cambio de tamaño nativo de Node
-			process.stdout.on('resize', handleResize);
-
-			// Limpieza del listener por buenas prácticas
-			return () => {
-				process.stdout.off('resize', handleResize);
-			};
-		}, []);
-
-		// Renderizamos tu TUI de forma segura
-		return <App />;
-	};
-
-	// Arrancamos el motor y capturamos la instancia
-	instance = render(<TerminalManager />);
+	//
+	// Ink already listens to process.stdout's native 'resize' event itself
+	// (see Ink's own `resized` handler: it clears + resets its internal
+	// output-tracking buffers and recalculates layout before re-rendering).
+	// A second, app-level resize listener that also calls `instance.clear()`
+	// races against that internal handler and desyncs Ink's own bookkeeping
+	// (its public `clear()` API is meant for pre-unmount cleanup, not
+	// mid-session redraws — it *syncs* lastOutput instead of resetting it),
+	// which is what caused the duplicated/disappearing content on resize.
+	// App's own `useTerminalSize()` hook remains the single additional
+	// listener, and it only feeds React state for conditional layout — it
+	// never touches the terminal directly.
+	render(<App />);
 }
 
 await main();

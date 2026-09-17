@@ -127,7 +127,6 @@
 			"@typescript-eslint/lines-between-class-members": "off",
 			"padding-line-between-statements": "off",
 			"import/order": "off",
-			"@typescript-eslint/no-floating-promises": "off",
 			"react/jsx-no-bind": "off",
 			"unicorn/catch-error-name": "off",
 			"unicorn/no-process-exit": "off",
