@@ -1,6 +1,10 @@
 import test from 'ava';
 import {xdr} from '@stellar/stellar-sdk';
-import {parseContractSpecSection, isValidContractId, ScanError} from './scanner.js';
+import {
+	parseContractSpecSection,
+	isValidContractId,
+	ScanError,
+} from './scanner.js';
 
 /**
  * D2.2 — CASE A/B: the reusable scanner's pure parse core, exercised with
@@ -9,7 +13,10 @@ import {parseContractSpecSection, isValidContractId, ScanError} from './scanner.
  * no network, no WebAssembly module, no React.
  */
 
-function functionEntry(name: string, inputs: Array<{name: string; type: xdr.ScSpecTypeDef}>): xdr.ScSpecEntry {
+function functionEntry(
+	name: string,
+	inputs: Array<{name: string; type: xdr.ScSpecTypeDef}>,
+): xdr.ScSpecEntry {
 	return xdr.ScSpecEntry.scSpecEntryFunctionV0(
 		new xdr.ScSpecFunctionV0({
 			doc: '',
@@ -38,13 +45,19 @@ function functionEntryWithReturn(name: string): xdr.ScSpecEntry {
 	);
 }
 
-function structEntry(name: string, fields: Array<{name: string; type: xdr.ScSpecTypeDef}>): xdr.ScSpecEntry {
+function structEntry(
+	name: string,
+	fields: Array<{name: string; type: xdr.ScSpecTypeDef}>,
+): xdr.ScSpecEntry {
 	return xdr.ScSpecEntry.scSpecEntryUdtStructV0(
 		new xdr.ScSpecUdtStructV0({
 			doc: '',
 			lib: '',
 			name,
-			fields: fields.map(f => new xdr.ScSpecUdtStructFieldV0({doc: '', name: f.name, type: f.type})),
+			fields: fields.map(
+				f =>
+					new xdr.ScSpecUdtStructFieldV0({doc: '', name: f.name, type: f.type}),
+			),
 		}),
 	);
 }
@@ -95,10 +108,14 @@ test('CASE B — parseContractSpecSection builds the same UdtRegistry buildUdtRe
 			{name: 'a', type: xdr.ScSpecTypeDef.scSpecTypeU32()},
 			{name: 'b', type: xdr.ScSpecTypeDef.scSpecTypeAddress()},
 		]),
-		functionEntry('echo_pair', [{name: 'p', type: xdr.ScSpecTypeDef.scSpecTypeU32()}]),
+		functionEntry('echo_pair', [
+			{name: 'p', type: xdr.ScSpecTypeDef.scSpecTypeU32()},
+		]),
 	];
 
-	const {udtRegistry, functions} = parseContractSpecSection(specSectionBytes(entries));
+	const {udtRegistry, functions} = parseContractSpecSection(
+		specSectionBytes(entries),
+	);
 
 	t.is(udtRegistry.size, 1);
 	const pairDef = udtRegistry.get('Pair');
@@ -116,7 +133,9 @@ test('CASE B — parseContractSpecSection builds the same UdtRegistry buildUdtRe
 });
 
 test('parseContractSpecSection throws ScanError(XDR_ALIGN_FAILURE) on garbage bytes, never a raw/unclassified error', t => {
-	const error = t.throws(() => parseContractSpecSection(Buffer.from([1, 2, 3, 4, 5, 6, 7, 8])));
+	const error = t.throws(() =>
+		parseContractSpecSection(Buffer.from([1, 2, 3, 4, 5, 6, 7, 8])),
+	);
 	t.true(error instanceof ScanError);
 	t.is((error as ScanError).code, 'XDR_ALIGN_FAILURE');
 });

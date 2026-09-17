@@ -11,11 +11,19 @@ import type {SecurityReport} from './security_report.js';
  * in this file, proving the renderer (and these tests) never need them.
  */
 
-const STANDARD_FONT_DATA_URL = new URL('../../node_modules/pdfjs-dist/standard_fonts/', import.meta.url).href;
+const STANDARD_FONT_DATA_URL = new URL(
+	'../../node_modules/pdfjs-dist/standard_fonts/',
+	import.meta.url,
+).href;
 
-async function extractPdfText(pdfBuffer: Buffer): Promise<{numPages: number; fullText: string}> {
+async function extractPdfText(
+	pdfBuffer: Buffer,
+): Promise<{numPages: number; fullText: string}> {
 	const data = new Uint8Array(pdfBuffer);
-	const pdf = await getDocument({data, standardFontDataUrl: STANDARD_FONT_DATA_URL}).promise;
+	const pdf = await getDocument({
+		data,
+		standardFontDataUrl: STANDARD_FONT_DATA_URL,
+	}).promise;
 	const pageTexts: string[] = [];
 	for (let i = 1; i <= pdf.numPages; i++) {
 		// eslint-disable-next-line no-await-in-loop
@@ -23,7 +31,11 @@ async function extractPdfText(pdfBuffer: Buffer): Promise<{numPages: number; ful
 		// eslint-disable-next-line no-await-in-loop
 		const content = await page.getTextContent();
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		pageTexts.push(content.items.map((item: any) => ('str' in item ? (item.str as string) : '')).join(' '));
+		pageTexts.push(
+			content.items
+				.map((item: any) => ('str' in item ? (item.str as string) : ''))
+				.join(' '),
+		);
 	}
 
 	return {numPages: pdf.numPages, fullText: pageTexts.join('\n')};
@@ -59,7 +71,13 @@ function baseReport(overrides: Partial<SecurityReport> = {}): SecurityReport {
 		},
 		scan: {
 			totalFunctions: 1,
-			functions: [{name: 'echo_point', parameters: [{name: 'p', type: 'Point'}], hasReturn: true}],
+			functions: [
+				{
+					name: 'echo_point',
+					parameters: [{name: 'p', type: 'Point'}],
+					hasReturn: true,
+				},
+			],
 			udts: [
 				{
 					kind: 'struct',
@@ -71,10 +89,22 @@ function baseReport(overrides: Partial<SecurityReport> = {}): SecurityReport {
 				},
 			],
 		},
-		execution: {vectorsExecuted: 10, broadcastTransactions: 10, transactionsWithHash: 10, verificationTransactions: []},
+		execution: {
+			vectorsExecuted: 10,
+			broadcastTransactions: 10,
+			transactionsWithHash: 10,
+			verificationTransactions: [],
+		},
 		summary: {
 			totalFindings: 0,
-			bySeverity: {critical: 0, high: 0, medium: 0, low: 0, info: 0, preconditionFail: 0},
+			bySeverity: {
+				critical: 0,
+				high: 0,
+				medium: 0,
+				low: 0,
+				info: 0,
+				preconditionFail: 0,
+			},
 			findingsBySignal: {},
 		},
 		findings: [],
@@ -82,7 +112,8 @@ function baseReport(overrides: Partial<SecurityReport> = {}): SecurityReport {
 	};
 }
 
-const HASH_64 = 'ae0bd15d76dfe6b169f49b970f1644919c9ad1932cee336d086fd75b2395c157';
+const HASH_64 =
+	'ae0bd15d76dfe6b169f49b970f1644919c9ad1932cee336d086fd75b2395c157';
 
 function findingFixture(): SecurityReport['findings'][number] {
 	return {
@@ -101,10 +132,20 @@ function findingFixture(): SecurityReport['findings'][number] {
 				explorerUrl: `https://stellar.expert/explorer/testnet/tx/${HASH_64}`,
 			},
 			trace: {
-				rootCall: {kind: 'fn_call', contractId: 'aa'.repeat(32), functionName: 'echo_point'},
+				rootCall: {
+					kind: 'fn_call',
+					contractId: 'aa'.repeat(32),
+					functionName: 'echo_point',
+				},
 				nestedCallCount: 0,
 				involvedContractIds: ['aa'.repeat(32)],
-				errors: [{category: 'WASM_VM', code: 'scecInvalidAction', contractId: 'aa'.repeat(32)}],
+				errors: [
+					{
+						category: 'WASM_VM',
+						code: 'scecInvalidAction',
+						contractId: 'aa'.repeat(32),
+					},
+				],
 				hasAuthError: false,
 				failureLocation: 'ROOT',
 				malformed: false,
@@ -117,43 +158,77 @@ function findingFixture(): SecurityReport['findings'][number] {
 
 test('CASE A — PDF contains reportId', async t => {
 	const report = baseReport();
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes(report.reportId));
 });
 
 test('CASE B — PDF contains contractId', async t => {
 	const report = baseReport();
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(normalizedIncludes(fullText, report.target.contractId));
 });
 
 test('CASE C — PDF contains schemaVersion', async t => {
 	const report = baseReport();
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes(report.schemaVersion));
 });
 
 test('CASE D — PDF contains vectorsExecuted', async t => {
-	const report = baseReport({execution: {vectorsExecuted: 57, broadcastTransactions: 57, transactionsWithHash: 57, verificationTransactions: []}});
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const report = baseReport({
+		execution: {
+			vectorsExecuted: 57,
+			broadcastTransactions: 57,
+			transactionsWithHash: 57,
+			verificationTransactions: [],
+		},
+	});
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes('57'));
 });
 
 test('CASE E — PDF contains totalFindings', async t => {
-	const report = baseReport({summary: {totalFindings: 3, bySeverity: {critical: 1, high: 1, medium: 1, low: 0, info: 0, preconditionFail: 0}, findingsBySignal: {}}});
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const report = baseReport({
+		summary: {
+			totalFindings: 3,
+			bySeverity: {
+				critical: 1,
+				high: 1,
+				medium: 1,
+				low: 0,
+				info: 0,
+				preconditionFail: 0,
+			},
+			findingsBySignal: {},
+		},
+	});
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes('Total findings') && fullText.includes('3'));
 });
 
 test('CASE F — PDF contains a scanned function', async t => {
 	const report = baseReport();
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes('echo_point'));
 });
 
 test('CASE G — PDF contains a UDT', async t => {
 	const report = baseReport();
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes('Point'));
 	t.true(fullText.includes('STRUCT'));
 });
@@ -164,9 +239,22 @@ test('CASE H — a finding shows ID, severity, signal, function, and vector', as
 	const finding = findingFixture();
 	const report = baseReport({
 		findings: [finding],
-		summary: {totalFindings: 1, bySeverity: {critical: 0, high: 0, medium: 1, low: 0, info: 0, preconditionFail: 0}, findingsBySignal: {UNEXPECTED_ERROR: 1}},
+		summary: {
+			totalFindings: 1,
+			bySeverity: {
+				critical: 0,
+				high: 0,
+				medium: 1,
+				low: 0,
+				info: 0,
+				preconditionFail: 0,
+			},
+			findingsBySignal: {UNEXPECTED_ERROR: 1},
+		},
 	});
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes(finding.id));
 	t.true(fullText.includes(finding.severity));
 	t.true(fullText.includes(finding.signal));
@@ -195,7 +283,9 @@ test('CASE I — PDF contains verification tx hash + ledger, present even with z
 		},
 	});
 	t.is(report.findings.length, 0);
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(normalizedIncludes(fullText, HASH_64));
 	t.true(fullText.includes('4587371'));
 	t.true(fullText.includes('stellar.expert'));
@@ -205,11 +295,20 @@ test('CASE I — PDF contains verification tx hash + ledger, present even with z
 
 test('CASE J — zero findings shows NO REPORTABLE FINDINGS and never claims the contract is safe', async t => {
 	const report = baseReport();
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 	t.true(fullText.includes('NO REPORTABLE FINDINGS'));
 	t.true(fullText.toLowerCase().includes('does not constitute'));
-	for (const forbidden of ['SAFE CONTRACT', 'SECURE CONTRACT', 'NO VULNERABILITIES EXIST']) {
-		t.false(fullText.toUpperCase().includes(forbidden), `must not claim "${forbidden}"`);
+	for (const forbidden of [
+		'SAFE CONTRACT',
+		'SECURE CONTRACT',
+		'NO VULNERABILITIES EXIST',
+	]) {
+		t.false(
+			fullText.toUpperCase().includes(forbidden),
+			`must not claim "${forbidden}"`,
+		);
 	}
 });
 
@@ -219,19 +318,39 @@ test('CASE K — the same SecurityReport produces JSON and PDF that agree on rep
 	const finding = findingFixture();
 	const report = baseReport({
 		findings: [finding],
-		summary: {totalFindings: 1, bySeverity: {critical: 0, high: 0, medium: 1, low: 0, info: 0, preconditionFail: 0}, findingsBySignal: {UNEXPECTED_ERROR: 1}},
+		summary: {
+			totalFindings: 1,
+			bySeverity: {
+				critical: 0,
+				high: 0,
+				medium: 1,
+				low: 0,
+				info: 0,
+				preconditionFail: 0,
+			},
+			findingsBySignal: {UNEXPECTED_ERROR: 1},
+		},
 		execution: {
 			vectorsExecuted: 5,
 			broadcastTransactions: 5,
 			transactionsWithHash: 5,
 			verificationTransactions: [
-				{functionName: 'echo_point', vectorName: 'baseline::NO_ARGS', broadcasted: true, hash: HASH_64, ledger: 42, explorerUrl: `https://stellar.expert/explorer/testnet/tx/${HASH_64}`},
+				{
+					functionName: 'echo_point',
+					vectorName: 'baseline::NO_ARGS',
+					broadcasted: true,
+					hash: HASH_64,
+					ledger: 42,
+					explorerUrl: `https://stellar.expert/explorer/testnet/tx/${HASH_64}`,
+				},
 			],
 		},
 	});
 
 	const json = JSON.parse(serializeSecurityReport(report)) as SecurityReport;
-	const {fullText} = await extractPdfText(await renderSecurityReportPdf(report));
+	const {fullText} = await extractPdfText(
+		await renderSecurityReportPdf(report),
+	);
 
 	t.is(json.reportId, report.reportId);
 	t.true(fullText.includes(report.reportId));
@@ -272,12 +391,30 @@ test('PDF validity — a report with several findings and many functions/UDTs st
 		name: `Struct${i}`,
 		fields: [{name: 'a', type: 'U32'}],
 	}));
-	const findings = Array.from({length: 5}, (_, i) => ({...findingFixture(), id: `KYF-00${i + 1}`}));
+	const findings = Array.from({length: 5}, (_, i) => ({
+		...findingFixture(),
+		id: `KYF-00${i + 1}`,
+	}));
 
 	const report = baseReport({
-		scan: {totalFunctions: manyFunctions.length, functions: manyFunctions, udts: manyUdts},
+		scan: {
+			totalFunctions: manyFunctions.length,
+			functions: manyFunctions,
+			udts: manyUdts,
+		},
 		findings,
-		summary: {totalFindings: 5, bySeverity: {critical: 0, high: 0, medium: 5, low: 0, info: 0, preconditionFail: 0}, findingsBySignal: {UNEXPECTED_ERROR: 5}},
+		summary: {
+			totalFindings: 5,
+			bySeverity: {
+				critical: 0,
+				high: 0,
+				medium: 5,
+				low: 0,
+				info: 0,
+				preconditionFail: 0,
+			},
+			findingsBySignal: {UNEXPECTED_ERROR: 5},
+		},
 	});
 
 	const pdfBuffer = await renderSecurityReportPdf(report);

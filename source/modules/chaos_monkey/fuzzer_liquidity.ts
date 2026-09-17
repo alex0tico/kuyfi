@@ -66,10 +66,10 @@ function numericBoundary(t: AnyTypeDef, kind: BoundaryKind): xdr.ScVal | null {
 				kind === 'MAX'
 					? 2_147_483_647
 					: kind === 'MIN'
-					? -2_147_483_648
-					: kind === 'ONE'
-					? 1
-					: 0,
+						? -2_147_483_648
+						: kind === 'ONE'
+							? 1
+							: 0,
 			);
 		case 'scSpecTypeU64':
 			return xdr.ScVal.scvU64(
@@ -83,10 +83,10 @@ function numericBoundary(t: AnyTypeDef, kind: BoundaryKind): xdr.ScVal | null {
 					kind === 'MAX'
 						? '9223372036854775807'
 						: kind === 'MIN'
-						? '-9223372036854775808'
-						: kind === 'ONE'
-						? '1'
-						: '0',
+							? '-9223372036854775808'
+							: kind === 'ONE'
+								? '1'
+								: '0',
 				),
 			);
 		case 'scSpecTypeU128':
@@ -95,11 +95,11 @@ function numericBoundary(t: AnyTypeDef, kind: BoundaryKind): xdr.ScVal | null {
 					? new xdr.UInt128Parts({
 							hi: xdr.Uint64.fromString('18446744073709551615'),
 							lo: xdr.Uint64.fromString('18446744073709551615'),
-					  })
+						})
 					: new xdr.UInt128Parts({
 							hi: xdr.Uint64.fromString('0'),
 							lo: xdr.Uint64.fromString(kind === 'ONE' ? '1' : '0'),
-					  }),
+						}),
 			);
 		case 'scSpecTypeI128':
 			return xdr.ScVal.scvI128(
@@ -107,16 +107,16 @@ function numericBoundary(t: AnyTypeDef, kind: BoundaryKind): xdr.ScVal | null {
 					? new xdr.Int128Parts({
 							hi: xdr.Int64.fromString('9223372036854775807'),
 							lo: xdr.Uint64.fromString('18446744073709551615'),
-					  })
+						})
 					: kind === 'MIN'
-					? new xdr.Int128Parts({
-							hi: xdr.Int64.fromString('-9223372036854775808'),
-							lo: xdr.Uint64.fromString('0'),
-					  })
-					: new xdr.Int128Parts({
-							hi: xdr.Int64.fromString('0'),
-							lo: xdr.Uint64.fromString(kind === 'ONE' ? '1' : '0'),
-					  }),
+						? new xdr.Int128Parts({
+								hi: xdr.Int64.fromString('-9223372036854775808'),
+								lo: xdr.Uint64.fromString('0'),
+							})
+						: new xdr.Int128Parts({
+								hi: xdr.Int64.fromString('0'),
+								lo: xdr.Uint64.fromString(kind === 'ONE' ? '1' : '0'),
+							}),
 			);
 		default:
 			return null;

@@ -29,7 +29,8 @@ export interface ScanResult {
 	udtRegistry: UdtRegistry;
 }
 
-export type ScanErrorCode = 'CONTRACT_NOT_FOUND' | 'XDR_ALIGN_FAILURE' | 'RPC_UNAVAILABLE' | 'UNKNOWN';
+export type ScanErrorCode =
+	'CONTRACT_NOT_FOUND' | 'XDR_ALIGN_FAILURE' | 'RPC_UNAVAILABLE' | 'UNKNOWN';
 
 /**
  * Structured scan failure. `code` is the stable domain classification both
@@ -121,7 +122,10 @@ export function parseContractSpecSection(specSectionBytes: Buffer): {
  * ScanError with a stable `code` so callers can present it however they
  * need without string-matching `message`.
  */
-export async function scanContract(contractId: string, server: SorobanRpc.Server): Promise<ScanResult> {
+export async function scanContract(
+	contractId: string,
+	server: SorobanRpc.Server,
+): Promise<ScanResult> {
 	try {
 		const wasmBytecode = await server.getContractWasmByContractId(contractId);
 
@@ -131,13 +135,18 @@ export async function scanContract(contractId: string, server: SorobanRpc.Server
 
 		const bytecodeSize = wasmBytecode.length;
 		const wasmModule = await WebAssembly.compile(Uint8Array.from(wasmBytecode));
-		const [specSection] = WebAssembly.Module.customSections(wasmModule, 'contractspecv0');
+		const [specSection] = WebAssembly.Module.customSections(
+			wasmModule,
+			'contractspecv0',
+		);
 
 		if (!specSection) {
 			throw new ScanError('XDR_ALIGN_FAILURE', 'XDR_ALIGN_FAILURE');
 		}
 
-		const {functions, udtRegistry} = parseContractSpecSection(Buffer.from(specSection));
+		const {functions, udtRegistry} = parseContractSpecSection(
+			Buffer.from(specSection),
+		);
 
 		return {contractId, bytecodeSize, functions, udtRegistry};
 	} catch (error) {
@@ -150,7 +159,11 @@ export async function scanContract(contractId: string, server: SorobanRpc.Server
 			throw new ScanError('RPC_UNAVAILABLE', msg);
 		}
 
-		if (rawMessage.includes('404') || rawMessage.includes('not found') || rawMessage.includes('null')) {
+		if (
+			rawMessage.includes('404') ||
+			rawMessage.includes('not found') ||
+			rawMessage.includes('null')
+		) {
 			throw new ScanError('CONTRACT_NOT_FOUND', msg);
 		}
 

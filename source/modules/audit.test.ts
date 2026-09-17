@@ -37,8 +37,12 @@ test('CASE C — runAudit passes scan.functions and scan.udtRegistry unchanged i
 	const fakeScanResult: ScanResult = {
 		contractId,
 		bytecodeSize: 1234,
-		functions: [{name: 'deposit', params: [{name: 'amount', type: {}}], hasReturn: false}],
-		udtRegistry: new Map([['Pair', {kind: 'struct', name: 'Pair', fields: []}]]),
+		functions: [
+			{name: 'deposit', params: [{name: 'amount', type: {}}], hasReturn: false},
+		],
+		udtRegistry: new Map([
+			['Pair', {kind: 'struct', name: 'Pair', fields: []}],
+		]),
 	};
 
 	let capturedOptions: ChaosMonkeyOptions | undefined;

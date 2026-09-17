@@ -70,7 +70,9 @@ const MAX_POLL_ATTEMPTS = 20;
  * 6. sendTransaction
  * 7. Poll getTransaction every 1000ms up to 20 attempts
  */
-export async function invokeContract(params: InvokeParams): Promise<InvokeResult> {
+export async function invokeContract(
+	params: InvokeParams,
+): Promise<InvokeResult> {
 	// Tracks the hash of a transaction that DID reach sendTransaction() with a
 	// non-ERROR status, so evidence survives even if an exception is thrown
 	// later (e.g. a network hiccup mid-poll) — see the catch block below.

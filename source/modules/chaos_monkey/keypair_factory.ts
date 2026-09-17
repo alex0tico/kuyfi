@@ -20,12 +20,19 @@ export async function generateEphemeralKeypair(): Promise<Keypair> {
 		try {
 			const response = await fetch(`${FRIENDBOT_URL}${keypair.publicKey()}`);
 			if (!response.ok) {
-				throw new Error(`Friendbot HTTP ${response.status}: ${response.statusText}`);
+				throw new Error(
+					`Friendbot HTTP ${response.status}: ${response.statusText}`,
+				);
 			}
 
-			const activated = await waitForAccountActivation(keypair.publicKey(), server);
+			const activated = await waitForAccountActivation(
+				keypair.publicKey(),
+				server,
+			);
 			if (!activated) {
-				throw new Error('Account never confirmed on-chain after Friendbot funding');
+				throw new Error(
+					'Account never confirmed on-chain after Friendbot funding',
+				);
 			}
 
 			return keypair;

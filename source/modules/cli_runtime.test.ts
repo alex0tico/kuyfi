@@ -24,7 +24,10 @@ test('CASE E — a valid Contract ID selects the headless path', t => {
 });
 
 test('CASE F — an invalid Contract ID is rejected (not silently sent to TUI or headless)', t => {
-	t.deepEqual(selectCliMode(['NOTVALID']), {kind: 'invalid', contractId: 'NOTVALID'});
+	t.deepEqual(selectCliMode(['NOTVALID']), {
+		kind: 'invalid',
+		contractId: 'NOTVALID',
+	});
 });
 
 // --- CASE G/H: runHeadlessAudit exit-code behavior, via the scan/chaos injection seam ---
@@ -33,7 +36,10 @@ function fakeScanResult(contractId: string): ScanResult {
 	return {contractId, bytecodeSize: 10, functions: [], udtRegistry: new Map()};
 }
 
-function fakeChaosReport(contractId: string, overrides: Partial<ChaosReport['summary']> = {}): ChaosReport {
+function fakeChaosReport(
+	contractId: string,
+	overrides: Partial<ChaosReport['summary']> = {},
+): ChaosReport {
 	return {
 		contractId,
 		scannedAt: new Date().toISOString(),
@@ -137,7 +143,10 @@ test('CASE R / CASE O — headless with --json writes a valid SecurityReport JSO
 	t.true(result.output!.includes('JSON report written to'));
 
 	// The file content is a valid, parseable SecurityReport — not a raw AuditRun/ChaosReport dump.
-	const parsed = JSON.parse(writtenContent!) as {schemaVersion: string; target: {contractId: string}};
+	const parsed = JSON.parse(writtenContent!) as {
+		schemaVersion: string;
+		target: {contractId: string};
+	};
 	t.is(parsed.schemaVersion, '1.0.0');
 	t.is(parsed.target.contractId, contractId);
 });
@@ -180,15 +189,21 @@ test('a non-EEXIST file write failure is also a tool failure (exitCode 1), disti
 });
 
 test('defaultReportFileName is stable and filesystem-safe', t => {
-	t.is(defaultReportFileName('kyf-20260909T120000Z-a1b2c3d4'), 'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.json');
+	t.is(
+		defaultReportFileName('kyf-20260909T120000Z-a1b2c3d4'),
+		'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.json',
+	);
 	// Defensive sanitization even if reportId's format ever changes.
 	t.is(defaultReportFileName('weird/../id'), 'kuyfi-report-weird_.._id.json');
 });
 
 // --- D2.4 — --pdf output and the --json --pdf single-run guarantee ---------
 
-test('defaultPdfReportFileName mirrors defaultReportFileName\'s convention, with a .pdf extension', t => {
-	t.is(defaultPdfReportFileName('kyf-20260909T120000Z-a1b2c3d4'), 'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.pdf');
+test("defaultPdfReportFileName mirrors defaultReportFileName's convention, with a .pdf extension", t => {
+	t.is(
+		defaultPdfReportFileName('kyf-20260909T120000Z-a1b2c3d4'),
+		'kuyfi-report-kyf-20260909T120000Z-a1b2c3d4.pdf',
+	);
 	t.is(defaultPdfReportFileName('weird/../id'), 'kuyfi-report-weird_.._id.pdf');
 });
 
@@ -253,7 +268,10 @@ test('--json --pdf together: runAudit and buildSecurityReport each run exactly o
 	const result = await runHeadlessAudit(contractId, {
 		runAudit: async () => {
 			auditCallCount++;
-			return {scan: fakeScanResult(contractId), chaos: fakeChaosReport(contractId)};
+			return {
+				scan: fakeScanResult(contractId),
+				chaos: fakeChaosReport(contractId),
+			};
 		},
 		writeJson: true,
 		writePdf: true,
@@ -265,7 +283,8 @@ test('--json --pdf together: runAudit and buildSecurityReport each run exactly o
 		writeFile: async (path, data) => {
 			writes.push({path: path as string, isBuffer: Buffer.isBuffer(data)});
 			if (!Buffer.isBuffer(data)) {
-				jsonReportId = (JSON.parse(data as string) as {reportId: string}).reportId;
+				jsonReportId = (JSON.parse(data as string) as {reportId: string})
+					.reportId;
 			}
 		},
 	});
@@ -278,13 +297,33 @@ test('--json --pdf together: runAudit and buildSecurityReport each run exactly o
 	t.truthy(result.pdfFilePath);
 	t.not(result.reportFilePath, result.pdfFilePath);
 	t.truthy(jsonReportId);
-	t.is(jsonReportId, pdfReportId, 'JSON and PDF must share the exact same reportId — one SecurityReport, not two');
+	t.is(
+		jsonReportId,
+		pdfReportId,
+		'JSON and PDF must share the exact same reportId — one SecurityReport, not two',
+	);
 });
 
 test('describeAuditError maps every ScanError code to a distinct, clear message', t => {
-	t.true(describeAuditError(new ScanError('CONTRACT_NOT_FOUND', 'x')).toLowerCase().includes('not found'));
-	t.true(describeAuditError(new ScanError('XDR_ALIGN_FAILURE', 'x')).toLowerCase().includes('parse'));
-	t.true(describeAuditError(new ScanError('RPC_UNAVAILABLE', 'x')).toLowerCase().includes('unreachable'));
+	t.true(
+		describeAuditError(new ScanError('CONTRACT_NOT_FOUND', 'x'))
+			.toLowerCase()
+			.includes('not found'),
+	);
+	t.true(
+		describeAuditError(new ScanError('XDR_ALIGN_FAILURE', 'x'))
+			.toLowerCase()
+			.includes('parse'),
+	);
+	t.true(
+		describeAuditError(new ScanError('RPC_UNAVAILABLE', 'x'))
+			.toLowerCase()
+			.includes('unreachable'),
+	);
 	t.true(describeAuditError(new ScanError('UNKNOWN', 'boom')).includes('boom'));
-	t.true(describeAuditError(new Error('generic failure')).includes('generic failure'));
+	t.true(
+		describeAuditError(new Error('generic failure')).includes(
+			'generic failure',
+		),
+	);
 });

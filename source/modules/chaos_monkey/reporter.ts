@@ -1,4 +1,8 @@
-import type {ExecutionEvidence, Severity, VulnerabilitySignal} from './result_parser.js';
+import type {
+	ExecutionEvidence,
+	Severity,
+	VulnerabilitySignal,
+} from './result_parser.js';
 import type {FuzzResult} from './fuzzer_math.js';
 
 export type {ExecutionEvidence} from './result_parser.js';
@@ -68,14 +72,23 @@ export interface ChaosReport {
 	verificationTransactions: VerificationTransaction[];
 }
 
-const SEVERITY_ORDER: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
+const SEVERITY_ORDER: Severity[] = [
+	'CRITICAL',
+	'HIGH',
+	'MEDIUM',
+	'LOW',
+	'INFO',
+];
 
 /**
  * Takes all FuzzResults and builds a ChaosReport.
  * Filters out INFO/SECURE results from findings list (they go to summary only).
  * Assigns sequential IDs starting from KYF-001.
  */
-export function buildReport(contractId: string, results: FuzzResult[]): ChaosReport {
+export function buildReport(
+	contractId: string,
+	results: FuzzResult[],
+): ChaosReport {
 	const summary = {
 		critical: 0,
 		high: 0,
@@ -99,8 +112,10 @@ export function buildReport(contractId: string, results: FuzzResult[]): ChaosRep
 		if (evidence.transactionHash !== null) summary.transactionsWithHash++;
 
 		if (evidence.broadcasted && evidence.transactionHash !== null) {
-			if (evidence.success && firstSuccessBroadcast === null) firstSuccessBroadcast = r;
-			if (!evidence.success && firstFailedBroadcast === null) firstFailedBroadcast = r;
+			if (evidence.success && firstSuccessBroadcast === null)
+				firstSuccessBroadcast = r;
+			if (!evidence.success && firstFailedBroadcast === null)
+				firstFailedBroadcast = r;
 		}
 
 		switch (severity) {
@@ -138,9 +153,15 @@ export function buildReport(contractId: string, results: FuzzResult[]): ChaosRep
 	}
 
 	// Sort findings: CRITICAL first, then by SEVERITY_ORDER
-	findings.sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
+	findings.sort(
+		(a, b) =>
+			SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity),
+	);
 
-	const verificationTransactions: VerificationTransaction[] = [firstSuccessBroadcast, firstFailedBroadcast]
+	const verificationTransactions: VerificationTransaction[] = [
+		firstSuccessBroadcast,
+		firstFailedBroadcast,
+	]
 		.filter((r): r is FuzzResult => r !== null)
 		.map(r => ({
 			functionName: r.result.functionName,
@@ -177,7 +198,9 @@ export function formatReportForTerminal(report: ChaosReport): string {
 	lines.push(`  Contract : ${report.contractId}`);
 	lines.push(`  Scanned  : ${report.scannedAt}`);
 	lines.push(`  Network  : ${report.network.toUpperCase()}`);
-	lines.push(`  Functions: ${report.totalFunctions}  |  Vectors run: ${report.totalVectorsRun}`);
+	lines.push(
+		`  Functions: ${report.totalFunctions}  |  Vectors run: ${report.totalVectorsRun}`,
+	);
 	lines.push(SEP);
 	lines.push('  SUMMARY');
 	lines.push(`    CRITICAL         : ${report.summary.critical}`);
@@ -188,8 +211,12 @@ export function formatReportForTerminal(report: ChaosReport): string {
 	lines.push(`    INFO             : ${report.summary.info}`);
 	lines.push(SEP);
 	lines.push('  EVIDENCE');
-	lines.push(`    Broadcast transactions: ${report.summary.broadcastTransactions}`);
-	lines.push(`    Transactions with hash: ${report.summary.transactionsWithHash}`);
+	lines.push(
+		`    Broadcast transactions: ${report.summary.broadcastTransactions}`,
+	);
+	lines.push(
+		`    Transactions with hash: ${report.summary.transactionsWithHash}`,
+	);
 	lines.push(SEP);
 
 	if (report.findings.length === 0) {

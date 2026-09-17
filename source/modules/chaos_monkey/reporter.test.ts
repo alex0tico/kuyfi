@@ -7,7 +7,11 @@ import type {FuzzResult, FuzzTarget} from './fuzzer_math.js';
 
 const CONTRACT_UNDER_TEST = Buffer.alloc(32, 0xaa);
 
-function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]; data?: xdr.ScVal}): xdr.DiagnosticEvent {
+function buildEvent(opts: {
+	contractId: Buffer | null;
+	topics: xdr.ScVal[];
+	data?: xdr.ScVal;
+}): xdr.DiagnosticEvent {
 	const body = new xdr.ContractEventBody(
 		0,
 		new xdr.ContractEventV0({
@@ -27,14 +31,24 @@ function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]; data?
 	});
 }
 
-function fnCallEvent(contractId: Buffer, functionName: string): xdr.DiagnosticEvent {
+function fnCallEvent(
+	contractId: Buffer,
+	functionName: string,
+): xdr.DiagnosticEvent {
 	return buildEvent({
 		contractId: null,
-		topics: [xdr.ScVal.scvSymbol('fn_call'), xdr.ScVal.scvBytes(contractId), xdr.ScVal.scvSymbol(functionName)],
+		topics: [
+			xdr.ScVal.scvSymbol('fn_call'),
+			xdr.ScVal.scvBytes(contractId),
+			xdr.ScVal.scvSymbol(functionName),
+		],
 	});
 }
 
-function errorEvent(contractId: Buffer, scError: xdr.ScError): xdr.DiagnosticEvent {
+function errorEvent(
+	contractId: Buffer,
+	scError: xdr.ScError,
+): xdr.DiagnosticEvent {
 	return buildEvent({
 		contractId,
 		topics: [xdr.ScVal.scvSymbol('error'), xdr.ScVal.scvError(scError)],
@@ -63,7 +77,10 @@ test('Finding carries the same ExecutionEvidence produced by parseInvokeResult â
 	// which (unlike PRECONDITION_FAIL) DOES produce a Finding.
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const invokeResult: InvokeResult = {
@@ -78,11 +95,20 @@ test('Finding carries the same ExecutionEvidence produced by parseInvokeResult â
 		diagnosticEvents: events,
 	};
 
-	const parsed = parseInvokeResult(invokeResult, false, 'swap_exact_in', 'amount_in::MAX', false, false);
+	const parsed = parseInvokeResult(
+		invokeResult,
+		false,
+		'swap_exact_in',
+		'amount_in::MAX',
+		false,
+		false,
+	);
 	t.is(parsed.signal, 'UNEXPECTED_ERROR');
 
 	const target = buildTarget();
-	const fuzzResults: FuzzResult[] = [{target, vectorName: 'amount_in::MAX', result: parsed}];
+	const fuzzResults: FuzzResult[] = [
+		{target, vectorName: 'amount_in::MAX', result: parsed},
+	];
 
 	const report = buildReport(target.contractId, fuzzResults);
 
@@ -96,7 +122,9 @@ test('Finding carries the same ExecutionEvidence produced by parseInvokeResult â
 
 	// No raw SDK/XDR object leaked onto the public Finding shape.
 	t.notThrows(() => JSON.stringify(finding));
-	for (const value of Object.values(finding as unknown as Record<string, unknown>)) {
+	for (const value of Object.values(
+		finding as unknown as Record<string, unknown>,
+	)) {
 		t.false(value instanceof xdr.ScVal);
 	}
 });
@@ -114,11 +142,20 @@ test('SECURE/PRECONDITION_FAIL results are excluded from findings[] but their ev
 		diagnosticEvents: [],
 	};
 
-	const parsed = parseInvokeResult(invokeResult, false, 'get_balance', 'user::ZERO', false, false);
+	const parsed = parseInvokeResult(
+		invokeResult,
+		false,
+		'get_balance',
+		'user::ZERO',
+		false,
+		false,
+	);
 	t.is(parsed.signal, 'SECURE');
 
 	const target = buildTarget({functionName: 'get_balance'});
-	const report = buildReport(target.contractId, [{target, vectorName: 'user::ZERO', result: parsed}]);
+	const report = buildReport(target.contractId, [
+		{target, vectorName: 'user::ZERO', result: parsed},
+	]);
 
 	t.is(report.findings.length, 0);
 	t.is(report.summary.info, 1);

@@ -12,7 +12,11 @@ const NESTED_CONTRACT = Buffer.alloc(32, 0xbb);
  * plain mock), matching the constructor shapes verified against the
  * installed @stellar/stellar-sdk (14.6.1) types.
  */
-function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]; data?: xdr.ScVal}): xdr.DiagnosticEvent {
+function buildEvent(opts: {
+	contractId: Buffer | null;
+	topics: xdr.ScVal[];
+	data?: xdr.ScVal;
+}): xdr.DiagnosticEvent {
 	const body = new xdr.ContractEventBody(
 		0,
 		new xdr.ContractEventV0({
@@ -33,24 +37,41 @@ function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]; data?
 	});
 }
 
-function fnCallEvent(contractId: Buffer, functionName: string): xdr.DiagnosticEvent {
+function fnCallEvent(
+	contractId: Buffer,
+	functionName: string,
+): xdr.DiagnosticEvent {
 	// Matches the real Testnet trace shape: fn_call events carry no direct
 	// ContractEvent.contractId() (null) — the target contract id/function
 	// name live among the topics instead.
 	return buildEvent({
 		contractId: null,
-		topics: [xdr.ScVal.scvSymbol('fn_call'), xdr.ScVal.scvBytes(contractId), xdr.ScVal.scvSymbol(functionName)],
+		topics: [
+			xdr.ScVal.scvSymbol('fn_call'),
+			xdr.ScVal.scvBytes(contractId),
+			xdr.ScVal.scvSymbol(functionName),
+		],
 	});
 }
 
-function fnReturnEvent(contractId: Buffer, functionName: string): xdr.DiagnosticEvent {
+function fnReturnEvent(
+	contractId: Buffer,
+	functionName: string,
+): xdr.DiagnosticEvent {
 	return buildEvent({
 		contractId: null,
-		topics: [xdr.ScVal.scvSymbol('fn_return'), xdr.ScVal.scvBytes(contractId), xdr.ScVal.scvSymbol(functionName)],
+		topics: [
+			xdr.ScVal.scvSymbol('fn_return'),
+			xdr.ScVal.scvBytes(contractId),
+			xdr.ScVal.scvSymbol(functionName),
+		],
 	});
 }
 
-function errorEvent(contractId: Buffer, scError: xdr.ScError): xdr.DiagnosticEvent {
+function errorEvent(
+	contractId: Buffer,
+	scError: xdr.ScError,
+): xdr.DiagnosticEvent {
 	// Matches the real Testnet trace shape: error events DO carry a direct
 	// ContractEvent.contractId() for the contract whose execution failed.
 	return buildEvent({
@@ -64,7 +85,10 @@ function errorEvent(contractId: Buffer, scError: xdr.ScError): xdr.DiagnosticEve
 test('root fn_call + auth error → PRECONDITION_FAIL', t => {
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'set_admin'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -88,7 +112,10 @@ test('root fn_call + WasmVm/InvalidAction (the real observed Testnet shape) → 
 	// visible-as-a-finding "inconclusive" verdict.
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'initialize'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -108,7 +135,10 @@ test('root fn_call + WasmVm/ExceededLimit → UNEXPECTED_ERROR, not UNCONTROLLED
 	// behavior, not a bug, so it must not be treated as a "strong" fault.
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecExceededLimit())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecExceededLimit()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -125,7 +155,10 @@ test('root fn_call + WasmVm/ArithDomain (clearly supported runtime fault: docume
 	// unlike InvalidAction/ExceededLimit, which plausibly are.
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -149,7 +182,10 @@ test('root fn_call → nested fn_call → failure attributed to the NESTED contr
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
-		errorEvent(NESTED_CONTRACT, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			NESTED_CONTRACT,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -165,7 +201,10 @@ test('root fn_call → nested fn_call → strong fault attributed to the NESTED 
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
-		errorEvent(NESTED_CONTRACT, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain())),
+		errorEvent(
+			NESTED_CONTRACT,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -187,7 +226,10 @@ test('root fn_call → nested fn_call returns → root itself then fails, NO Add
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
 		fnReturnEvent(NESTED_CONTRACT, 'transfer'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -212,7 +254,10 @@ test('GATE 1 — identical trace as above, but the call DOES include an unverifi
 		fnCallEvent(CONTRACT_UNDER_TEST, 'add_liquidity'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
 		fnReturnEvent(NESTED_CONTRACT, 'transfer'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -234,7 +279,10 @@ test('GATE 1 — same nested+root-attributed shape, but a STRONG runtime fault (
 		fnCallEvent(CONTRACT_UNDER_TEST, 'add_liquidity'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
 		fnReturnEvent(NESTED_CONTRACT, 'transfer'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain()),
+		),
 	];
 
 	const analysis = analyzeDiagnosticTrace(events);
@@ -248,7 +296,10 @@ test('GATE 1 — same nested+root-attributed shape, but a STRONG runtime fault (
 // --- 4. trace with a return/success shape ------------------------------------
 
 test('root fn_call + fn_return, no error event → parses cleanly, no crash', t => {
-	const events = [fnCallEvent(CONTRACT_UNDER_TEST, 'get_reserves'), fnReturnEvent(CONTRACT_UNDER_TEST, 'get_reserves')];
+	const events = [
+		fnCallEvent(CONTRACT_UNDER_TEST, 'get_reserves'),
+		fnReturnEvent(CONTRACT_UNDER_TEST, 'get_reserves'),
+	];
 
 	const analysis = analyzeDiagnosticTrace(events);
 	t.is(analysis.callFrames.length, 2);
@@ -276,7 +327,14 @@ test('diagnosticEvents.length === 0 → falls back to the legacy string classifi
 		diagnosticEvents: [],
 	};
 
-	const parsed = parseInvokeResult(result, false, 'initialize', 'total_fee_bps::ZERO', true, true);
+	const parsed = parseInvokeResult(
+		result,
+		false,
+		'initialize',
+		'total_fee_bps::ZERO',
+		true,
+		true,
+	);
 	// Matches the pre-existing string-based mapping for "Error(Contract,...)".
 	t.is(parsed.signal, 'SECURE');
 });
@@ -296,11 +354,21 @@ test('diagnosticEvents present takes priority over errorMessage even when the st
 		simulationFailed: true,
 		diagnosticEvents: [
 			fnCallEvent(CONTRACT_UNDER_TEST, 'set_admin'),
-			errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction())),
+			errorEvent(
+				CONTRACT_UNDER_TEST,
+				xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction()),
+			),
 		],
 	};
 
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, true);
+	const parsed = parseInvokeResult(
+		result,
+		true,
+		'set_admin',
+		'UNAUTHORIZED_CALL',
+		true,
+		true,
+	);
 	t.is(parsed.signal, 'SECURE'); // PRECONDITION_FAIL from the trace, wrapped to SECURE for an expectedToFail vector
 });
 
@@ -324,11 +392,21 @@ test('UNAUTHORIZED_CALL rejected via an ambiguous root panic → execution layer
 		simulationFailed: true,
 		diagnosticEvents: [
 			fnCallEvent(CONTRACT_UNDER_TEST, 'set_admin'),
-			errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+			errorEvent(
+				CONTRACT_UNDER_TEST,
+				xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+			),
 		],
 	};
 
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, true);
+	const parsed = parseInvokeResult(
+		result,
+		true,
+		'set_admin',
+		'UNAUTHORIZED_CALL',
+		true,
+		true,
+	);
 	t.is(parsed.signal, 'UNEXPECTED_ERROR');
 	t.not(parsed.signal, 'SECURE');
 });
@@ -345,11 +423,21 @@ test('UNAUTHORIZED_CALL rejected via a genuine structural auth error → vector 
 		simulationFailed: true,
 		diagnosticEvents: [
 			fnCallEvent(CONTRACT_UNDER_TEST, 'set_admin'),
-			errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction())),
+			errorEvent(
+				CONTRACT_UNDER_TEST,
+				xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction()),
+			),
 		],
 	};
 
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, true);
+	const parsed = parseInvokeResult(
+		result,
+		true,
+		'set_admin',
+		'UNAUTHORIZED_CALL',
+		true,
+		true,
+	);
 	t.is(parsed.signal, 'SECURE');
 });
 

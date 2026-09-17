@@ -13,7 +13,10 @@ import {
 	defaultPdfReportFileName,
 } from './report_export.js';
 
-export {defaultReportFileName, defaultPdfReportFileName} from './report_export.js';
+export {
+	defaultReportFileName,
+	defaultPdfReportFileName,
+} from './report_export.js';
 
 export type CliMode =
 	| {kind: 'tui'}
@@ -47,7 +50,9 @@ export function describeAuditError(error: unknown): string {
 		}
 	}
 
-	return `Audit failed: ${error instanceof Error ? error.message : String(error)}`;
+	return `Audit failed: ${
+		error instanceof Error ? error.message : String(error)
+	}`;
 }
 
 export interface HeadlessRunResult {
@@ -97,14 +102,26 @@ export async function runHeadlessAudit(
 	try {
 		auditRun = await audit(contractId, options);
 	} catch (error) {
-		return {exitCode: 1, output: null, errorOutput: describeAuditError(error), reportFilePath: null, pdfFilePath: null};
+		return {
+			exitCode: 1,
+			output: null,
+			errorOutput: describeAuditError(error),
+			reportFilePath: null,
+			pdfFilePath: null,
+		};
 	}
 
 	const {scan, chaos} = auditRun;
 	const summaryText = formatAuditSummary(scan, chaos);
 
 	if (!options.writeJson && !options.writePdf) {
-		return {exitCode: 0, output: summaryText, errorOutput: null, reportFilePath: null, pdfFilePath: null};
+		return {
+			exitCode: 0,
+			output: summaryText,
+			errorOutput: null,
+			reportFilePath: null,
+			pdfFilePath: null,
+		};
 	}
 
 	// ONE SecurityReport, shared by both formats — never rebuilt per format.
@@ -115,14 +132,20 @@ export async function runHeadlessAudit(
 
 	if (options.writeJson) {
 		try {
-			const {path} = await writeSecurityReportJson(securityReport, {writeFile: options.writeFile});
+			const {path} = await writeSecurityReportJson(securityReport, {
+				writeFile: options.writeFile,
+			});
 			reportFilePath = path;
 			outputLines.push(`JSON report written to: ${path}`);
 		} catch (writeError) {
 			return {
 				exitCode: 1,
 				output: null,
-				errorOutput: describeWriteError(writeError, defaultReportFileName(securityReport.reportId), 'JSON'),
+				errorOutput: describeWriteError(
+					writeError,
+					defaultReportFileName(securityReport.reportId),
+					'JSON',
+				),
 				reportFilePath: null,
 				pdfFilePath: null,
 			};
@@ -141,7 +164,11 @@ export async function runHeadlessAudit(
 			return {
 				exitCode: 1,
 				output: null,
-				errorOutput: describeWriteError(writeError, defaultPdfReportFileName(securityReport.reportId), 'PDF'),
+				errorOutput: describeWriteError(
+					writeError,
+					defaultPdfReportFileName(securityReport.reportId),
+					'PDF',
+				),
 				reportFilePath,
 				pdfFilePath: null,
 			};

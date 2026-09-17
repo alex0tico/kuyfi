@@ -21,7 +21,11 @@ import type {InvokeResult} from './router.js';
 const CONTRACT_UNDER_TEST = Buffer.alloc(32, 0xaa);
 const NESTED_CONTRACT = Buffer.alloc(32, 0xbb);
 
-function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]; data?: xdr.ScVal}): xdr.DiagnosticEvent {
+function buildEvent(opts: {
+	contractId: Buffer | null;
+	topics: xdr.ScVal[];
+	data?: xdr.ScVal;
+}): xdr.DiagnosticEvent {
 	const body = new xdr.ContractEventBody(
 		0,
 		new xdr.ContractEventV0({
@@ -41,14 +45,24 @@ function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]; data?
 	});
 }
 
-function fnCallEvent(contractId: Buffer, functionName: string): xdr.DiagnosticEvent {
+function fnCallEvent(
+	contractId: Buffer,
+	functionName: string,
+): xdr.DiagnosticEvent {
 	return buildEvent({
 		contractId: null,
-		topics: [xdr.ScVal.scvSymbol('fn_call'), xdr.ScVal.scvBytes(contractId), xdr.ScVal.scvSymbol(functionName)],
+		topics: [
+			xdr.ScVal.scvSymbol('fn_call'),
+			xdr.ScVal.scvBytes(contractId),
+			xdr.ScVal.scvSymbol(functionName),
+		],
 	});
 }
 
-function errorEvent(contractId: Buffer, scError: xdr.ScError): xdr.DiagnosticEvent {
+function errorEvent(
+	contractId: Buffer,
+	scError: xdr.ScError,
+): xdr.DiagnosticEvent {
 	return buildEvent({
 		contractId,
 		topics: [xdr.ScVal.scvSymbol('error'), xdr.ScVal.scvError(scError)],
@@ -76,7 +90,14 @@ test('CASE A — simulation failure: broadcasted=false, txHash=null, trace + cla
 		diagnosticEvents: [],
 	};
 
-	const parsed = parseInvokeResult(result, false, 'initialize', 'amount::ZERO', true, false);
+	const parsed = parseInvokeResult(
+		result,
+		false,
+		'initialize',
+		'amount::ZERO',
+		true,
+		false,
+	);
 
 	// D1 classification unchanged: diagnosticEvents.length === 0 → string
 	// fallback → Error(Contract,...) → SECURE.
@@ -106,7 +127,14 @@ test('CASE B — broadcast + SUCCESS: broadcasted=true, txHash + ledger preserve
 		diagnosticEvents: [],
 	};
 
-	const parsed = parseInvokeResult(result, false, 'deposit', 'amount::ZERO', false, false);
+	const parsed = parseInvokeResult(
+		result,
+		false,
+		'deposit',
+		'amount::ZERO',
+		false,
+		false,
+	);
 
 	// D1 classification unchanged: success + expectedToFail=false → SECURE.
 	t.is(parsed.signal, 'SECURE');
@@ -135,7 +163,14 @@ test('CASE C — broadcast + FAILED: broadcasted=true, txHash + ledger + error p
 		diagnosticEvents: [],
 	};
 
-	const parsed = parseInvokeResult(result, false, 'withdraw', 'amount::MAX', false, false);
+	const parsed = parseInvokeResult(
+		result,
+		false,
+		'withdraw',
+		'amount::MAX',
+		false,
+		false,
+	);
 
 	// D1 classification unchanged: TX_FAILED, no trace → string fallback → PRECONDITION_FAIL.
 	t.is(parsed.signal, 'PRECONDITION_FAIL');
@@ -153,7 +188,10 @@ test('CASE C — broadcast + FAILED: broadcasted=true, txHash + ledger + error p
 test('CASE D — ambiguous InvalidAction: D1 signal stays UNEXPECTED_ERROR, evidence does not change classification', t => {
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'swap_exact_in'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const result: InvokeResult = {
@@ -168,7 +206,14 @@ test('CASE D — ambiguous InvalidAction: D1 signal stays UNEXPECTED_ERROR, evid
 		diagnosticEvents: events,
 	};
 
-	const parsed = parseInvokeResult(result, false, 'swap_exact_in', 'amount_in::ZERO', false, false);
+	const parsed = parseInvokeResult(
+		result,
+		false,
+		'swap_exact_in',
+		'amount_in::ZERO',
+		false,
+		false,
+	);
 
 	t.is(parsed.signal, 'UNEXPECTED_ERROR');
 
@@ -184,7 +229,10 @@ test('CASE D — ambiguous InvalidAction: D1 signal stays UNEXPECTED_ERROR, evid
 test('CASE E — structural auth error: D1 classification (PRECONDITION_FAIL) stays intact, evidence preserved', t => {
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'set_admin'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceAuth(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const result: InvokeResult = {
@@ -201,7 +249,14 @@ test('CASE E — structural auth error: D1 classification (PRECONDITION_FAIL) st
 
 	// expectedToFail=true (access-control vector) — PRECONDITION_FAIL wraps to
 	// vector-level SECURE, exactly as approved in D1.
-	const parsed = parseInvokeResult(result, true, 'set_admin', 'UNAUTHORIZED_CALL', true, false);
+	const parsed = parseInvokeResult(
+		result,
+		true,
+		'set_admin',
+		'UNAUTHORIZED_CALL',
+		true,
+		false,
+	);
 	t.is(parsed.signal, 'SECURE');
 
 	t.true(parsed.evidence.trace.hasAuthError);
@@ -215,7 +270,10 @@ test('CASE F — nested trace: nestedCallCount + failureLocation survive into ev
 	const events = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'claim'),
 		fnCallEvent(NESTED_CONTRACT, 'transfer'),
-		errorEvent(NESTED_CONTRACT, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+		errorEvent(
+			NESTED_CONTRACT,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+		),
 	];
 
 	const result: InvokeResult = {
@@ -230,7 +288,14 @@ test('CASE F — nested trace: nestedCallCount + failureLocation survive into ev
 		diagnosticEvents: events,
 	};
 
-	const parsed = parseInvokeResult(result, false, 'claim', 'amount::ZERO', false, true);
+	const parsed = parseInvokeResult(
+		result,
+		false,
+		'claim',
+		'amount::ZERO',
+		false,
+		true,
+	);
 
 	const expectedTrace = analyzeDiagnosticTrace(events);
 	t.is(expectedTrace.nestedCallCount, 1);
@@ -243,10 +308,13 @@ test('CASE F — nested trace: nestedCallCount + failureLocation survive into ev
 	t.deepEqual(parsed.evidence.trace, expectedTrace);
 	t.is(parsed.evidence.trace.nestedCallCount, 1);
 	t.is(parsed.evidence.trace.failureLocation, 'NESTED');
-	t.deepEqual(parsed.evidence.trace.involvedContractIds.sort(), [
-		CONTRACT_UNDER_TEST.toString('hex'),
-		NESTED_CONTRACT.toString('hex'),
-	].sort());
+	t.deepEqual(
+		parsed.evidence.trace.involvedContractIds.sort(),
+		[
+			CONTRACT_UNDER_TEST.toString('hex'),
+			NESTED_CONTRACT.toString('hex'),
+		].sort(),
+	);
 	assertJsonSafe(t, parsed.evidence);
 });
 
@@ -254,7 +322,10 @@ test('CASE F — nested trace: nestedCallCount + failureLocation survive into ev
 
 test('stellarExpertTestnetUrl — builds the expected Testnet explorer URL', t => {
 	const hash = 'c'.repeat(64);
-	t.is(stellarExpertTestnetUrl(hash), `https://stellar.expert/explorer/testnet/tx/${hash}`);
+	t.is(
+		stellarExpertTestnetUrl(hash),
+		`https://stellar.expert/explorer/testnet/tx/${hash}`,
+	);
 });
 
 test('stellarExpertTestnetUrl — returns null when there is no hash (never a broadcast)', t => {

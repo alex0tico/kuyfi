@@ -1,1 +1,19 @@
 dist
+
+# Non-TypeScript/JS content: prose docs and an external Rust fixture.
+# @vdemedes/prettier-config (useTabs/semi/singleQuote) targets JS/TS style
+# and was never meant to gate these.
+*.md
+docs
+pruebas
+test-fixtures
+
+# Auto-generated Soroban CLI bindings (see ARCHITECTURE.md) — not hand-authored,
+# regenerating it would not preserve manual formatting anyway.
+src/kuyfi_client
+
+# Stale scaffold, unrelated to the shipped app: pre-Phase-1 create-ink-app
+# boilerplate test (asserts on an App signature that no longer exists) and a
+# manual ad-hoc dev script. Neither is part of the ava suite or `npm start`.
+test.tsx
+rerun_chaos.mjs

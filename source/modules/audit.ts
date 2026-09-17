@@ -32,7 +32,10 @@ export interface RunAuditOptions {
  * inputs. This is the one place TUI and CLI both call to run a complete
  * audit — neither reimplements the scan→chaos wiring itself.
  */
-export async function runAudit(contractId: string, options: RunAuditOptions = {}): Promise<AuditRun> {
+export async function runAudit(
+	contractId: string,
+	options: RunAuditOptions = {},
+): Promise<AuditRun> {
 	const server = options.server ?? new SorobanRpc.Server(TESTNET_RPC_URL);
 	const onProgress = options.onProgress ?? (() => {});
 	const scan = options.scan ?? scanContract;
@@ -60,7 +63,10 @@ export async function runAudit(contractId: string, options: RunAuditOptions = {}
  * no re-derivation of anything the audit already computed. Not a source of
  * truth; D2.3's JSON/PDF will read the same domain objects independently.
  */
-export function formatAuditSummary(scan: ScanResult, chaos: ChaosReport): string {
+export function formatAuditSummary(
+	scan: ScanResult,
+	chaos: ChaosReport,
+): string {
 	const lines: string[] = [];
 
 	lines.push('KUYFI AUDIT COMPLETE');
@@ -77,7 +83,9 @@ export function formatAuditSummary(scan: ScanResult, chaos: ChaosReport): string
 	lines.push(`  Info: ${chaos.summary.info}`);
 	lines.push('');
 	lines.push('Evidence:');
-	lines.push(`  Broadcast transactions: ${chaos.summary.broadcastTransactions}`);
+	lines.push(
+		`  Broadcast transactions: ${chaos.summary.broadcastTransactions}`,
+	);
 	lines.push(`  Transactions with hash: ${chaos.summary.transactionsWithHash}`);
 
 	return lines.join('\n');

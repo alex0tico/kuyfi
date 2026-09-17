@@ -36,13 +36,20 @@ export function defaultPdfReportFileName(reportId: string): string {
 }
 
 /** Shared collision-safe write policy: 'wx' throws EEXIST rather than silently overwriting. Same wording for CLI and TUI. */
-export function describeWriteError(error: unknown, fileName: string, kind: 'JSON' | 'PDF'): string {
-	const code = error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined;
+export function describeWriteError(
+	error: unknown,
+	fileName: string,
+	kind: 'JSON' | 'PDF',
+): string {
+	const code =
+		error instanceof Error ? (error as NodeJS.ErrnoException).code : undefined;
 	if (code === 'EEXIST') {
 		return `Refusing to overwrite existing file: ${fileName}`;
 	}
 
-	return `Failed to write ${kind} report: ${error instanceof Error ? error.message : String(error)}`;
+	return `Failed to write ${kind} report: ${
+		error instanceof Error ? error.message : String(error)
+	}`;
 }
 
 /**
@@ -56,7 +63,10 @@ export async function writeSecurityReportJson(
 ): Promise<WriteReportResult> {
 	const write = options.writeFile ?? fsWriteFile;
 	const path = defaultReportFileName(report.reportId);
-	await write(path, serializeSecurityReport(report), {encoding: 'utf8', flag: 'wx'});
+	await write(path, serializeSecurityReport(report), {
+		encoding: 'utf8',
+		flag: 'wx',
+	});
 	return {path};
 }
 
@@ -118,7 +128,11 @@ export async function exportSecurityReport(
 			results.push({
 				label: 'JSON',
 				success: false,
-				message: describeWriteError(error, defaultReportFileName(report.reportId), 'JSON'),
+				message: describeWriteError(
+					error,
+					defaultReportFileName(report.reportId),
+					'JSON',
+				),
 			});
 		}
 	}
@@ -131,7 +145,11 @@ export async function exportSecurityReport(
 			results.push({
 				label: 'PDF',
 				success: false,
-				message: describeWriteError(error, defaultPdfReportFileName(report.reportId), 'PDF'),
+				message: describeWriteError(
+					error,
+					defaultPdfReportFileName(report.reportId),
+					'PDF',
+				),
 			});
 		}
 	}

@@ -2,7 +2,12 @@ import test from 'ava';
 import {xdr} from '@stellar/stellar-sdk';
 import {buildReport} from './chaos_monkey/reporter.js';
 import {parseInvokeResult} from './chaos_monkey/result_parser.js';
-import {buildSecurityReport, serializeSecurityReport, generateReportId, SCHEMA_VERSION} from './security_report.js';
+import {
+	buildSecurityReport,
+	serializeSecurityReport,
+	generateReportId,
+	SCHEMA_VERSION,
+} from './security_report.js';
 import type {ScanResult} from './scanner.js';
 import type {UdtRegistry} from './chaos_monkey/udt_registry.js';
 import type {InvokeResult} from './chaos_monkey/router.js';
@@ -20,7 +25,10 @@ import type {AuditRun} from './audit.js';
 const CONTRACT_UNDER_TEST = Buffer.alloc(32, 0xaa);
 const NESTED_CONTRACT = Buffer.alloc(32, 0xbb);
 
-function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]}): xdr.DiagnosticEvent {
+function buildEvent(opts: {
+	contractId: Buffer | null;
+	topics: xdr.ScVal[];
+}): xdr.DiagnosticEvent {
 	const body = new xdr.ContractEventBody(
 		0,
 		new xdr.ContractEventV0({topics: opts.topics, data: xdr.ScVal.scvVoid()}),
@@ -34,15 +42,28 @@ function buildEvent(opts: {contractId: Buffer | null; topics: xdr.ScVal[]}): xdr
 	return new xdr.DiagnosticEvent({inSuccessfulContractCall: false, event});
 }
 
-function fnCallEvent(contractId: Buffer, functionName: string): xdr.DiagnosticEvent {
+function fnCallEvent(
+	contractId: Buffer,
+	functionName: string,
+): xdr.DiagnosticEvent {
 	return buildEvent({
 		contractId: null,
-		topics: [xdr.ScVal.scvSymbol('fn_call'), xdr.ScVal.scvBytes(contractId), xdr.ScVal.scvSymbol(functionName)],
+		topics: [
+			xdr.ScVal.scvSymbol('fn_call'),
+			xdr.ScVal.scvBytes(contractId),
+			xdr.ScVal.scvSymbol(functionName),
+		],
 	});
 }
 
-function errorEvent(contractId: Buffer, scError: xdr.ScError): xdr.DiagnosticEvent {
-	return buildEvent({contractId, topics: [xdr.ScVal.scvSymbol('error'), xdr.ScVal.scvError(scError)]});
+function errorEvent(
+	contractId: Buffer,
+	scError: xdr.ScError,
+): xdr.DiagnosticEvent {
+	return buildEvent({
+		contractId,
+		topics: [xdr.ScVal.scvSymbol('error'), xdr.ScVal.scvError(scError)],
+	});
 }
 
 function fakeInvokeResult(overrides: Partial<InvokeResult>): InvokeResult {
@@ -102,7 +123,11 @@ function buildFixtureAuditRun(): AuditRun {
 					{name: 'Noop', valueTypes: []},
 					{
 						name: 'Move',
-						valueTypes: [xdr.ScSpecTypeDef.scSpecTypeUdt(new xdr.ScSpecTypeUdt({name: 'Point'}))],
+						valueTypes: [
+							xdr.ScSpecTypeDef.scSpecTypeUdt(
+								new xdr.ScSpecTypeUdt({name: 'Point'}),
+							),
+						],
 					},
 				],
 			},
@@ -113,7 +138,11 @@ function buildFixtureAuditRun(): AuditRun {
 		contractId: 'CDVIVACU3XJQYHLFNWYA3OE3DRRN2S3UDFK43654C3AS4QZFAPFFD5IZ',
 		bytecodeSize: 4242,
 		functions: [
-			{name: 'deposit', params: [{name: 'amount', type: xdr.ScSpecTypeDef.scSpecTypeI128()}], hasReturn: false},
+			{
+				name: 'deposit',
+				params: [{name: 'amount', type: xdr.ScSpecTypeDef.scSpecTypeI128()}],
+				hasReturn: false,
+			},
 			{name: 'get_balance', params: [], hasReturn: true},
 		],
 		udtRegistry,
@@ -127,7 +156,10 @@ function buildFixtureAuditRun(): AuditRun {
 			fakeInvokeResult({
 				diagnosticEvents: [
 					fnCallEvent(CONTRACT_UNDER_TEST, 'initialize'),
-					errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+					errorEvent(
+						CONTRACT_UNDER_TEST,
+						xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+					),
 				],
 			}),
 			false,
@@ -153,7 +185,10 @@ function buildFixtureAuditRun(): AuditRun {
 				diagnosticEvents: [
 					fnCallEvent(CONTRACT_UNDER_TEST, 'claim'),
 					fnCallEvent(NESTED_CONTRACT, 'transfer'),
-					errorEvent(NESTED_CONTRACT, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+					errorEvent(
+						NESTED_CONTRACT,
+						xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+					),
 				],
 			}),
 			false,
@@ -221,7 +256,11 @@ test('CASE D — functions transform correctly (name, parameters with typeName()
 	const report = buildSecurityReport(buildFixtureAuditRun());
 	t.is(report.scan.totalFunctions, 2);
 	t.deepEqual(report.scan.functions, [
-		{name: 'deposit', parameters: [{name: 'amount', type: 'I128'}], hasReturn: false},
+		{
+			name: 'deposit',
+			parameters: [{name: 'amount', type: 'I128'}],
+			hasReturn: false,
+		},
 		{name: 'get_balance', parameters: [], hasReturn: true},
 	]);
 });
@@ -303,7 +342,10 @@ test('CASE J — nested trace summary survives intact into the public finding', 
 	t.is(finding!.evidence.trace.failureLocation, 'NESTED');
 	t.deepEqual(
 		[...finding!.evidence.trace.involvedContractIds].sort(),
-		[CONTRACT_UNDER_TEST.toString('hex'), NESTED_CONTRACT.toString('hex')].sort(),
+		[
+			CONTRACT_UNDER_TEST.toString('hex'),
+			NESTED_CONTRACT.toString('hex'),
+		].sort(),
 	);
 });
 
@@ -330,7 +372,11 @@ test('CASE M — JSON.stringify/parse round trip is lossless', t => {
 	t.deepEqual(roundTripped, report);
 });
 
-function walkForRuntimeObjects(value: unknown, path: string, offenses: string[]): void {
+function walkForRuntimeObjects(
+	value: unknown,
+	path: string,
+	offenses: string[],
+): void {
 	if (value === null || value === undefined) return;
 	if (value instanceof Map) offenses.push(`Map at ${path}`);
 	if (Buffer.isBuffer(value)) offenses.push(`Buffer at ${path}`);
@@ -465,7 +511,12 @@ test('CASE T — findings severity consistency: totalFindings === findings.lengt
 		target: target('fnLow'),
 		vectorName: 'v::LOW',
 		result: parseInvokeResult(
-			fakeInvokeResult({errorCode: 'TIMEOUT', broadcasted: true, transactionHash: 'a'.repeat(64), ledger: 1}),
+			fakeInvokeResult({
+				errorCode: 'TIMEOUT',
+				broadcasted: true,
+				transactionHash: 'a'.repeat(64),
+				ledger: 1,
+			}),
 			false,
 			'fnLow',
 			'v::LOW',
@@ -482,7 +533,10 @@ test('CASE T — findings severity consistency: totalFindings === findings.lengt
 			fakeInvokeResult({
 				diagnosticEvents: [
 					fnCallEvent(CONTRACT_UNDER_TEST, 'fnMedium'),
-					errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+					errorEvent(
+						CONTRACT_UNDER_TEST,
+						xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+					),
 				],
 			}),
 			false,
@@ -497,7 +551,10 @@ test('CASE T — findings severity consistency: totalFindings === findings.lengt
 	const strongFaultEvents = [
 		fnCallEvent(CONTRACT_UNDER_TEST, 'fnCrit'),
 		fnCallEvent(CONTRACT_UNDER_TEST, 'fnCrit'),
-		errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain())),
+		errorEvent(
+			CONTRACT_UNDER_TEST,
+			xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain()),
+		),
 	];
 
 	// CRITICAL: POTENTIAL_VULN on an admin function.
@@ -523,7 +580,10 @@ test('CASE T — findings severity consistency: totalFindings === findings.lengt
 				diagnosticEvents: [
 					fnCallEvent(CONTRACT_UNDER_TEST, 'fnHigh'),
 					fnCallEvent(CONTRACT_UNDER_TEST, 'fnHigh'),
-					errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain())),
+					errorEvent(
+						CONTRACT_UNDER_TEST,
+						xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecArithDomain()),
+					),
 				],
 			}),
 			false,
@@ -534,11 +594,19 @@ test('CASE T — findings severity consistency: totalFindings === findings.lengt
 		),
 	};
 
-	const chaos = buildReport(scan.contractId, [lowResult, mediumResult, criticalResult, highResult, secureResult(1)]);
-	t.deepEqual(
-		chaos.findings.map(f => f.severity).sort(),
-		['CRITICAL', 'HIGH', 'LOW', 'MEDIUM'],
-	);
+	const chaos = buildReport(scan.contractId, [
+		lowResult,
+		mediumResult,
+		criticalResult,
+		highResult,
+		secureResult(1),
+	]);
+	t.deepEqual(chaos.findings.map(f => f.severity).sort(), [
+		'CRITICAL',
+		'HIGH',
+		'LOW',
+		'MEDIUM',
+	]);
 
 	const report = buildSecurityReport({scan, chaos});
 	t.is(report.summary.totalFindings, report.findings.length);
@@ -591,7 +659,10 @@ test('CASE V — findingsBySignal is derived from findings[] only: a SECURE-heav
 			fakeInvokeResult({
 				diagnosticEvents: [
 					fnCallEvent(CONTRACT_UNDER_TEST, 'fnA'),
-					errorEvent(CONTRACT_UNDER_TEST, xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction())),
+					errorEvent(
+						CONTRACT_UNDER_TEST,
+						xdr.ScError.sceWasmVm(xdr.ScErrorCode.scecInvalidAction()),
+					),
 				],
 			}),
 			false,
@@ -602,7 +673,12 @@ test('CASE V — findingsBySignal is derived from findings[] only: a SECURE-heav
 		),
 	};
 
-	const results = [unexpectedError1, secureResult(1), secureResult(2), secureResult(3)];
+	const results = [
+		unexpectedError1,
+		secureResult(1),
+		secureResult(2),
+		secureResult(3),
+	];
 	const chaos = buildReport(scan.contractId, results);
 	t.is(chaos.findings.length, 1);
 
@@ -610,7 +686,10 @@ test('CASE V — findingsBySignal is derived from findings[] only: a SECURE-heav
 	t.deepEqual(report.summary.findingsBySignal, {UNEXPECTED_ERROR: 1});
 	t.is(report.summary.findingsBySignal.SECURE, undefined);
 	t.is(
-		Object.values(report.summary.findingsBySignal).reduce((a, b) => a + (b ?? 0), 0),
+		Object.values(report.summary.findingsBySignal).reduce(
+			(a, b) => a + (b ?? 0),
+			0,
+		),
 		report.findings.length,
 	);
 });

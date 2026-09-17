@@ -4,9 +4,10 @@ import TextInput from 'ink-text-input';
 import Spinner from 'ink-spinner';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 
-// @ts-ignore
-import * as KuyfiClient from '../src/kuyfi_client/dist/index.js';
-import {runChaosMonkey, formatReportForTerminal} from './modules/chaos_monkey/index.js';
+import {
+	runChaosMonkey,
+	formatReportForTerminal,
+} from './modules/chaos_monkey/index.js';
 import {typeName} from './modules/chaos_monkey/type_gen.js';
 import {scanContract, isValidContractId, ScanError} from './modules/scanner.js';
 import {TESTNET_RPC_URL} from './modules/network.js';
@@ -185,7 +186,12 @@ function ViewShell({
 	return (
 		<Box flexDirection="column" padding={1}>
 			<TopStatusBar />
-			<Box flexDirection="column" borderStyle="single" borderColor="magenta" padding={1}>
+			<Box
+				flexDirection="column"
+				borderStyle="single"
+				borderColor="magenta"
+				padding={1}
+			>
 				<Text dimColor>
 					<Text color="cyan">[ESC]</Text> Back
 				</Text>
@@ -240,12 +246,16 @@ function ScannerView({
 				const server = new SorobanRpc.Server(TESTNET_RPC_URL);
 				const scanResult = await scanContract(contractId, server);
 
-				const parsedFunctions: ContractFunction[] = scanResult.functions.map(fn => ({
-					name: fn.name,
-					inputs: fn.params.map(p => `${p.name}: ${typeName(p.type)}`).join(', '),
-					outputs: fn.hasReturn ? 'Has Return' : 'Void',
-					params: fn.params,
-				}));
+				const parsedFunctions: ContractFunction[] = scanResult.functions.map(
+					fn => ({
+						name: fn.name,
+						inputs: fn.params
+							.map(p => `${p.name}: ${typeName(p.type)}`)
+							.join(', '),
+						outputs: fn.hasReturn ? 'Has Return' : 'Void',
+						params: fn.params,
+					}),
+				);
 
 				if (!cancelled) {
 					setBytecodeSize(scanResult.bytecodeSize);
@@ -257,10 +267,14 @@ function ScannerView({
 					if (error instanceof ScanError) {
 						switch (error.code) {
 							case 'RPC_UNAVAILABLE':
-								setRpcError('CRITICAL: No connection to Testnet or RPC unavailable.');
+								setRpcError(
+									'CRITICAL: No connection to Testnet or RPC unavailable.',
+								);
 								break;
 							case 'CONTRACT_NOT_FOUND':
-								setRpcError('CONTRACT NOT FOUND: Check the Contract ID exists on Testnet.');
+								setRpcError(
+									'CONTRACT NOT FOUND: Check the Contract ID exists on Testnet.',
+								);
 								break;
 							case 'XDR_ALIGN_FAILURE':
 								setRpcError(
@@ -291,7 +305,9 @@ function ScannerView({
 
 	const showInputOnly = !contractId;
 	const scanFinished =
-		Boolean(contractId) && !isScanning && (rpcError !== null || bytecodeSize !== null);
+		Boolean(contractId) &&
+		!isScanning &&
+		(rpcError !== null || bytecodeSize !== null);
 	const showPostScanActions = scanFinished;
 
 	useInput(
@@ -320,14 +336,22 @@ function ScannerView({
 					onQuit();
 				}
 			},
-			[showPostScanActions, resetScanState, onBackToMenu, onQuit, onLaunchChaos],
+			[
+				showPostScanActions,
+				resetScanState,
+				onBackToMenu,
+				onQuit,
+				onLaunchChaos,
+			],
 		),
 		{isActive: showPostScanActions},
 	);
 
 	function onSubmit(newValue: string) {
 		if (!isValidContractId(newValue)) {
-			setInputError('Contract ID must start with C and be exactly 56 characters (A-Z, 0-9).');
+			setInputError(
+				'Contract ID must start with C and be exactly 56 characters (A-Z, 0-9).',
+			);
 			return;
 		}
 
@@ -339,15 +363,27 @@ function ScannerView({
 		<Box flexDirection="column">
 			{showInputOnly && (
 				<Box flexDirection="column" padding={1}>
-					<Text color="magenta">{'┌─ OSINT SCANNER ──────────────────────────────────────┐'}</Text>
-					<Text dimColor>{'│  Enter Stellar Contract ID (56 chars, starts with C)  │'}</Text>
-					<Text dimColor>{'│                                                        │'}</Text>
+					<Text color="magenta">
+						{'┌─ OSINT SCANNER ──────────────────────────────────────┐'}
+					</Text>
+					<Text dimColor>
+						{'│  Enter Stellar Contract ID (56 chars, starts with C)  │'}
+					</Text>
+					<Text dimColor>
+						{'│                                                        │'}
+					</Text>
 					<Box flexDirection="row">
 						<Text dimColor>{'│  '}</Text>
 						<Text color="cyan">{'> '}</Text>
-						<TextInput value={inputValue} onChange={setInputValue} onSubmit={onSubmit} />
+						<TextInput
+							value={inputValue}
+							onChange={setInputValue}
+							onSubmit={onSubmit}
+						/>
 					</Box>
-					<Text dimColor>{'│                                                        │'}</Text>
+					<Text dimColor>
+						{'│                                                        │'}
+					</Text>
 					<Box flexDirection="row">
 						<Text dimColor>{'│  '}</Text>
 						<Text color="cyan">{'[Enter]'}</Text>
@@ -355,7 +391,9 @@ function ScannerView({
 						<Text color="cyan">{'[Esc]'}</Text>
 						<Text dimColor>{' Back to menu                   │'}</Text>
 					</Box>
-					<Text color="magenta">{'└────────────────────────────────────────────────────────┘'}</Text>
+					<Text color="magenta">
+						{'└────────────────────────────────────────────────────────┘'}
+					</Text>
 					{inputError ? (
 						<Text color="red" bold>
 							{inputError}
@@ -406,7 +444,10 @@ function ScannerView({
 					</Box>
 					<Box flexDirection="column" marginTop={1}>
 						{functions.map(fn => (
-							<Box key={`${fn.name}:${fn.inputs}:${fn.outputs}`} flexDirection="row">
+							<Box
+								key={`${fn.name}:${fn.inputs}:${fn.outputs}`}
+								flexDirection="row"
+							>
 								<Text color="green" bold>
 									{fn.name}
 								</Text>
@@ -414,7 +455,9 @@ function ScannerView({
 								<Text dimColor>{fn.inputs}</Text>
 								<Text color="cyan">{')'}</Text>
 								<Text color="magenta">{' → '}</Text>
-								<Text color={fn.outputs === 'Void' ? 'gray' : 'greenBright'}>{fn.outputs}</Text>
+								<Text color={fn.outputs === 'Void' ? 'gray' : 'greenBright'}>
+									{fn.outputs}
+								</Text>
 							</Box>
 						))}
 					</Box>
@@ -423,7 +466,9 @@ function ScannerView({
 
 			{showPostScanActions && (
 				<Box flexDirection="column" marginTop={1}>
-					<Text dimColor>{'─────────────────────────────────────────────'}</Text>
+					<Text dimColor>
+						{'─────────────────────────────────────────────'}
+					</Text>
 					<Text color="white">{'What do you want to do next?'}</Text>
 					<Box flexDirection="column" marginTop={1}>
 						<Text>
@@ -443,7 +488,9 @@ function ScannerView({
 							<Text dimColor>{'  Quit'}</Text>
 						</Text>
 					</Box>
-					<Text dimColor>{'─────────────────────────────────────────────'}</Text>
+					<Text dimColor>
+						{'─────────────────────────────────────────────'}
+					</Text>
 				</Box>
 			)}
 		</Box>
@@ -455,7 +502,8 @@ function ScannerView({
 type ChaosPhase = 'idle' | 'running' | 'done' | 'error';
 
 function logLineColor(line: string): string {
-	if (line.includes('CRITICAL') || line.includes('POTENTIAL_VULN')) return 'red';
+	if (line.includes('CRITICAL') || line.includes('POTENTIAL_VULN'))
+		return 'red';
 	if (line.includes('SECURE')) return 'green';
 	if (
 		line.includes('Generating') ||
@@ -495,7 +543,9 @@ function ChaosMonkeyView({
 	// under StrictMode) and never rebuilt per export keypress. J/P/B all
 	// read this same cached object, so they always share reportId/
 	// generatedAt/findings/evidence.
-	const [securityReport, setSecurityReport] = useState<SecurityReport | null>(null);
+	const [securityReport, setSecurityReport] = useState<SecurityReport | null>(
+		null,
+	);
 	const [isExporting, setIsExporting] = useState(false);
 	const [exportResults, setExportResults] = useState<ExportOutcome[]>([]);
 	const isExportingRef = useRef(false);
@@ -593,7 +643,9 @@ function ChaosMonkeyView({
 				<Text color="magenta">
 					{'┌─ CHAOS MONKEY ──────────────────────────────────────┐'}
 				</Text>
-				<Text dimColor>{'│  No target loaded.                                   │'}</Text>
+				<Text dimColor>
+					{'│  No target loaded.                                   │'}
+				</Text>
 				<Text dimColor>
 					{'│  Run the OSINT Scanner first, then press [C]         │'}
 				</Text>
@@ -622,7 +674,9 @@ function ChaosMonkeyView({
 					<Text dimColor>{'│  Functions to fuzz: '}</Text>
 					<Text color="white">{String(functions.length)}</Text>
 				</Box>
-				<Text dimColor>{'│                                                              │'}</Text>
+				<Text dimColor>
+					{'│                                                              │'}
+				</Text>
 				<Box flexDirection="row">
 					<Text dimColor>{'│  '}</Text>
 					<Text color="cyan">{'[ENTER]'}</Text>
@@ -742,9 +796,15 @@ function ChaosMonkeyView({
 				{!isExporting && exportResults.length > 0 && (
 					<Box marginTop={1} flexDirection="column">
 						{exportResults.map((r, i) => (
-							<Box key={`${r.label}-${i}`} flexDirection="column" marginBottom={1}>
+							<Box
+								key={`${r.label}-${i}`}
+								flexDirection="column"
+								marginBottom={1}
+							>
 								<Text color={r.success ? 'green' : 'red'} bold>
-									{r.success ? `${r.label} exported:` : `${r.label} export failed:`}
+									{r.success
+										? `${r.label} exported:`
+										: `${r.label} export failed:`}
 								</Text>
 								<Text color={r.success ? 'green' : 'red'} wrap="wrap">
 									{r.success ? `./${r.message}` : r.message}
@@ -807,7 +867,9 @@ const App: React.FC = () => {
 					const row = MODULE_ROWS[selectedModule];
 					if (!row) return;
 					if (row.id === 'chaos' && lastScanResult === null) {
-						setMenuNotice('⚠  Run OSINT Scanner first to load a target contract.');
+						setMenuNotice(
+							'⚠  Run OSINT Scanner first to load a target contract.',
+						);
 					} else {
 						setMenuNotice(null);
 					}
@@ -816,14 +878,17 @@ const App: React.FC = () => {
 					return;
 				}
 
-				const n = input === '1' || input === '2' || input === '3' || input === '4';
+				const n =
+					input === '1' || input === '2' || input === '3' || input === '4';
 				if (n) {
 					const idx = Number(input) - 1;
 					const row = MODULE_ROWS[idx];
 					if (row) {
 						if (row.id === 'chaos' && lastScanResult === null) {
 							setSelectedModule(idx);
-							setMenuNotice('⚠  Run OSINT Scanner first to load a target contract.');
+							setMenuNotice(
+								'⚠  Run OSINT Scanner first to load a target contract.',
+							);
 						} else {
 							setMenuNotice(null);
 							setSelectedModule(idx);
@@ -925,7 +990,9 @@ const App: React.FC = () => {
 							{'[ SYSTEM LOGS ]'}
 						</Text>
 					</Box>
-					<Text color="green">{'✔ RPC: https://soroban-testnet.stellar.org'}</Text>
+					<Text color="green">
+						{'✔ RPC: https://soroban-testnet.stellar.org'}
+					</Text>
 					<Text color="green">{'✔ Status: endpoint reachable (session)'}</Text>
 					<Text color="magenta">{'✔ Core engine loaded'}</Text>
 					<Text color="magenta">{'✔ Soroban bridge ready'}</Text>
@@ -957,12 +1024,20 @@ const App: React.FC = () => {
 						{'[ ABOUT KUYFI ]'}
 					</Text>
 				</Box>
-				<Text color="white">{'Kuyfi — Offensive Security Terminal for Soroban'}</Text>
+				<Text color="white">
+					{'Kuyfi — Offensive Security Terminal for Soroban'}
+				</Text>
 				<Text dimColor>{'Version: 0.1  |  Network: Stellar Testnet'}</Text>
-				<Text dimColor>{'Stack: Node.js · React · Ink · TypeScript · stellar-sdk'}</Text>
+				<Text dimColor>
+					{'Stack: Node.js · React · Ink · TypeScript · stellar-sdk'}
+				</Text>
 				<Box marginTop={1} flexDirection="column">
-					<Text color="cyan">{'The first black-box smart contract scanner'}</Text>
-					<Text color="cyan">{'native to Soroban. No source code required.'}</Text>
+					<Text color="cyan">
+						{'The first black-box smart contract scanner'}
+					</Text>
+					<Text color="cyan">
+						{'native to Soroban. No source code required.'}
+					</Text>
 				</Box>
 				<Box marginTop={1} flexDirection="column">
 					<Text dimColor>{'Phase 1 — OSINT Scanner       ✔ Complete'}</Text>

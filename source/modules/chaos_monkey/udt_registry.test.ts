@@ -53,14 +53,14 @@ function unionEntry(
 				c.valueTypes.length === 0
 					? xdr.ScSpecUdtUnionCaseV0.scSpecUdtUnionCaseVoidV0(
 							new xdr.ScSpecUdtUnionCaseVoidV0({doc: '', name: c.name}),
-					  )
+						)
 					: xdr.ScSpecUdtUnionCaseV0.scSpecUdtUnionCaseTupleV0(
 							new xdr.ScSpecUdtUnionCaseTupleV0({
 								doc: '',
 								name: c.name,
 								type: c.valueTypes,
 							}),
-					  ),
+						),
 			),
 		}),
 	);

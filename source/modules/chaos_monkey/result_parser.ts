@@ -57,12 +57,17 @@ export interface ParsedResult {
  * scope (Testnet-only sprint). Returns null for an empty/falsy hash so
  * callers never have to special-case "no evidence" themselves.
  */
-export function stellarExpertTestnetUrl(transactionHash: string | null): string | null {
+export function stellarExpertTestnetUrl(
+	transactionHash: string | null,
+): string | null {
 	if (!transactionHash) return null;
 	return `https://stellar.expert/explorer/testnet/tx/${transactionHash}`;
 }
 
-export function signalToSeverity(signal: VulnerabilitySignal, isAdminFunction: boolean): Severity {
+export function signalToSeverity(
+	signal: VulnerabilitySignal,
+	isAdminFunction: boolean,
+): Severity {
 	switch (signal) {
 		case 'POTENTIAL_VULN':
 			return isAdminFunction ? 'CRITICAL' : 'HIGH';
@@ -143,7 +148,9 @@ export function classifyErrorFromString(
 	if (code === 'TX_FAILED') {
 		return {
 			signal: 'PRECONDITION_FAIL',
-			details: `On-chain execution failed (simulation passed — likely missing token balance or protocol state, not a code vulnerability): ${msg ?? 'no details'}`,
+			details: `On-chain execution failed (simulation passed — likely missing token balance or protocol state, not a code vulnerability): ${
+				msg ?? 'no details'
+			}`,
 		};
 	}
 
@@ -154,36 +161,51 @@ export function classifyErrorFromString(
 	// vulnerability in the contract under test.
 	const hasFailedCrossContractCall =
 		m.includes('contract call failed') ||
-		(m.includes('escalating error') && (m.includes('vm trap') || m.includes('host function call'))) ||
+		(m.includes('escalating error') &&
+			(m.includes('vm trap') || m.includes('host function call'))) ||
 		/fn_call[^\n]*transfer/i.test(msg ?? '');
 
 	if (hasFailedCrossContractCall) {
 		return {
 			signal: 'PRECONDITION_FAIL',
-			details: `Event log shows a failed nested/cross-contract call (e.g. a token transfer) before the trap — likely missing balance, trustline, or allowance on the test account, not a contract vulnerability: ${msg ?? code}`,
+			details: `Event log shows a failed nested/cross-contract call (e.g. a token transfer) before the trap — likely missing balance, trustline, or allowance on the test account, not a contract vulnerability: ${
+				msg ?? code
+			}`,
 		};
 	}
 
 	// Auth errors — expected for a protected function called without a real
 	// admin/authorized signer. Checked before the trap check below because an
 	// auth failure can itself escalate into a VM trap deeper in the call.
-	if (m.includes('error(auth,') || m.includes('require_auth') || m.includes('auth failed')) {
+	if (
+		m.includes('error(auth,') ||
+		m.includes('require_auth') ||
+		m.includes('auth failed')
+	) {
 		return {
 			signal: 'PRECONDITION_FAIL',
-			details: `Auth check rejected the call — test account is not an authorized signer for this function: ${msg ?? code}`,
+			details: `Auth check rejected the call — test account is not an authorized signer for this function: ${
+				msg ?? code
+			}`,
 		};
 	}
 
 	// REINIT_ATTACK / RANDOM_ADDR_* vectors against initialize/init/setup are
 	// expected to trap once the contract is already initialized.
-	const isInitFunction = INIT_FUNCTION_PATTERNS.some(p => functionName.toLowerCase().includes(p));
-	const isReinitVector = vectorName === 'REINIT_ATTACK' || vectorName.includes('RANDOM_ADDR');
-	const looksLikeTrap = m.includes('wasmvm') || m.includes('unreachable') || m.includes('vmtrap');
+	const isInitFunction = INIT_FUNCTION_PATTERNS.some(p =>
+		functionName.toLowerCase().includes(p),
+	);
+	const isReinitVector =
+		vectorName === 'REINIT_ATTACK' || vectorName.includes('RANDOM_ADDR');
+	const looksLikeTrap =
+		m.includes('wasmvm') || m.includes('unreachable') || m.includes('vmtrap');
 
 	if (isInitFunction && isReinitVector && looksLikeTrap) {
 		return {
 			signal: 'PRECONDITION_FAIL',
-			details: `${vectorName} trapped on ${functionName} — expected, contract is already initialized: ${msg ?? code}`,
+			details: `${vectorName} trapped on ${functionName} — expected, contract is already initialized: ${
+				msg ?? code
+			}`,
 		};
 	}
 
@@ -203,18 +225,23 @@ export function classifyErrorFromString(
 	//     explanation doesn't fit — keep this as a genuine POTENTIAL_VULN
 	//     candidate at full severity. Do not collapse the two cases.
 	if (looksLikeTrap) {
-		const fnCallFrames = (msg ?? '').match(/topics:\s*\[fn_call/gi)?.length ?? 0;
+		const fnCallFrames =
+			(msg ?? '').match(/topics:\s*\[fn_call/gi)?.length ?? 0;
 
 		if (fnCallFrames === 1) {
 			return {
 				signal: 'UNCONTROLLED_PANIC',
-				details: `Function panics (VM trap) instead of returning a clean Error(Contract,...) on invalid state/precondition — the trap fires immediately after the function's own entry frame with no nested call recorded in the event log (e.g. unwrap()/assert() on empty pool reserves or already-initialized storage). This is a robustness/error-handling finding, not a proven exploitable vulnerability: ${msg ?? code}`,
+				details: `Function panics (VM trap) instead of returning a clean Error(Contract,...) on invalid state/precondition — the trap fires immediately after the function's own entry frame with no nested call recorded in the event log (e.g. unwrap()/assert() on empty pool reserves or already-initialized storage). This is a robustness/error-handling finding, not a proven exploitable vulnerability: ${
+					msg ?? code
+				}`,
 			};
 		}
 
 		return {
 			signal: 'POTENTIAL_VULN',
-			details: `WASM panic on type-correct input, after ${fnCallFrames} nested call frame(s) recorded in the event log — no failed cross-contract call or auth rejection found to explain it: ${msg ?? code}`,
+			details: `WASM panic on type-correct input, after ${fnCallFrames} nested call frame(s) recorded in the event log — no failed cross-contract call or auth rejection found to explain it: ${
+				msg ?? code
+			}`,
 		};
 	}
 
@@ -231,12 +258,18 @@ export function classifyErrorFromString(
 	if (m.includes('error(object,') || m.includes('not a contract address')) {
 		return {
 			signal: 'SECURE',
-			details: `Host error (non-contract address, expected with random address inputs): ${msg ?? code}`,
+			details: `Host error (non-contract address, expected with random address inputs): ${
+				msg ?? code
+			}`,
 		};
 	}
 
 	// Context / reserved function errors
-	if (m.includes('error(context,') || m.includes('reservedfunction') || m.includes('reserved function')) {
+	if (
+		m.includes('error(context,') ||
+		m.includes('reservedfunction') ||
+		m.includes('reserved function')
+	) {
 		return {
 			signal: 'SECURE',
 			details: `Reserved/context error (expected): ${msg ?? code}`,
@@ -250,13 +283,17 @@ export function classifyErrorFromString(
 	if (m.includes('error(storage,')) {
 		return {
 			signal: 'UNEXPECTED_ERROR',
-			details: `Function reached storage operation before failure — verify auth is enforced before this call: ${msg ?? code}`,
+			details: `Function reached storage operation before failure — verify auth is enforced before this call: ${
+				msg ?? code
+			}`,
 		};
 	}
 
 	return {
 		signal: 'UNEXPECTED_ERROR',
-		details: `Unexpected failure (code: ${code ?? 'unknown'}): ${msg ?? 'no details'}`,
+		details: `Unexpected failure (code: ${code ?? 'unknown'}): ${
+			msg ?? 'no details'
+		}`,
 	};
 }
 
@@ -268,7 +305,10 @@ export function classifyErrorFromString(
 // limits, including exactly the oversized-input attack vectors this fuzzer
 // itself sends (OVERSIZE_SYMBOL, LARGE_BYTES, ...), where tripping the limit
 // is the CORRECT/expected host behavior, not evidence of a bug.
-const STRONG_RUNTIME_FAULT_CODES = new Set(['scecArithDomain', 'scecIndexBounds']);
+const STRONG_RUNTIME_FAULT_CODES = new Set([
+	'scecArithDomain',
+	'scecIndexBounds',
+]);
 
 /**
  * Structured-trace classifier — PRIMARY SOURCE when diagnosticEvents is
@@ -364,41 +404,55 @@ export function classifyErrorFromTrace(
 		case 'CONTRACT':
 			return {
 				signal: 'SECURE',
-				details: `Structured trace shows a contract-level rejection (${lastError.code ?? 'ScError(Contract)'}) — expected business-logic validation.`,
+				details: `Structured trace shows a contract-level rejection (${
+					lastError.code ?? 'ScError(Contract)'
+				}) — expected business-logic validation.`,
 			};
 		case 'CONTEXT':
 			return {
 				signal: 'SECURE',
-				details: 'Structured trace shows a reserved/context error — expected for reserved functions.',
+				details:
+					'Structured trace shows a reserved/context error — expected for reserved functions.',
 			};
 		case 'OBJECT':
 			return {
 				signal: 'SECURE',
-				details: 'Structured trace shows a host object/address-type error — expected with random test addresses.',
+				details:
+					'Structured trace shows a host object/address-type error — expected with random test addresses.',
 			};
 		case 'STORAGE':
 			return {
 				signal: 'UNEXPECTED_ERROR',
-				details: 'Structured trace shows the call reached a storage operation before failing — verify auth is enforced before this point.',
+				details:
+					'Structured trace shows the call reached a storage operation before failing — verify auth is enforced before this point.',
 			};
 		case 'OTHER':
 			return {
 				signal: 'UNEXPECTED_ERROR',
-				details: `Structured trace shows an uncommon host error category (${lastError.code ?? 'unknown'}) — no strong domain classification yet.`,
+				details: `Structured trace shows an uncommon host error category (${
+					lastError.code ?? 'unknown'
+				}) — no strong domain classification yet.`,
 			};
 		case 'WASM_VM':
 		case 'UNKNOWN': {
 			const depthNote = `nestedCallCount=${analysis.nestedCallCount}, failureLocation=${analysis.failureLocation}`;
-			const rootAttributed = analysis.nestedCallCount === 0 || analysis.failureLocation === 'ROOT';
+			const rootAttributed =
+				analysis.nestedCallCount === 0 || analysis.failureLocation === 'ROOT';
 
 			if (!rootAttributed) {
 				return {
 					signal: 'UNEXPECTED_ERROR',
-					details: `Structured trace shows a failure after ${analysis.nestedCallCount} nested call frame(s), attributed to a nested/callee contract rather than the contract under test (${lastError.code ?? 'undecodable ScError'}) — cannot conclude this is the target contract's fault (could be its own bug for not validating before calling out, or the callee's own precondition, e.g. missing balance). ${depthNote}.`,
+					details: `Structured trace shows a failure after ${
+						analysis.nestedCallCount
+					} nested call frame(s), attributed to a nested/callee contract rather than the contract under test (${
+						lastError.code ?? 'undecodable ScError'
+					}) — cannot conclude this is the target contract's fault (could be its own bug for not validating before calling out, or the callee's own precondition, e.g. missing balance). ${depthNote}.`,
 				};
 			}
 
-			const isStrongFault = lastError.code !== null && STRONG_RUNTIME_FAULT_CODES.has(lastError.code);
+			const isStrongFault =
+				lastError.code !== null &&
+				STRONG_RUNTIME_FAULT_CODES.has(lastError.code);
 
 			if (isStrongFault) {
 				return analysis.nestedCallCount === 0
@@ -415,7 +469,9 @@ export function classifyErrorFromTrace(
 			if (analysis.nestedCallCount === 0) {
 				return {
 					signal: 'UNEXPECTED_ERROR',
-					details: `Structured trace shows a root-level generic host trap (${lastError.code ?? 'undecodable ScError'}) with no nested-call activity and no auth signal — cannot distinguish a genuine unguarded panic from a precondition guard implemented via panic. Inconclusive from the trace alone; flagged for manual review, not confirmed as either safe or a bug. ${depthNote}.`,
+					details: `Structured trace shows a root-level generic host trap (${
+						lastError.code ?? 'undecodable ScError'
+					}) with no nested-call activity and no auth signal — cannot distinguish a genuine unguarded panic from a precondition guard implemented via panic. Inconclusive from the trace alone; flagged for manual review, not confirmed as either safe or a bug. ${depthNote}.`,
 				};
 			}
 
@@ -431,13 +487,21 @@ export function classifyErrorFromTrace(
 			if (hasUnverifiedAddressArg) {
 				return {
 					signal: 'UNEXPECTED_ERROR',
-					details: `Structured trace shows a generic host trap (${lastError.code ?? 'undecodable ScError'}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — runtime behavior is suspicious (real nested-call activity occurred), but this call includes at least one Address parameter this fuzzer fabricated (unfunded/unauthorized), so semantic validity of the input is not established. Not escalated: could be the root contract mishandling a downstream precondition failure caused by our fake address, not a genuine bug. ${depthNote}.`,
+					details: `Structured trace shows a generic host trap (${
+						lastError.code ?? 'undecodable ScError'
+					}) after ${
+						analysis.nestedCallCount
+					} nested call frame(s), confirmed attributed to the root contract — runtime behavior is suspicious (real nested-call activity occurred), but this call includes at least one Address parameter this fuzzer fabricated (unfunded/unauthorized), so semantic validity of the input is not established. Not escalated: could be the root contract mishandling a downstream precondition failure caused by our fake address, not a genuine bug. ${depthNote}.`,
 				};
 			}
 
 			return {
 				signal: 'POTENTIAL_VULN',
-				details: `Structured trace shows a generic host trap (${lastError.code ?? 'undecodable ScError'}) after ${analysis.nestedCallCount} nested call frame(s), confirmed attributed to the root contract — the trivial "precondition check at entry" explanation doesn't fit, and this call has no Address-typed parameter whose fabricated semantics could otherwise explain the nested call hitting a wall. ${depthNote}.`,
+				details: `Structured trace shows a generic host trap (${
+					lastError.code ?? 'undecodable ScError'
+				}) after ${
+					analysis.nestedCallCount
+				} nested call frame(s), confirmed attributed to the root contract — the trivial "precondition check at entry" explanation doesn't fit, and this call has no Address-typed parameter whose fabricated semantics could otherwise explain the nested call hitting a wall. ${depthNote}.`,
 			};
 		}
 
@@ -446,7 +510,9 @@ export function classifyErrorFromTrace(
 		default:
 			return {
 				signal: 'UNEXPECTED_ERROR',
-				details: `Structured trace produced an unrecognized error category (${lastError.category as string}) — conservative fallback.`,
+				details: `Structured trace produced an unrecognized error category (${
+					lastError.category as string
+				}) — conservative fallback.`,
 			};
 	}
 }
@@ -466,7 +532,10 @@ function classifyError(
 	hasUnverifiedAddressArg: boolean,
 ): {signal: VulnerabilitySignal; details: string} {
 	if (diagnosticEvents.length > 0) {
-		return classifyErrorFromTrace(analyzeDiagnosticTrace(diagnosticEvents), hasUnverifiedAddressArg);
+		return classifyErrorFromTrace(
+			analyzeDiagnosticTrace(diagnosticEvents),
+			hasUnverifiedAddressArg,
+		);
 	}
 
 	return classifyErrorFromString(msg, code, vectorName, functionName);
@@ -563,7 +632,10 @@ export function parseInvokeResult(
 			// the taxonomy's inconclusive bucket — is passed through unchanged:
 			// the rejection may still be a correct access-control outcome, but
 			// this layer does not assert that on ambiguous evidence.
-			if (classified.signal === 'SECURE' || classified.signal === 'PRECONDITION_FAIL') {
+			if (
+				classified.signal === 'SECURE' ||
+				classified.signal === 'PRECONDITION_FAIL'
+			) {
 				return {
 					signal: 'SECURE',
 					severity: 'INFO',

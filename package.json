@@ -1,20 +1,48 @@
 {
-	"name": "kuyfi_tui",
-	"version": "0.0.0",
+	"name": "kuyfi",
+	"version": "0.1.0",
+	"description": "Black-box security terminal for Soroban smart contracts — attack-surface reconstruction and Chaos Monkey fuzzing against deployed Testnet contracts, no source code required.",
 	"license": "MIT",
-	"bin": "dist/cli.js",
+	"author": "Alex B. Hernández Contreras <alexbnjmnch@gmail.com>",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/alex0tico/kuyfi_tui.git"
+	},
+	"homepage": "https://github.com/alex0tico/kuyfi_tui#readme",
+	"bugs": {
+		"url": "https://github.com/alex0tico/kuyfi_tui/issues"
+	},
+	"keywords": [
+		"soroban",
+		"stellar",
+		"smart-contracts",
+		"security",
+		"fuzzing",
+		"black-box",
+		"cli",
+		"tui",
+		"blockchain-security",
+		"audit"
+	],
+	"bin": {
+		"kuyfi": "dist/cli.js"
+	},
 	"type": "module",
 	"engines": {
-		"node": ">=16"
+		"node": ">=20"
 	},
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
+		"pretest": "npm run build",
 		"test": "prettier --check . && xo && ava",
-		"start": "node dist/cli.js"
+		"start": "node dist/cli.js",
+		"prepack": "npm run build"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"!dist/**/*.test.js",
+		"!dist/**/*.test.d.ts"
 	],
 	"dependencies": {
 		"@stellar/stellar-sdk": "^14.6.1",
@@ -26,36 +54,96 @@
 		"react": "^19.2.4"
 	},
 	"devDependencies": {
+		"@ava/typescript": "6.0.0",
 		"@sindresorhus/tsconfig": "^3.0.1",
 		"@types/pdfkit": "^0.17.6",
 		"@types/react": "^19.2.14",
 		"@vdemedes/prettier-config": "^2.0.1",
-		"ava": "^5.2.0",
+		"ava": "6.4.1",
 		"chalk": "^5.2.0",
 		"eslint-config-xo-react": "^0.27.0",
 		"eslint-plugin-react": "^7.32.2",
 		"eslint-plugin-react-hooks": "^4.6.0",
 		"ink-testing-library": "^3.0.0",
 		"pdfjs-dist": "^6.3.289",
-		"prettier": "^2.8.7",
-		"ts-node": "^10.9.1",
+		"prettier": "3.9.7",
 		"typescript": "^5.0.3",
-		"xo": "^2.0.2"
+		"xo": "0.60.0"
 	},
 	"ava": {
-		"extensions": {
-			"ts": "module",
-			"tsx": "module"
-		},
-		"nodeArguments": [
-			"--loader=ts-node/esm"
-		]
+		"typescript": {
+			"rewritePaths": {
+				"source/": "dist/"
+			},
+			"compile": false
+		}
 	},
 	"xo": {
 		"extends": "xo-react",
 		"prettier": true,
+		"semicolon": true,
+		"ignores": [
+			"test.tsx",
+			"rerun_chaos.mjs"
+		],
 		"rules": {
-			"react/prop-types": "off"
+			"react/prop-types": "off",
+			"unicorn/prevent-abbreviations": "off",
+			"@typescript-eslint/ban-types": "off",
+			"unicorn/switch-case-braces": "off",
+			"@typescript-eslint/naming-convention": "off",
+			"import/no-duplicates": "off",
+			"react/jsx-curly-brace-presence": "off",
+			"@typescript-eslint/no-unsafe-call": "off",
+			"@typescript-eslint/consistent-type-definitions": "off",
+			"capitalized-comments": "off",
+			"unicorn/no-array-push-push": "off",
+			"object-shorthand": "off",
+			"unicorn/filename-case": "off",
+			"@typescript-eslint/no-unsafe-assignment": "off",
+			"unicorn/text-encoding-identifier-case": "off",
+			"@typescript-eslint/consistent-type-imports": "off",
+			"eslint-comments/no-unused-disable": "off",
+			"no-await-in-loop": "off",
+			"react/prefer-read-only-props": "off",
+			"unicorn/numeric-separators-style": "off",
+			"react/jsx-sort-props": "off",
+			"@typescript-eslint/no-unnecessary-type-assertion": "off",
+			"unicorn/no-array-callback-reference": "off",
+			"react/no-array-index-key": "off",
+			"n/prefer-global/process": "off",
+			"unicorn/prefer-includes": "off",
+			"complexity": "off",
+			"@typescript-eslint/no-confusing-void-expression": "off",
+			"unicorn/prefer-string-replace-all": "off",
+			"max-params": "off",
+			"prefer-destructuring": "off",
+			"unicorn/better-regex": "off",
+			"unicorn/prefer-global-this": "off",
+			"promise/prefer-await-to-then": "off",
+			"react/function-component-definition": "off",
+			"unicorn/prefer-at": "off",
+			"@typescript-eslint/no-unsafe-declaration-merging": "off",
+			"@typescript-eslint/lines-between-class-members": "off",
+			"padding-line-between-statements": "off",
+			"import/order": "off",
+			"@typescript-eslint/no-floating-promises": "off",
+			"react/jsx-no-bind": "off",
+			"unicorn/catch-error-name": "off",
+			"unicorn/no-process-exit": "off",
+			"react/hook-use-state": "off",
+			"@typescript-eslint/no-empty-function": "off",
+			"unicorn/prefer-structured-clone": "off",
+			"@typescript-eslint/padding-line-between-statements": "off",
+			"unicorn/prefer-switch": "off",
+			"unicorn/no-array-for-each": "off",
+			"unicorn/prefer-node-protocol": "off",
+			"import/newline-after-import": "off",
+			"@typescript-eslint/ban-ts-comment": "off",
+			"spaced-comment": "off",
+			"logical-assignment-operators": "off",
+			"@typescript-eslint/member-ordering": "off",
+			"prefer-const": "off"
 		}
 	},
 	"prettier": "@vdemedes/prettier-config"

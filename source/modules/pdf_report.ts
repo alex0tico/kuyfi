@@ -1,5 +1,10 @@
 import PDFDocument from 'pdfkit';
-import type {SecurityReport, PublicFinding, PublicUdtDef, PublicVerificationTransaction} from './security_report.js';
+import type {
+	SecurityReport,
+	PublicFinding,
+	PublicUdtDef,
+	PublicVerificationTransaction,
+} from './security_report.js';
 
 /**
  * Renders SecurityReport → PDF. Deliberately imports NOTHING from
@@ -47,7 +52,11 @@ function rule(doc: PDFKit.PDFDocument, color = GOLD): void {
 function sectionHeading(doc: PDFKit.PDFDocument, title: string): void {
 	ensureSpace(doc, 60);
 	doc.moveDown(0.5);
-	doc.fillColor(DARK).font('Helvetica-Bold').fontSize(16).text(title, {width: contentWidth(doc)});
+	doc
+		.fillColor(DARK)
+		.font('Helvetica-Bold')
+		.fontSize(16)
+		.text(title, {width: contentWidth(doc)});
 	doc.moveDown(0.3);
 	rule(doc);
 	doc.fillColor(DARK).font('Helvetica').fontSize(10);
@@ -56,12 +65,20 @@ function sectionHeading(doc: PDFKit.PDFDocument, title: string): void {
 function subHeading(doc: PDFKit.PDFDocument, title: string): void {
 	ensureSpace(doc, 30);
 	doc.moveDown(0.4);
-	doc.fillColor(PURPLE).font('Helvetica-Bold').fontSize(12).text(title, {width: contentWidth(doc)});
+	doc
+		.fillColor(PURPLE)
+		.font('Helvetica-Bold')
+		.fontSize(12)
+		.text(title, {width: contentWidth(doc)});
 	doc.moveDown(0.2);
 	doc.fillColor(DARK).font('Helvetica').fontSize(10);
 }
 
-function keyValueRow(doc: PDFKit.PDFDocument, label: string, value: string): void {
+function keyValueRow(
+	doc: PDFKit.PDFDocument,
+	label: string,
+	value: string,
+): void {
 	// Must happen BEFORE capturing `y` below: if a page break happened while
 	// drawing the label (because the row started near the bottom margin),
 	// drawing the value at the pre-break `y` would land it on the wrong
@@ -71,19 +88,29 @@ function keyValueRow(doc: PDFKit.PDFDocument, label: string, value: string): voi
 	const width = contentWidth(doc);
 	const labelWidth = 150;
 	const y = doc.y;
-	doc.font('Helvetica-Bold').fontSize(10).fillColor(GRAY).text(label, doc.page.margins.left, y, {width: labelWidth});
+	doc
+		.font('Helvetica-Bold')
+		.fontSize(10)
+		.fillColor(GRAY)
+		.text(label, doc.page.margins.left, y, {width: labelWidth});
 	const afterLabelY = doc.y;
 	doc
 		.font('Helvetica')
 		.fontSize(10)
 		.fillColor(DARK)
-		.text(value, doc.page.margins.left + labelWidth, y, {width: width - labelWidth});
+		.text(value, doc.page.margins.left + labelWidth, y, {
+			width: width - labelWidth,
+		});
 	doc.y = Math.max(doc.y, afterLabelY);
 	doc.x = doc.page.margins.left; // pdfkit leaves the cursor at the value column's x after an absolute-positioned call — reset it so the next ambient-cursor .text() call doesn't inherit it and overflow the right margin.
 	doc.moveDown(0.3);
 }
 
-function bulletLine(doc: PDFKit.PDFDocument, text: string, options: {mono?: boolean} = {}): void {
+function bulletLine(
+	doc: PDFKit.PDFDocument,
+	text: string,
+	options: {mono?: boolean} = {},
+): void {
 	doc
 		.font(options.mono ? 'Courier' : 'Helvetica')
 		.fontSize(9.5)
@@ -107,9 +134,21 @@ function clickableUrl(doc: PDFKit.PDFDocument, url: string): void {
 function renderCover(doc: PDFKit.PDFDocument, report: SecurityReport): void {
 	doc.rect(0, 0, doc.page.width, 180).fill(DARK);
 
-	doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(34).text('KUYFI', PAGE_MARGIN, 60);
-	doc.fillColor(GOLD).font('Helvetica-Bold').fontSize(16).text('BLACK-BOX SECURITY REPORT', PAGE_MARGIN, 105);
-	doc.fillColor('#CCCCCC').font('Helvetica-Oblique').fontSize(11).text('Before the Breach.', PAGE_MARGIN, 130);
+	doc
+		.fillColor('#FFFFFF')
+		.font('Helvetica-Bold')
+		.fontSize(34)
+		.text('KUYFI', PAGE_MARGIN, 60);
+	doc
+		.fillColor(GOLD)
+		.font('Helvetica-Bold')
+		.fontSize(16)
+		.text('BLACK-BOX SECURITY REPORT', PAGE_MARGIN, 105);
+	doc
+		.fillColor('#CCCCCC')
+		.font('Helvetica-Oblique')
+		.fontSize(11)
+		.text('Before the Breach.', PAGE_MARGIN, 130);
 
 	doc.y = 220;
 	doc.fillColor(DARK);
@@ -134,14 +173,29 @@ function renderCover(doc: PDFKit.PDFDocument, report: SecurityReport): void {
 
 // ─── Section 2: Executive Summary ──────────────────────────────────────────
 
-function renderExecutiveSummary(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+function renderExecutiveSummary(
+	doc: PDFKit.PDFDocument,
+	report: SecurityReport,
+): void {
 	sectionHeading(doc, '2. Executive Summary');
 
 	keyValueRow(doc, 'Functions detected', String(report.scan.totalFunctions));
 	keyValueRow(doc, 'UDTs detected', String(report.scan.udts.length));
-	keyValueRow(doc, 'Vectors executed', String(report.execution.vectorsExecuted));
-	keyValueRow(doc, 'Broadcast transactions', String(report.execution.broadcastTransactions));
-	keyValueRow(doc, 'Transactions with hash', String(report.execution.transactionsWithHash));
+	keyValueRow(
+		doc,
+		'Vectors executed',
+		String(report.execution.vectorsExecuted),
+	);
+	keyValueRow(
+		doc,
+		'Broadcast transactions',
+		String(report.execution.broadcastTransactions),
+	);
+	keyValueRow(
+		doc,
+		'Transactions with hash',
+		String(report.execution.transactionsWithHash),
+	);
 	keyValueRow(doc, 'Total findings', String(report.summary.totalFindings));
 
 	doc.moveDown(0.3);
@@ -156,7 +210,10 @@ function renderExecutiveSummary(doc: PDFKit.PDFDocument, report: SecurityReport)
 
 // ─── Section 3: Attack Surface ──────────────────────────────────────────────
 
-function renderAttackSurface(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+function renderAttackSurface(
+	doc: PDFKit.PDFDocument,
+	report: SecurityReport,
+): void {
 	sectionHeading(doc, '3. Attack Surface');
 
 	subHeading(doc, 'Target');
@@ -167,8 +224,15 @@ function renderAttackSurface(doc: PDFKit.PDFDocument, report: SecurityReport): v
 	subHeading(doc, `Functions Detected (${report.scan.functions.length})`);
 	for (const fn of report.scan.functions) {
 		ensureSpace(doc, 30);
-		const params = fn.parameters.length === 0 ? '()' : `(${fn.parameters.map(p => `${p.name}: ${p.type}`).join(', ')})`;
-		bulletLine(doc, `${fn.name}${params} -> ${fn.hasReturn ? 'returns value' : 'void'}`, {mono: true});
+		const params =
+			fn.parameters.length === 0
+				? '()'
+				: `(${fn.parameters.map(p => `${p.name}: ${p.type}`).join(', ')})`;
+		bulletLine(
+			doc,
+			`${fn.name}${params} -> ${fn.hasReturn ? 'returns value' : 'void'}`,
+			{mono: true},
+		);
 	}
 
 	subHeading(doc, `UDTs Detected (${report.scan.udts.length})`);
@@ -179,16 +243,23 @@ function renderAttackSurface(doc: PDFKit.PDFDocument, report: SecurityReport): v
 
 function renderUdt(doc: PDFKit.PDFDocument, udt: PublicUdtDef): void {
 	ensureSpace(doc, 50);
-	doc.font('Helvetica-Bold').fontSize(9.5).fillColor(PURPLE).text(`${udt.kind.toUpperCase()} ${udt.name}`, {width: contentWidth(doc)});
+	doc
+		.font('Helvetica-Bold')
+		.fontSize(9.5)
+		.fillColor(PURPLE)
+		.text(`${udt.kind.toUpperCase()} ${udt.name}`, {width: contentWidth(doc)});
 	doc.fillColor(DARK);
 
 	if (udt.kind === 'struct') {
-		for (const f of udt.fields) bulletLine(doc, `${f.name}: ${f.type}`, {mono: true});
+		for (const f of udt.fields)
+			bulletLine(doc, `${f.name}: ${f.type}`, {mono: true});
 	} else if (udt.kind === 'enum') {
-		for (const c of udt.cases) bulletLine(doc, `${c.name} = ${c.value}`, {mono: true});
+		for (const c of udt.cases)
+			bulletLine(doc, `${c.name} = ${c.value}`, {mono: true});
 	} else {
 		for (const c of udt.cases) {
-			const payload = c.valueTypes.length > 0 ? `(${c.valueTypes.join(', ')})` : '';
+			const payload =
+				c.valueTypes.length > 0 ? `(${c.valueTypes.join(', ')})` : '';
 			bulletLine(doc, `${c.name}${payload}`, {mono: true});
 		}
 	}
@@ -198,7 +269,10 @@ function renderUdt(doc: PDFKit.PDFDocument, udt: PublicUdtDef): void {
 
 // ─── Section 4: Chaos Execution ─────────────────────────────────────────────
 
-function renderChaosExecution(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+function renderChaosExecution(
+	doc: PDFKit.PDFDocument,
+	report: SecurityReport,
+): void {
 	sectionHeading(doc, '4. Chaos Execution');
 
 	doc
@@ -212,10 +286,26 @@ function renderChaosExecution(doc: PDFKit.PDFDocument, report: SecurityReport): 
 	doc.fillColor(DARK);
 	doc.moveDown(0.5);
 
-	keyValueRow(doc, 'Vectors executed', String(report.execution.vectorsExecuted));
-	keyValueRow(doc, 'Broadcast transactions', String(report.execution.broadcastTransactions));
-	keyValueRow(doc, 'Transactions with hash', String(report.execution.transactionsWithHash));
-	keyValueRow(doc, 'Verification transactions', String(report.execution.verificationTransactions.length));
+	keyValueRow(
+		doc,
+		'Vectors executed',
+		String(report.execution.vectorsExecuted),
+	);
+	keyValueRow(
+		doc,
+		'Broadcast transactions',
+		String(report.execution.broadcastTransactions),
+	);
+	keyValueRow(
+		doc,
+		'Transactions with hash',
+		String(report.execution.transactionsWithHash),
+	);
+	keyValueRow(
+		doc,
+		'Verification transactions',
+		String(report.execution.verificationTransactions.length),
+	);
 }
 
 // ─── Section 5: Findings ─────────────────────────────────────────────────────
@@ -225,7 +315,11 @@ function renderFindings(doc: PDFKit.PDFDocument, report: SecurityReport): void {
 
 	if (report.findings.length === 0) {
 		ensureSpace(doc, 90);
-		doc.font('Helvetica-Bold').fontSize(12).fillColor(PURPLE).text('NO REPORTABLE FINDINGS', {width: contentWidth(doc)});
+		doc
+			.font('Helvetica-Bold')
+			.fontSize(12)
+			.fillColor(PURPLE)
+			.text('NO REPORTABLE FINDINGS', {width: contentWidth(doc)});
 		doc.moveDown(0.4);
 		doc
 			.font('Helvetica')
@@ -250,18 +344,32 @@ function renderFinding(doc: PDFKit.PDFDocument, finding: PublicFinding): void {
 		.font('Helvetica-Bold')
 		.fontSize(11)
 		.fillColor(PURPLE)
-		.text(`[${finding.id}] ${finding.severity} — ${finding.signal}`, {width: contentWidth(doc)});
+		.text(`[${finding.id}] ${finding.severity} — ${finding.signal}`, {
+			width: contentWidth(doc),
+		});
 	doc.fillColor(DARK);
 	doc.moveDown(0.2);
 
 	keyValueRow(doc, 'Function', finding.functionName);
 	keyValueRow(doc, 'Attack vector', finding.vectorName);
-	doc.font('Helvetica').fontSize(9.5).fillColor(DARK).text(`Details: ${finding.details}`, {width: contentWidth(doc)});
+	doc
+		.font('Helvetica')
+		.fontSize(9.5)
+		.fillColor(DARK)
+		.text(`Details: ${finding.details}`, {width: contentWidth(doc)});
 	doc.moveDown(0.3);
 
 	subHeading(doc, 'Evidence');
-	keyValueRow(doc, 'Simulation failed', String(finding.evidence.simulationFailed));
-	keyValueRow(doc, 'Broadcasted', String(finding.evidence.transaction.broadcasted));
+	keyValueRow(
+		doc,
+		'Simulation failed',
+		String(finding.evidence.simulationFailed),
+	);
+	keyValueRow(
+		doc,
+		'Broadcasted',
+		String(finding.evidence.transaction.broadcasted),
+	);
 	if (finding.evidence.transaction.hash) {
 		keyValueRow(doc, 'Transaction hash', finding.evidence.transaction.hash);
 	}
@@ -271,7 +379,11 @@ function renderFinding(doc: PDFKit.PDFDocument, finding: PublicFinding): void {
 	}
 
 	if (finding.evidence.transaction.explorerUrl) {
-		doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GRAY).text('Explorer URL', {width: contentWidth(doc)});
+		doc
+			.font('Helvetica-Bold')
+			.fontSize(9.5)
+			.fillColor(GRAY)
+			.text('Explorer URL', {width: contentWidth(doc)});
 		clickableUrl(doc, finding.evidence.transaction.explorerUrl);
 	}
 
@@ -280,17 +392,37 @@ function renderFinding(doc: PDFKit.PDFDocument, finding: PublicFinding): void {
 	keyValueRow(
 		doc,
 		'Root call',
-		trace.rootCall ? `${trace.rootCall.functionName ?? '(unknown)'} @ ${trace.rootCall.contractId ?? '(unknown)'}` : '(none)',
+		trace.rootCall
+			? `${trace.rootCall.functionName ?? '(unknown)'} @ ${
+					trace.rootCall.contractId ?? '(unknown)'
+				}`
+			: '(none)',
 	);
 	keyValueRow(doc, 'Nested call count', String(trace.nestedCallCount));
-	keyValueRow(doc, 'Involved contracts', trace.involvedContractIds.length > 0 ? trace.involvedContractIds.join(', ') : '(none)');
+	keyValueRow(
+		doc,
+		'Involved contracts',
+		trace.involvedContractIds.length > 0
+			? trace.involvedContractIds.join(', ')
+			: '(none)',
+	);
 	keyValueRow(doc, 'Auth error', String(trace.hasAuthError));
 	keyValueRow(doc, 'Failure location', trace.failureLocation);
 	keyValueRow(doc, 'Malformed trace', String(trace.malformed));
 	if (trace.errors.length > 0) {
-		doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GRAY).text('Errors', {width: contentWidth(doc)});
+		doc
+			.font('Helvetica-Bold')
+			.fontSize(9.5)
+			.fillColor(GRAY)
+			.text('Errors', {width: contentWidth(doc)});
 		for (const e of trace.errors) {
-			bulletLine(doc, `${e.category}${e.code ? ` (${e.code})` : ''}${e.contractId ? ` @ ${e.contractId}` : ''}`, {mono: true});
+			bulletLine(
+				doc,
+				`${e.category}${e.code ? ` (${e.code})` : ''}${
+					e.contractId ? ` @ ${e.contractId}` : ''
+				}`,
+				{mono: true},
+			);
 		}
 	}
 
@@ -300,7 +432,10 @@ function renderFinding(doc: PDFKit.PDFDocument, finding: PublicFinding): void {
 
 // ─── Section 6: Verification ─────────────────────────────────────────────────
 
-function renderVerification(doc: PDFKit.PDFDocument, report: SecurityReport): void {
+function renderVerification(
+	doc: PDFKit.PDFDocument,
+	report: SecurityReport,
+): void {
 	sectionHeading(doc, '6. Verification');
 
 	doc
@@ -315,9 +450,13 @@ function renderVerification(doc: PDFKit.PDFDocument, report: SecurityReport): vo
 	doc.moveDown(0.4);
 
 	if (report.execution.verificationTransactions.length === 0) {
-		doc.font('Helvetica-Oblique').fontSize(9.5).fillColor(GRAY).text('No transaction ever reached broadcast during this run.', {
-			width: contentWidth(doc),
-		});
+		doc
+			.font('Helvetica-Oblique')
+			.fontSize(9.5)
+			.fillColor(GRAY)
+			.text('No transaction ever reached broadcast during this run.', {
+				width: contentWidth(doc),
+			});
 		return;
 	}
 
@@ -326,14 +465,25 @@ function renderVerification(doc: PDFKit.PDFDocument, report: SecurityReport): vo
 	}
 }
 
-function renderVerificationTx(doc: PDFKit.PDFDocument, tx: PublicVerificationTransaction): void {
+function renderVerificationTx(
+	doc: PDFKit.PDFDocument,
+	tx: PublicVerificationTransaction,
+): void {
 	ensureSpace(doc, 90);
-	doc.font('Helvetica-Bold').fontSize(10).fillColor(DARK).text(`${tx.functionName} — ${tx.vectorName}`, {width: contentWidth(doc)});
+	doc
+		.font('Helvetica-Bold')
+		.fontSize(10)
+		.fillColor(DARK)
+		.text(`${tx.functionName} — ${tx.vectorName}`, {width: contentWidth(doc)});
 	doc.moveDown(0.15);
 	if (tx.hash) keyValueRow(doc, 'Transaction hash', tx.hash);
 	if (tx.ledger !== null) keyValueRow(doc, 'Ledger', String(tx.ledger));
 	if (tx.explorerUrl) {
-		doc.font('Helvetica-Bold').fontSize(9.5).fillColor(GRAY).text('Explorer URL', {width: contentWidth(doc)});
+		doc
+			.font('Helvetica-Bold')
+			.fontSize(9.5)
+			.fillColor(GRAY)
+			.text('Explorer URL', {width: contentWidth(doc)});
 		clickableUrl(doc, tx.explorerUrl);
 	}
 
@@ -349,7 +499,9 @@ function renderVerificationTx(doc: PDFKit.PDFDocument, tx: PublicVerificationTra
  * chaos.summary, no scanning, no RPC calls, no new reportId, and no
  * mutation of `report` itself.
  */
-export async function renderSecurityReportPdf(report: SecurityReport): Promise<Buffer> {
+export async function renderSecurityReportPdf(
+	report: SecurityReport,
+): Promise<Buffer> {
 	const doc = new PDFDocument({
 		size: 'A4',
 		margin: PAGE_MARGIN,
@@ -393,11 +545,16 @@ export async function renderSecurityReportPdf(report: SecurityReport): Promise<B
 			.font('Helvetica')
 			.fontSize(8)
 			.fillColor(LIGHT_GRAY)
-			.text(`Kuyfi — page ${i + 1} of ${range.count}`, PAGE_MARGIN, doc.page.height - 35, {
-				width: contentWidth(doc),
-				align: 'center',
-				lineBreak: false,
-			});
+			.text(
+				`Kuyfi — page ${i + 1} of ${range.count}`,
+				PAGE_MARGIN,
+				doc.page.height - 35,
+				{
+					width: contentWidth(doc),
+					align: 'center',
+					lineBreak: false,
+				},
+			);
 		doc.page.margins.bottom = realBottomMargin;
 	}
 

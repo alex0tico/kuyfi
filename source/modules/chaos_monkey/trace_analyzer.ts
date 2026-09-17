@@ -112,13 +112,19 @@ const ERROR_CATEGORY_MAP: Record<string, TraceErrorCategory> = {
 	sceValue: 'OTHER',
 };
 
-function decodeError(event: xdr.DiagnosticEvent, errorTopic: xdr.ScVal): TraceErrorObservation {
+function decodeError(
+	event: xdr.DiagnosticEvent,
+	errorTopic: xdr.ScVal,
+): TraceErrorObservation {
 	const contractId = eventContractId(event);
 	try {
 		const scError = errorTopic.error();
 		const typeName = scError.switch().name;
 		const category = ERROR_CATEGORY_MAP[typeName] ?? 'UNKNOWN';
-		const code = typeName === 'sceContract' ? `Contract#${scError.contractCode()}` : scError.code().name;
+		const code =
+			typeName === 'sceContract'
+				? `Contract#${scError.contractCode()}`
+				: scError.code().name;
 		return {category, code, contractId};
 	} catch {
 		return {category: 'UNKNOWN', code: null, contractId};
@@ -136,7 +142,9 @@ function decodeError(event: xdr.DiagnosticEvent, errorTopic: xdr.ScVal): TraceEr
  * empirically verified against single-frame traces so far — treat
  * `failureLocation`/`nestedCallCount` on deeper traces as best-effort.
  */
-export function analyzeDiagnosticTrace(events: xdr.DiagnosticEvent[]): DiagnosticTraceAnalysis {
+export function analyzeDiagnosticTrace(
+	events: xdr.DiagnosticEvent[],
+): DiagnosticTraceAnalysis {
 	const callFrames: TraceCallFrame[] = [];
 	const errors: TraceErrorObservation[] = [];
 	const involvedContractIds = new Set<string>();
@@ -184,7 +192,8 @@ export function analyzeDiagnosticTrace(events: xdr.DiagnosticEvent[]): Diagnosti
 	let failureLocation: DiagnosticTraceAnalysis['failureLocation'] = 'UNKNOWN';
 	const lastError = errors.length > 0 ? errors[errors.length - 1] : undefined;
 	if (lastError?.contractId && rootCall?.contractId) {
-		failureLocation = lastError.contractId === rootCall.contractId ? 'ROOT' : 'NESTED';
+		failureLocation =
+			lastError.contractId === rootCall.contractId ? 'ROOT' : 'NESTED';
 	} else if (lastError && nestedCallCount === 0) {
 		failureLocation = 'ROOT';
 	}

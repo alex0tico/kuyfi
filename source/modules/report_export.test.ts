@@ -21,10 +21,18 @@ import type {ChaosReport} from './chaos_monkey/index.js';
  */
 
 function fakeScanResult(contractId: string): ScanResult {
-	return {contractId, bytecodeSize: 5409, functions: [], udtRegistry: new Map()};
+	return {
+		contractId,
+		bytecodeSize: 5409,
+		functions: [],
+		udtRegistry: new Map(),
+	};
 }
 
-function fakeChaosReport(contractId: string, findings: ChaosReport['findings'] = []): ChaosReport {
+function fakeChaosReport(
+	contractId: string,
+	findings: ChaosReport['findings'] = [],
+): ChaosReport {
 	return {
 		contractId,
 		scannedAt: new Date().toISOString(),
@@ -55,9 +63,14 @@ function fakeChaosReport(contractId: string, findings: ChaosReport['findings'] =
 	};
 }
 
-function buildFixtureReport(findings: ChaosReport['findings'] = []): SecurityReport {
+function buildFixtureReport(
+	findings: ChaosReport['findings'] = [],
+): SecurityReport {
 	const contractId = 'CDVIVACU3XJQYHLFNWYA3OE3DRRN2S3UDFK43654C3AS4QZFAPFFD5IZ';
-	const auditRun: AuditRun = {scan: fakeScanResult(contractId), chaos: fakeChaosReport(contractId, findings)};
+	const auditRun: AuditRun = {
+		scan: fakeScanResult(contractId),
+		chaos: fakeChaosReport(contractId, findings),
+	};
 	return buildSecurityReport(auditRun);
 }
 
@@ -66,7 +79,10 @@ function buildFixtureReport(findings: ChaosReport['findings'] = []): SecurityRep
 test('CASE A — buildSecurityReport is called exactly once per audit session; J then P reuse the SAME object', async t => {
 	let buildCallCount = 0;
 	const contractId = 'CDVIVACU3XJQYHLFNWYA3OE3DRRN2S3UDFK43654C3AS4QZFAPFFD5IZ';
-	const auditRun: AuditRun = {scan: fakeScanResult(contractId), chaos: fakeChaosReport(contractId)};
+	const auditRun: AuditRun = {
+		scan: fakeScanResult(contractId),
+		chaos: fakeChaosReport(contractId),
+	};
 
 	// Simulates exactly what ChaosMonkeyView does: build once when the run completes...
 	buildCallCount++;
@@ -110,7 +126,11 @@ test('CASE B — JSON export uses the given SecurityReport, writes via writeSecu
 
 	t.is(received, report);
 	t.is(results.length, 1);
-	t.deepEqual(results[0], {label: 'JSON', success: true, message: defaultReportFileName(report.reportId)});
+	t.deepEqual(results[0], {
+		label: 'JSON',
+		success: true,
+		message: defaultReportFileName(report.reportId),
+	});
 });
 
 test('CASE C — PDF export uses the given SecurityReport, writes via writeSecurityReportPdf only', async t => {
@@ -126,7 +146,11 @@ test('CASE C — PDF export uses the given SecurityReport, writes via writeSecur
 
 	t.is(received, report);
 	t.is(results.length, 1);
-	t.deepEqual(results[0], {label: 'PDF', success: true, message: defaultPdfReportFileName(report.reportId)});
+	t.deepEqual(results[0], {
+		label: 'PDF',
+		success: true,
+		message: defaultPdfReportFileName(report.reportId),
+	});
 });
 
 // --- CASE D: sequential J then P share reportId/generatedAt ----------------

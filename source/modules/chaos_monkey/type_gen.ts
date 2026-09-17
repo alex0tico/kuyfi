@@ -559,11 +559,11 @@ function structFieldAttackVectors(
 					? new xdr.ScMapEntry({
 							key: xdr.ScVal.scvSymbol(f.name),
 							val: attack.val,
-					  })
+						})
 					: new xdr.ScMapEntry({
 							key: xdr.ScVal.scvSymbol(f.name),
 							val: baseline(f.type, registry, ctx)!,
-					  }),
+						}),
 			);
 			vectors.push({
 				name: `${def.name}.${field.name}::${attack.name}`,

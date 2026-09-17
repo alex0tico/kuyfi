@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import React, { useState, useEffect } from 'react';
-import { render } from 'ink';
+import React, {useState, useEffect} from 'react';
+import {render} from 'ink';
 import meow from 'meow';
 import App from './app.js';
-import { selectCliMode, runHeadlessAudit } from './modules/cli_runtime.js';
+import {selectCliMode, runHeadlessAudit} from './modules/cli_runtime.js';
 
 const cli = meow(
 	`

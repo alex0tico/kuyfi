@@ -3,11 +3,22 @@ import {createRequire} from 'node:module';
 import {TESTNET_RPC_URL} from './network.js';
 import {typeName} from './chaos_monkey/type_gen.js';
 import {stellarExpertTestnetUrl} from './chaos_monkey/result_parser.js';
-import type {Severity, VulnerabilitySignal} from './chaos_monkey/result_parser.js';
+import type {
+	Severity,
+	VulnerabilitySignal,
+} from './chaos_monkey/result_parser.js';
 import type {ScannedFunction} from './scanner.js';
 import type {UdtDef} from './chaos_monkey/udt_registry.js';
-import type {DiagnosticTraceAnalysis, TraceCallFrame, TraceErrorObservation} from './chaos_monkey/trace_analyzer.js';
-import type {ChaosReport, Finding, VerificationTransaction} from './chaos_monkey/index.js';
+import type {
+	DiagnosticTraceAnalysis,
+	TraceCallFrame,
+	TraceErrorObservation,
+} from './chaos_monkey/trace_analyzer.js';
+import type {
+	ChaosReport,
+	Finding,
+	VerificationTransaction,
+} from './chaos_monkey/index.js';
 import type {AuditRun} from './audit.js';
 
 /**
@@ -36,7 +47,10 @@ export function getToolVersion(): string {
  * `now` is injectable for deterministic tests; production callers omit it.
  */
 export function generateReportId(now: Date = new Date()): string {
-	const stamp = now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+	const stamp = now
+		.toISOString()
+		.replace(/[-:]/g, '')
+		.replace(/\.\d{3}Z$/, 'Z');
 	return `kyf-${stamp}-${randomUUID().slice(0, 8)}`;
 }
 
@@ -206,7 +220,10 @@ function toPublicUdt(def: UdtDef): PublicUdtDef {
 			return {
 				kind: 'union',
 				name: def.name,
-				cases: def.cases.map(c => ({name: c.name, valueTypes: c.valueTypes.map(typeName)})),
+				cases: def.cases.map(c => ({
+					name: c.name,
+					valueTypes: c.valueTypes.map(typeName),
+				})),
 			};
 	}
 }
@@ -224,7 +241,9 @@ function toPublicTransaction(evidence: {
 	};
 }
 
-function toPublicVerificationTransaction(tx: VerificationTransaction): PublicVerificationTransaction {
+function toPublicVerificationTransaction(
+	tx: VerificationTransaction,
+): PublicVerificationTransaction {
 	return {
 		functionName: tx.functionName,
 		vectorName: tx.vectorName,
@@ -232,7 +251,9 @@ function toPublicVerificationTransaction(tx: VerificationTransaction): PublicVer
 	};
 }
 
-function toPublicTraceSummary(trace: DiagnosticTraceAnalysis): PublicTraceSummary {
+function toPublicTraceSummary(
+	trace: DiagnosticTraceAnalysis,
+): PublicTraceSummary {
 	return {
 		rootCall: trace.rootCall,
 		nestedCallCount: trace.nestedCallCount,
@@ -260,7 +281,9 @@ function toPublicFinding(finding: Finding): PublicFinding {
 	};
 }
 
-function tallyFindingsBySignal(findings: Finding[]): Partial<Record<VulnerabilitySignal, number>> {
+function tallyFindingsBySignal(
+	findings: Finding[],
+): Partial<Record<VulnerabilitySignal, number>> {
 	const tally: Partial<Record<VulnerabilitySignal, number>> = {};
 	for (const f of findings) {
 		tally[f.signal] = (tally[f.signal] ?? 0) + 1;
@@ -278,8 +301,17 @@ function tallyFindingsBySignal(findings: Finding[]): Partial<Record<Vulnerabilit
  * for structural symmetry, but is always 0 here: a PRECONDITION_FAIL signal
  * never survives into findings[] in the first place.
  */
-function tallyFindingsBySeverity(findings: Finding[]): SecurityReport['summary']['bySeverity'] {
-	const tally = {critical: 0, high: 0, medium: 0, low: 0, info: 0, preconditionFail: 0};
+function tallyFindingsBySeverity(
+	findings: Finding[],
+): SecurityReport['summary']['bySeverity'] {
+	const tally = {
+		critical: 0,
+		high: 0,
+		medium: 0,
+		low: 0,
+		info: 0,
+		preconditionFail: 0,
+	};
 	for (const f of findings) {
 		switch (f.severity) {
 			case 'CRITICAL':
@@ -324,7 +356,10 @@ export interface BuildSecurityReportOptions {
  * what D1's classifier and D2.1's evidence plumbing already produced.
  * Nothing here reclassifies, reinterprets, or re-scans anything.
  */
-export function buildSecurityReport(auditRun: AuditRun, options: BuildSecurityReportOptions = {}): SecurityReport {
+export function buildSecurityReport(
+	auditRun: AuditRun,
+	options: BuildSecurityReportOptions = {},
+): SecurityReport {
 	const {scan, chaos} = auditRun;
 	const now = options.now ?? new Date();
 	const reportId = options.reportId ?? generateReportId(now);
@@ -349,7 +384,9 @@ export function buildSecurityReport(auditRun: AuditRun, options: BuildSecurityRe
 			vectorsExecuted: chaos.totalVectorsRun,
 			broadcastTransactions: chaos.summary.broadcastTransactions,
 			transactionsWithHash: chaos.summary.transactionsWithHash,
-			verificationTransactions: chaos.verificationTransactions.map(toPublicVerificationTransaction),
+			verificationTransactions: chaos.verificationTransactions.map(
+				toPublicVerificationTransaction,
+			),
 		},
 		summary: toReportSummary(chaos),
 		findings: chaos.findings.map(toPublicFinding),
