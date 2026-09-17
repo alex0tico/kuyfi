@@ -1,16 +1,17 @@
 import React from 'react';
 import {Text, Box} from 'ink';
+import {CAT_STANDALONE} from '../ui/ascii/index.js';
 
 export function AboutScreen() {
 	return (
 		<>
 			<Box flexDirection="column" alignItems="center" marginBottom={1}>
-				<Text color="magenta">{'      /\\_/\\'}</Text>
-				<Text color="magenta">{'     ( o.o )'}</Text>
-				<Text color="magenta">{'      > ^ <'}</Text>
-				<Text color="magenta">{'     /     \\'}</Text>
-				<Text color="magenta">{'     (|     |)'}</Text>
-				<Text color="magenta">{'     \\_____/'}</Text>
+				<Text color="magenta">{CAT_STANDALONE[0]}</Text>
+				<Text color="magenta">{CAT_STANDALONE[1]}</Text>
+				<Text color="magenta">{CAT_STANDALONE[2]}</Text>
+				<Text color="magenta">{CAT_STANDALONE[3]}</Text>
+				<Text color="magenta">{CAT_STANDALONE[4]}</Text>
+				<Text color="magenta">{CAT_STANDALONE[5]}</Text>
 			</Box>
 			<Box marginBottom={1}>
 				<Text bold color="cyan">
