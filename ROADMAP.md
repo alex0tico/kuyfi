@@ -42,7 +42,7 @@
 
 **Status: Planned, not committed to a specific scope**
 
-- [ ] Publish `kuyfi` to the public npm registry
+- [ ] Publish `kuyfi` to the public npm registry — v0.1.0 is in release preparation
 - [ ] Broader semantic input provenance for generated attack values (beyond type-correct boundaries)
 - [ ] Richer attack-vector coverage as real-world contract patterns are audited
 - [ ] Additional contract family support as evidence from real campaigns justifies it

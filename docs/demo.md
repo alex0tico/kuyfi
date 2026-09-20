@@ -8,7 +8,7 @@ The examples use Kuyfi's own intentionally vulnerable Testnet test fixture, `CDY
 
 ## 1. Build from source
 
-Public npm installation will become available with v0.1.0. Until then, run Kuyfi from source:
+These steps run Kuyfi from a source checkout. For the global install (`npm install -g kuyfi`), see the [README](../README.md#installation).
 
 ```bash
 git clone https://github.com/alex0tico/kuyfi.git

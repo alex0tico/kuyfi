@@ -56,7 +56,23 @@ JSON / PDF                 same data, two export formats
 
 ## Installation
 
-Public npm installation will become available with v0.1.0. Until then, run Kuyfi from source:
+Install the `kuyfi` command globally with npm:
+
+```bash
+npm install -g kuyfi
+```
+
+Then launch the interactive TUI:
+
+```bash
+kuyfi
+```
+
+**Requirements:** Node.js ≥ 20, npm, internet access to Stellar Testnet.
+
+### Run from source
+
+To run Kuyfi from a source checkout instead:
 
 ```bash
 git clone https://github.com/alex0tico/kuyfi.git
@@ -65,8 +81,6 @@ npm ci
 npm run build
 npm start
 ```
-
-**Requirements:** Node.js ≥ 20, npm, internet access to Stellar Testnet.
 
 ## Usage
 
