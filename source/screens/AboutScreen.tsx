@@ -34,7 +34,7 @@ export function AboutScreen() {
 			<Box marginTop={1} flexDirection="column">
 				<Text dimColor>{'Phase 1 — OSINT Scanner       ✔ Complete'}</Text>
 				<Text dimColor>{'Phase 2 — Chaos Monkey        ✔ Complete'}</Text>
-				<Text dimColor>{'Phase 3 — Audit Reports       ○ Planned'}</Text>
+				<Text dimColor>{'Phase 3 — Audit Reports       ✔ Complete'}</Text>
 			</Box>
 			<Box marginTop={1}>
 				<Text dimColor>{'github.com/alex0tico/kuyfi'}</Text>
