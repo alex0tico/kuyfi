@@ -220,7 +220,9 @@ export function formatReportForTerminal(report: ChaosReport): string {
 	lines.push(SEP);
 
 	if (report.findings.length === 0) {
-		lines.push('  No actionable findings. Contract appears robust.');
+		lines.push('  0 findings in this run.');
+		lines.push('  No security findings were emitted.');
+		lines.push('  This does not prove the absence of vulnerabilities.');
 	} else {
 		lines.push(`  FINDINGS (${report.findings.length})`);
 		lines.push('');

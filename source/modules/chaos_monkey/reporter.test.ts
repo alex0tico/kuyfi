@@ -1,7 +1,7 @@
 import test from 'ava';
 import {xdr} from '@stellar/stellar-sdk';
 import {parseInvokeResult} from './result_parser.js';
-import {buildReport} from './reporter.js';
+import {buildReport, formatReportForTerminal} from './reporter.js';
 import type {InvokeResult} from './router.js';
 import type {FuzzResult, FuzzTarget} from './fuzzer_math.js';
 
@@ -159,4 +159,14 @@ test('SECURE/PRECONDITION_FAIL results are excluded from findings[] but their ev
 
 	t.is(report.findings.length, 0);
 	t.is(report.summary.info, 1);
+});
+
+test('formatReportForTerminal: zero findings does not claim the contract is robust or secure', t => {
+	const output = formatReportForTerminal(buildReport('C'.repeat(56), []));
+
+	t.true(output.includes('0 findings in this run.'));
+	t.true(
+		output.includes('This does not prove the absence of vulnerabilities.'),
+	);
+	t.notRegex(output, /robust|secure/i);
 });
