@@ -6,11 +6,11 @@
 	"author": "Alex B. Hernández Contreras <alexbnjmnch@gmail.com>",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/alex0tico/kuyfi_tui.git"
+		"url": "git+https://github.com/alex0tico/kuyfi.git"
 	},
-	"homepage": "https://github.com/alex0tico/kuyfi_tui#readme",
+	"homepage": "https://github.com/alex0tico/kuyfi#readme",
 	"bugs": {
-		"url": "https://github.com/alex0tico/kuyfi_tui/issues"
+		"url": "https://github.com/alex0tico/kuyfi/issues"
 	},
 	"keywords": [
 		"soroban",

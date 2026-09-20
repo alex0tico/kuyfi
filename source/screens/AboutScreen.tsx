@@ -37,7 +37,7 @@ export function AboutScreen() {
 				<Text dimColor>{'Phase 3 — Audit Reports       ○ Planned'}</Text>
 			</Box>
 			<Box marginTop={1}>
-				<Text dimColor>{'github.com/alex0tico/kuyfi_tui'}</Text>
+				<Text dimColor>{'github.com/alex0tico/kuyfi'}</Text>
 			</Box>
 		</>
 	);

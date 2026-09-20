@@ -59,8 +59,8 @@ JSON / PDF                 same data, two export formats
 Public npm installation will become available with v0.1.0. Until then, run Kuyfi from source:
 
 ```bash
-git clone https://github.com/alex0tico/kuyfi_tui.git
-cd kuyfi_tui
+git clone https://github.com/alex0tico/kuyfi.git
+cd kuyfi
 npm ci
 npm run build
 npm start
@@ -195,7 +195,7 @@ MIT — see [`LICENSE`](./LICENSE).
 ---
 
 ```
-github.com/alex0tico/kuyfi_tui
+github.com/alex0tico/kuyfi
 ```
 
 Kuyfi runs entirely on Stellar Testnet infrastructure and is built with the official `@stellar/stellar-sdk`. It is not affiliated with the Stellar Development Foundation.

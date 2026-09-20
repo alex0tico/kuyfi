@@ -360,7 +360,7 @@ These are engineering directions found by running the tool on real contracts. Th
 
 ## 14. Reproducing this
 
-From a clone of the repository (`https://github.com/alex0tico/kuyfi_tui`):
+From a clone of the repository (`https://github.com/alex0tico/kuyfi`):
 
 ```bash
 npm ci

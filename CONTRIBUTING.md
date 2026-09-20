@@ -7,8 +7,8 @@ Node.js ≥ 20, npm.
 ## Development setup
 
 ```bash
-git clone https://github.com/alex0tico/kuyfi_tui.git
-cd kuyfi_tui
+git clone https://github.com/alex0tico/kuyfi.git
+cd kuyfi
 npm ci
 ```
 
@@ -38,7 +38,7 @@ npm test
 ## Project structure
 
 ```
-kuyfi_tui/
+kuyfi/
 ├── source/
 │   ├── cli.tsx                    # Entry point — mode selection (TUI vs headless)
 │   ├── app.tsx                    # TUI navigation orchestrator
