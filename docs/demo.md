@@ -1,12 +1,14 @@
 # Demo — Step-by-Step Walkthrough
 
-This guide shows a complete session: install → OSINT scan → Chaos Monkey → read the report.
+This guide shows a complete session: build → OSINT scan → Chaos Monkey → read and export the report.
 
-You need a Stellar Testnet contract ID to follow along. Any deployed Testnet contract works. If you don't have one, search the [Stellar Testnet Explorer](https://testnet.steexp.com) for an active AMM or token contract.
+The examples use Kuyfi's own intentionally vulnerable Testnet test fixture, `CDYUQRWYE6INSGTMJWHPU32VSWVOZ456EUHJMMQXTCFXPFUXPH2JTPV7` (see [`docs/technical-writeup.md`](./technical-writeup.md)). Any deployed Testnet contract works, but only test contracts you own or are authorized to test. Output blocks below are excerpts.
 
 ---
 
-## 1. Install
+## 1. Build from source
+
+Public npm installation will become available with v0.1.0. Until then, run Kuyfi from source:
 
 ```bash
 git clone https://github.com/alex0tico/kuyfi_tui.git
@@ -15,7 +17,7 @@ npm ci
 npm run build
 ```
 
-Expected output from the last command: TypeScript compiler produces `dist/` with no errors.
+Expected output from the last command: the TypeScript compiler produces `dist/` with no errors.
 
 ---
 
@@ -42,22 +44,18 @@ KUYFI v0.1 · SECURITY TERMINAL · Network: TESTNET · [ESC] Menu
 
 ## 3. Run the OSINT Scanner
 
-Press `1` to open the Scanner. Enter your Contract ID (56 characters, starts with `C`) and press `Enter`.
+Press `1` to open the Scanner. Enter a Contract ID (56 characters, starts with `C`) and press `Enter`.
 
 Kuyfi fetches the WASM bytecode from `soroban-testnet.stellar.org` and decodes the contract spec. In a few seconds you see the attack surface map:
 
 ```
-🛡 ATTACK SURFACE MAP ─── CABC...XYZ ─── 45,312 bytes
+🛡 ATTACK SURFACE MAP ─── CDYUQR...JTPV7 ─── 1,700 bytes
 
-✔ Functions found: 7
+✔ Functions found: 3
 
-  swap(amount_in: i128, min_amount_out: i128) → Has Return
-  deposit(amount_a: i128, amount_b: i128) → Has Return
-  withdraw(shares: i128) → Has Return
-  initialize(token_a: Address, token_b: Address, fee: u32) → Void
-  pause() → Void
-  unpause() → Void
-  get_reserves() → Has Return
+get_value() → Has Return
+set_admin_value(admin: Address, value: I128) → Void
+secure_set_admin_value(admin: Address, value: I128) → Void
 ```
 
 No source code was needed. The scan is read-only — no transactions are submitted.
@@ -66,80 +64,78 @@ No source code was needed. The scan is read-only — no transactions are submitt
 
 ## 4. Launch Chaos Monkey
 
-From the Scanner results screen, press `[C]` to load the same contract into Chaos Monkey.
+From the Scanner results screen, press `[C]` to load the same contract into Chaos Monkey, then press `Enter` to start. Kuyfi:
 
-Press `Enter` to start the fuzzing session. Kuyfi:
-
-1. Generates an ephemeral Stellar keypair.
-2. Funds it via Friendbot (Testnet only).
-3. Runs math boundary and access control vectors against each function.
+1. Generates an ephemeral Stellar keypair and funds it via Friendbot (Testnet only).
+2. Runs each vector family whose shape a function matches: math/boundary, access-control, fee/basis-point and liquidity-ratio, plus call-ordering once per session.
+3. Simulates every vector first. Only vectors whose simulation succeeds are signed and broadcast to Testnet; a vector that fails simulation is classified from its diagnostics and nothing is sent.
 4. Streams live progress:
 
 ```
 Generating ephemeral keypair...
-Keypair funded: GBTEST1234...
+Keypair funded: GBO74AJRL2...
 Connected to RPC: https://soroban-testnet.stellar.org
-Starting fuzzing session on 7 function(s)...
-[swap] Running math vectors (2 params)...
-[swap] Math done (8 invocations)
-[initialize] Running math vectors (3 params)...
-[initialize] Running access control vectors...
-[initialize] Access done (2 invocations)
+Starting fuzzing session on 3 function(s)...
+[get_value] Running math vectors (0 params)...
+[get_value] Math done (0 invocations)
+[set_admin_value] Running math vectors (2 params)...
+[set_admin_value] Math done (7 invocations)
+[set_admin_value] Running access control vectors...
+[set_admin_value] Access done (1 invocations)
 ...
 Building report...
-Scan complete — 3 finding(s) | CRITICAL: 1 HIGH: 2
+Scan complete — 1 finding(s) | CRITICAL: 1 HIGH: 0
 ```
 
 ---
 
 ## 5. Read the report
 
-After the session the terminal shows the findings report:
+After the session the terminal shows the report. This excerpt is from the fixture run above:
 
 ```
 ────────────────────────────────────────────────────────
   CHAOS MONKEY — SECURITY REPORT
 ────────────────────────────────────────────────────────
-  Contract : CXXX...
-  Scanned  : 2026-06-09T14:32:01.000Z
-  Network  : TESTNET
-  Functions: 7  |  Vectors run: 24
+  Functions: 3  |  Vectors run: 16
+  ...
+  EVIDENCE
+    Broadcast transactions: 16
+    Transactions with hash: 16
 ────────────────────────────────────────────────────────
-  SUMMARY
-    CRITICAL         : 1
-    HIGH             : 2
-    MEDIUM           : 0
-    LOW              : 1
-    PRECONDITION_FAIL: 1
-    INFO             : 18
-────────────────────────────────────────────────────────
-  FINDINGS (3)
+  FINDINGS (1)
 
   [KYF-001] CRITICAL — POTENTIAL_VULN
-  Function : initialize
+  Function : set_admin_value
   Vector   : UNAUTHORIZED_CALL
-  Details  : access control bypass — call was NOT rejected on initialize
-
-  [KYF-002] HIGH — POTENTIAL_VULN
-  Function : swap
-  Vector   : amount_in::MAX_VALUE_ATTACK
-  Details  : WASM panic on type-correct input: ...
-
-  [KYF-003] HIGH — UNEXPECTED_ERROR
-  Function : deposit
-  Vector   : amount_a::NEGATIVE_ATTACK
-  Details  : Function reached storage operation before failure — verify auth...
+  Details  : UNAUTHORIZED_CALL: access control bypass — call was NOT rejected on set_admin_value
+  Tx       : 2414467c1788a311f2c9c4043b20443d43055462c9f592c053f556b130b173da
 
 ────────────────────────────────────────────────────────
 ```
 
-Press `[M]` to return to the menu, or `[S]` to scan another contract.
+`KYF-001` is a signal, not a verdict: an access-control vector that was expected to be rejected succeeded. In this fixture that is the deliberately missing `require_auth()`. The protected `secure_set_admin_value` produced no finding.
+
+The summary counters cover every vector; the findings list contains only vectors that were not classified `SECURE` or `PRECONDITION_FAIL`. `Tx` appears only for findings whose transaction was broadcast. Many findings, notably `UNEXPECTED_ERROR` ones, have no transaction.
+
+---
+
+## 6. Export the report
+
+On the report screen, press `[J]` for JSON, `[P]` for PDF, or `[B]` for both. Exports are written from the same run, so both files share one `reportId`. Press `[M]` to return to the menu or `[S]` to scan another contract.
+
+Headless equivalent, with no TUI:
+
+```bash
+node dist/cli.js <CONTRACT_ID> --json --pdf
+```
 
 ---
 
 ## Notes
 
-- The fuzzer submits real transactions. Each vector costs a small XLM fee from the Friendbot-funded ephemeral account.
+- Vectors that pass simulation are real Testnet transactions; each costs a small XLM fee from the Friendbot-funded ephemeral account.
 - The ephemeral keypair is discarded after the session. No keys are stored.
-- `PRECONDITION_FAIL` findings (LOW) typically indicate the contract is working correctly but the fuzzer's ephemeral account lacked required token balance or protocol state — not a vulnerability.
-- For a detailed explanation of every signal and severity level, see [`docs/chaos-monkey.md`](./chaos-monkey.md).
+- `PRECONDITION_FAIL` and `SECURE` vectors are counted in the summary but are not listed as findings. `PRECONDITION_FAIL` typically means the test account lacked the signer, balance or state the call needs.
+- Every finding is a lead to investigate. Zero findings does not prove a contract is secure.
+- For every signal and severity, see [`docs/chaos-monkey.md`](./chaos-monkey.md).

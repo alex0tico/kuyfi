@@ -12,7 +12,7 @@
 > Before the Breach.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](./LICENSE)
-[![npm version](https://img.shields.io/badge/npm-v0.1.0-gray?style=flat-square)](https://www.npmjs.com/package/kuyfi)
+[![Version: 0.1.0](https://img.shields.io/badge/version-0.1.0-gray?style=flat-square)](./CHANGELOG.md)
 [![Network: Stellar Testnet](https://img.shields.io/badge/Network-Stellar%20Testnet-8B5CF6?style=flat-square)](https://developers.stellar.org/docs/networks)
 [![Stack: TypeScript + Ink + Soroban SDK](https://img.shields.io/badge/Stack-TypeScript%20%2B%20Ink%20%2B%20Soroban%20SDK-2563EB?style=flat-square)](https://docs.stellar.org/docs/smart-contracts/getting-started)
 
@@ -34,7 +34,7 @@ Kuyfi is automated black-box security testing. It is **not** a formal audit, a c
 
 ## What black-box auditing means
 
-Kuyfi never sees your Rust source. Everything it knows about a contract comes from what's actually observable from the outside: the WASM bytecode a deployed contract publishes, the `contractspecv0` XDR section describing its functions and types, and how the contract actually behaves when real transactions are sent to it. This mirrors how an external attacker — or a black-box pentest — would approach a closed target.
+Kuyfi never sees your Rust source. Everything it knows about a contract comes from what's actually observable from the outside: the WASM bytecode a deployed contract publishes, the `contractspecv0` XDR section describing its functions and types, and how the contract actually behaves when it is called — first in simulation, then on Testnet when the call proceeds. This mirrors how an external attacker — or a black-box pentest — would approach a closed target.
 
 ## How it works
 
@@ -43,9 +43,9 @@ Contract ID
     ↓
 OSINT Scanner            fetch + decode WASM, no source needed
     ↓
-Attack Surface           functions, parameter types, UDT structs
+Attack Surface           functions, parameter types, UDTs (structs, enums, unions)
     ↓
-Chaos Monkey             type-aware fuzzing, real Testnet transactions
+Chaos Monkey             type-aware fuzzing: simulate first, broadcast when it proceeds
     ↓
 Execution Trace Classification   DiagnosticEvent-based signal taxonomy
     ↓
@@ -56,14 +56,7 @@ JSON / PDF                 same data, two export formats
 
 ## Installation
 
-**Planned public npm installation for v0.1.0:**
-
-```bash
-npm install -g kuyfi
-kuyfi
-```
-
-This package has not been published to npm yet. Until then, run it from source:
+Public npm installation will become available with v0.1.0. Until then, run Kuyfi from source:
 
 ```bash
 git clone https://github.com/alex0tico/kuyfi_tui.git
@@ -77,13 +70,13 @@ npm start
 
 ## Usage
 
+The examples below use the `kuyfi` command. From a source checkout, use `npm start` in place of `kuyfi` for the TUI, and `node dist/cli.js` in place of `kuyfi` for the headless CLI.
+
 **Interactive TUI:**
 
 ```bash
 kuyfi
 ```
-
-(From source, before publishing: `npm start`.)
 
 **Headless CLI** — same scanner and Chaos Monkey engine, no TUI, for scripting/CI use:
 
@@ -93,8 +86,6 @@ kuyfi <CONTRACT_ID> --json
 kuyfi <CONTRACT_ID> --pdf
 kuyfi <CONTRACT_ID> --json --pdf
 ```
-
-The global `kuyfi` command above corresponds to the npm distribution being prepared for v0.1.0 (`bin: {"kuyfi": "dist/cli.js"}`). Running from a local clone today, the equivalent is `node dist/cli.js <CONTRACT_ID> [--json] [--pdf]`.
 
 ## OSINT Scanner
 
@@ -109,14 +100,27 @@ Nothing here requires the contract's source code, an ABI file, or any cooperatio
 
 ## Chaos Monkey
 
-Chaos Monkey is **not** random/dumb fuzzing. For each function the scanner discovers, it generates **type-aware** attack values from the function's actual XDR parameter types (`i128`, `u32`, `Address`, `Vec<T>`, UDT structs, and more), and tests them **one variable at a time** — every other parameter holds a type-correct baseline value, so a failure can be attributed to the specific input that triggered it, not attributed to "some parameter, we're not sure which."
+Chaos Monkey is **not** random/dumb fuzzing. For each function the scanner discovers, it generates **type-aware** attack values from the function's actual XDR parameter types (`i128`, `u32`, `Address`, `Vec<T>`, UDTs, and more), and tests them **one variable at a time** — every other parameter holds a type-correct baseline value, so a failure can be attributed to the specific input that triggered it, not attributed to "some parameter, we're not sure which."
 
-Two vector families:
+Generated values are type-correct, not semantically valid: a random `Address` is not a funded account, a token, or an authorized signer. Kuyfi classifies conservatively for that reason.
 
-- **Math boundary vectors** — `ZERO`, `MAX_VALUE`, `NEGATIVE`, `MIN_BOUNDARY` attacks against numeric parameters.
-- **Access control vectors** — `UNAUTHORIZED_CALL`, `REINIT_ATTACK`, `SELF_CALL_ATTACK` against functions whose names match admin patterns (`initialize`, `set_admin`, `upgrade`, etc.).
+Five vector families:
 
-Every vector is a **real, signed transaction broadcast to Stellar Testnet** from an ephemeral, Friendbot-funded keypair — never a simulation-only guess. Keypairs are generated in memory and never persisted to disk or logged.
+- **Math / boundary** — per-type boundary values, for example `ZERO`, `ONE`, `NEG_ONE`, `MAX_I128`, `MIN_I128` for integers, `RANDOM_ADDR_A`/`RANDOM_ADDR_B` for addresses, and empty/oversized values for bytes, strings, symbols and vectors. UDTs are attacked recursively, one field or payload slot at a time.
+- **Authorization / access control** — `UNAUTHORIZED_CALL`, `REINIT_ATTACK` and `SELF_CALL_ATTACK` against functions whose names match admin patterns (`initialize`, `set_admin`, `upgrade`, etc.), and `UNAUTHORIZED_ADDR_CALL` against non-admin functions that take an `Address`.
+- **Call ordering** — the same function called twice in a row: `REINIT_SEQUENCE`, `REPEATED_WITHDRAW_SEQUENCE`, `REPEATED_CLAIM_SEQUENCE`, matched by function name.
+- **Fee / basis-point** — `BPS_*` boundary values (0, 1, 9999, 10000, 10001, type max) on numeric parameters whose names look fee- or BPS-shaped.
+- **Liquidity-ratio** — paired boundary combinations (`ZERO_A_MAX_B`, `MAX_A_MAX_B`, ...) on the first two numeric parameters of functions whose names suggest liquidity, swap or reserve logic.
+
+**Execution model.** Every vector is simulated first (preflight). Only when the simulation succeeds is the transaction signed with an ephemeral, Friendbot-funded keypair, submitted to Stellar Testnet and polled for its result. Keypairs are generated in memory and never persisted to disk or logged.
+
+```
+vector → simulate (preflight)
+           ├─ simulation fails    → classify from diagnostic events (nothing is sent)
+           └─ simulation succeeds → sign → broadcast to Testnet → poll → classify
+```
+
+Many vectors, and many findings, are therefore classified without an on-chain transaction.
 
 ## Finding semantics
 
@@ -124,30 +128,31 @@ Every executed vector is classified into one of six signals, based on Soroban's 
 
 | Signal | Meaning |
 |---|---|
-| `SECURE` | The contract rejected the attack the way you'd expect (an auth check, a business-logic guard, a reserved-function boundary). Filtered out of the findings list; counted in the summary only. |
-| `PRECONDITION_FAIL` | The transaction failed for a structural reason unrelated to a vulnerability — most commonly, the ephemeral test account lacks the signer/allowance the call legitimately requires. Filtered out of findings; counted in the summary only. |
-| `SIMULATION_FAIL` | The transaction never made it past simulation. Not evidence of anything either way. |
-| `TIMEOUT` | The transaction wasn't confirmed within the polling window. Inconclusive, not a finding. |
-| `UNEXPECTED_ERROR` | The trace doesn't clearly explain the failure (or storage was reached before an auth check could be confirmed). Reported as a finding, honestly labeled as inconclusive rather than forced into `SECURE` or `POTENTIAL_VULN`. |
-| `POTENTIAL_VULN` | The contract panicked on a type-correct, in-range input, or an access-control vector was **not** rejected. This is the signal worth investigating first. |
+| `SECURE` | A confident, expected outcome: the contract or host rejected the input the way you'd expect (a contract-level error, a reserved-function boundary, a host object error), or a non-access-control vector was accepted. Filtered out of the findings list; counted in the summary only. |
+| `PRECONDITION_FAIL` | A confident rejection explained by missing setup — most commonly a structural auth rejection because the ephemeral test account is not an authorized signer. Filtered out of the findings list; counted in the summary only. |
+| `UNEXPECTED_ERROR` | A manual-review, inconclusive signal: the vector failed but the trace does not explain why (for example a generic trap at the root of the call, or storage reached before an auth check can be confirmed). Reported as a `MEDIUM` finding, honestly labeled as inconclusive rather than forced into `SECURE` or `POTENTIAL_VULN`. |
+| `POTENTIAL_VULN` | A security signal requiring contextual/manual review — not a confirmed vulnerability. Raised when an access-control vector is **not** rejected, when the trace shows a runtime-safety fault (arithmetic or index-bounds) after nested calls attributed to the target contract, or when a root-level trap follows nested calls and no fabricated `Address` argument could explain it. |
+| `UNCONTROLLED_PANIC` | The target contract traps on a runtime-safety fault (arithmetic or index-bounds) with no nested-call activity — a robustness/error-handling signal, not a proven exploitable bug. Reported as a `MEDIUM` finding. |
+| `TIMEOUT` | The transaction was not confirmed within the polling window. Inconclusive; reported as a `LOW` finding. |
 
-Findings also carry a severity — `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO` — based on the signal and whether the function looks like an admin-only entry point.
+Findings also carry a severity: `POTENTIAL_VULN` is `CRITICAL` when the function name matches an admin pattern and `HIGH` otherwise; `UNEXPECTED_ERROR` and `UNCONTROLLED_PANIC` are `MEDIUM`; `TIMEOUT` is `LOW`.
 
 **What Kuyfi does not claim:**
 
 - Zero findings does not prove the absence of vulnerabilities.
-- A `POTENTIAL_VULN` finding is a signal to investigate, not a proven exploit.
+- A finding is a signal to investigate, not a proven exploit; `POTENTIAL_VULN` is the signal worth reviewing first, and `UNEXPECTED_ERROR` is inconclusive by design.
 - Kuyfi does not replace a formal audit, and does not issue any certification.
 
 ## Execution evidence
 
-Every finding carries the data needed to verify it independently, without trusting Kuyfi's own output:
+Each `SecurityReport` includes execution evidence so its claims can be checked without trusting Kuyfi's own output:
 
-- `broadcasted` — whether the transaction was actually sent to the network;
-- `transactionHash` — the real Testnet transaction hash;
-- `ledger` — the ledger it landed in;
-- `trace` — the parsed `DiagnosticEvent` execution trace that produced the classification;
-- an explorer URL (`stellar.expert`) for every transaction hash, so any claim in a report can be checked on-chain by a third party.
+- run-wide counters over every executed vector: vectors executed, broadcast transactions, and transactions with a hash;
+- per finding: whether the simulation failed, whether a transaction was broadcast, and the parsed `DiagnosticEvent` trace that produced the classification;
+- for findings whose transaction was broadcast: the `transactionHash`, the `ledger`, and a `stellar.expert` explorer URL;
+- `verificationTransactions`: a small, deterministic, representative sample (the first broadcast that succeeded and the first that failed), not a complete list.
+
+Not every vector or finding has an on-chain transaction: a vector that fails simulation is classified from its diagnostics and never sent. Only broadcast transactions can be independently verified on-chain.
 
 ## Reports
 

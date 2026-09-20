@@ -84,7 +84,7 @@ First, `SECURE` and `PRECONDITION_FAIL` results are counted but are not listed i
 
 Second, `POTENTIAL_VULN` is a hypothesis. For access-control vectors the source says so directly: the vector is "a genuine attack HYPOTHESIS, not a certainty", because a black-box tool cannot see whether the contract calls `require_auth()` internally. It can only observe what happens when the call is made without the address's authorization.
 
-The taxonomy also defines `UNCONTROLLED_PANIC`, `TIMEOUT`, and `SIMULATION_FAIL`. None of them appears in any report discussed here.
+The classifier can also emit `UNCONTROLLED_PANIC` and `TIMEOUT`; neither appears in any report discussed here. (The signal type also keeps a legacy `SIMULATION_FAIL` member that the classifier never emits.)
 
 ## 4. Case study 1: composite UDT fixture
 

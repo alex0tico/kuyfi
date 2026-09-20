@@ -37,10 +37,10 @@ Contract ID
 scanner.ts            fetch WASM, decode contractspecv0, build UDT registry
     │
     ▼
-chaos_monkey/          fuzz every discovered function, real Testnet transactions
+chaos_monkey/          fuzz every discovered function: simulate first, broadcast when it proceeds
     │
     ▼
-results + evidence     tx hashes, ledgers, DiagnosticEvent traces
+results + evidence     counters, sample transactions, DiagnosticEvent traces
     │
     ▼
 security_report.ts     one SecurityReport object (schemaVersion 1.0.0)
@@ -110,21 +110,21 @@ Pure, non-React helpers with no Ink/side effects:
 | `keypair_factory.ts` | Ephemeral keypair generation + Friendbot funding + on-chain confirmation. Never persists a key. |
 | `type_gen.ts` | Generates type-correct baseline and attack `ScVal` values from a parameter's XDR `ScSpecTypeDef`, including recursive types (`Vec`, `Map`, `Option`) and UDT structs |
 | `udt_registry.ts` | The UDT struct/union/enum registry type_gen.ts and the scanner share |
-| `fuzzer_math.ts` | Math boundary vectors: `ZERO`, `MAX_VALUE`, `NEGATIVE`, `MIN_BOUNDARY`, one variable at a time |
-| `fuzzer_access.ts` | Access-control vectors on admin-pattern functions: `UNAUTHORIZED_CALL`, `REINIT_ATTACK`, `SELF_CALL_ATTACK` |
+| `fuzzer_math.ts` | Math/boundary vectors, one variable at a time: per-type values such as `ZERO`, `ONE`, `NEG_ONE`, `MAX_*`/`MIN_*`, `RANDOM_ADDR_A`/`B`, `EMPTY_*`/`LARGE_*`, and recursive UDT values |
+| `fuzzer_access.ts` | Authorization/access-control vectors: `UNAUTHORIZED_CALL`, `REINIT_ATTACK`, `SELF_CALL_ATTACK` on admin-pattern functions, and `UNAUTHORIZED_ADDR_CALL` on non-admin functions that take an `Address` |
 | `fuzzer_call_order.ts` | Call-order-dependent attack vectors |
 | `fuzzer_fee.ts` | Vectors targeting fee/basis-point-shaped parameters |
 | `fuzzer_liquidity.ts` | Vectors targeting liquidity/swap/reserve-shaped functions (AMM-pattern contracts) |
-| `router.ts` | `invokeContract()` — the transaction lifecycle: simulate → assemble → sign → broadcast → poll. Never throws; always returns a typed `InvokeResult`. |
+| `router.ts` | `invokeContract()` — the transaction lifecycle: simulate → (only if the simulation succeeds) assemble → sign → broadcast → poll. A failed simulation returns a typed result carrying the simulation's diagnostic events and nothing is sent. Never throws; always returns a typed `InvokeResult`. |
 | `trace_analyzer.ts` | Parses a transaction's `DiagnosticEvent` trace into a structured error category (`AUTH`/`CONTRACT`/`CONTEXT`/`OBJECT`/`STORAGE`/`WASM_VM`/`OTHER`/`UNKNOWN`) |
-| `result_parser.ts` | Maps a `trace_analyzer` result to one of the six `VulnerabilitySignal`s (`SECURE`, `PRECONDITION_FAIL`, `UNEXPECTED_ERROR`, `POTENTIAL_VULN`, `TIMEOUT`, `SIMULATION_FAIL`) and a `Severity` (`CRITICAL`/`HIGH`/`MEDIUM`/`LOW`/`INFO`) |
-| `reporter.ts` | Aggregates all vector results into a `ChaosReport`; filters `SECURE`/`PRECONDITION_FAIL` out of the findings list (summary counters only); assigns sequential `KYF-NNN` finding IDs |
+| `result_parser.ts` | Maps a `trace_analyzer` result to one of six emitted `VulnerabilitySignal`s (`SECURE`, `PRECONDITION_FAIL`, `UNEXPECTED_ERROR`, `POTENTIAL_VULN`, `UNCONTROLLED_PANIC`, `TIMEOUT`) and a `Severity` (`CRITICAL`/`HIGH`/`MEDIUM`/`LOW`/`INFO`). The `VulnerabilitySignal` type also keeps a legacy `SIMULATION_FAIL` member that the classifier never emits |
+| `reporter.ts` | Aggregates all vector results into a `ChaosReport`; filters `SECURE`/`PRECONDITION_FAIL` out of the findings list (summary counters only); assigns `KYF-NNN` finding IDs. Counters cover every vector, but only findings and a small `verificationTransactions` sample (first broadcast that succeeded, first that failed) are retained, not per-vector results |
 | `index.ts` | `runChaosMonkey()` — the public orchestrator; re-exports the types `app.tsx`/screens need |
 
 ### `audit.ts`, `security_report.ts`, `report_export.ts`, `pdf_report.ts` — Reporting
 
 - `audit.ts` — combines a `ScanResult` + `ChaosReport` into one `AuditRun`.
-- `security_report.ts` — builds the canonical `SecurityReport` (`schemaVersion: "1.0.0"`) from an `AuditRun`: target info, scan summary, execution evidence (tx hashes, ledgers, explorer URLs), findings, and severity/signal counts.
+- `security_report.ts` — builds the canonical `SecurityReport` (`schemaVersion: "1.0.0"`) from an `AuditRun`: target info, scan summary, execution evidence (run-wide counters, the `verificationTransactions` sample, and per-finding simulation/broadcast status, trace, and tx hash/ledger/explorer URL where a transaction was broadcast), findings, and severity/signal counts.
 - `report_export.ts` — writes a `SecurityReport` to JSON and/or calls `pdf_report.ts`; used identically by the TUI's `[J]/[P]/[B]` keys and the headless `--json`/`--pdf` flags.
 - `pdf_report.ts` — renders the same `SecurityReport` as a PDF via `pdfkit`.
 
@@ -138,4 +138,4 @@ Pure, non-React helpers with no Ink/side effects:
 - **No private key storage.** Ephemeral keypairs are generated in memory and never written to disk or logged.
 - **Testnet only.** The RPC endpoint is hardcoded to `https://soroban-testnet.stellar.org`. Mainnet is not supported.
 - **Read-only phase first.** The OSINT Scanner issues no transactions — only `getContractWasmByContractId`.
-- **Real transactions.** Chaos Monkey submits real signed transactions to Stellar Testnet, each costing a small XLM fee from a Friendbot-funded ephemeral account.
+- **Real transactions.** Every vector is simulated first. Each vector whose simulation succeeds is submitted to Stellar Testnet as a real signed transaction, costing a small XLM fee from a Friendbot-funded ephemeral account; a vector that fails simulation is classified without being sent.
