@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed the npm package from `kuyfi_tui` to `kuyfi`; bumped the pre-release version from `0.0.0` to `0.1.0`
+- Renamed the npm package from `kuyfi_tui` to `@kuyfi/kuyfi` (the installed command remains `kuyfi`); bumped the pre-release version from `0.0.0` to `0.1.0`
 - Split the monolithic `app.tsx` into a modular TUI architecture (`screens/`, `components/`, `hooks/`, `ui/`)
 - Modernized release tooling (Prettier, XO, AVA) to a working, CI-safe baseline
 

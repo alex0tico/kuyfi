@@ -8,7 +8,7 @@ The examples use Kuyfi's own intentionally vulnerable Testnet test fixture, `CDY
 
 ## 1. Build from source
 
-These steps run Kuyfi from a source checkout. For the global install (`npm install -g kuyfi`), see the [README](../README.md#installation).
+These steps run Kuyfi from a source checkout. For the global install (`npm install -g @kuyfi/kuyfi`), see the [README](../README.md#installation).
 
 ```bash
 git clone https://github.com/alex0tico/kuyfi.git

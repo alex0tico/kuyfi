@@ -56,10 +56,10 @@ JSON / PDF                 same data, two export formats
 
 ## Installation
 
-Install the `kuyfi` command globally with npm:
+Install globally with npm. The npm package is `@kuyfi/kuyfi`; the command it installs is `kuyfi`:
 
 ```bash
-npm install -g kuyfi
+npm install -g @kuyfi/kuyfi
 ```
 
 Then launch the interactive TUI:
