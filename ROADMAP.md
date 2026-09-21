@@ -34,6 +34,7 @@
 - [x] TUI export workflow (`[J]`/`[P]`/`[B]` keys, same underlying export code as headless `--json`/`--pdf`)
 - [x] Execution evidence in every report: broadcast/hash counters, a small representative sample of verification transactions, and per-finding execution traces (with hash, ledger and explorer URL where a transaction was broadcast)
 - [x] npm CLI packaging readiness — `kuyfi` binary, package metadata, `prepack` build guarantee, verified isolated install
+- [x] Publish `@kuyfi/kuyfi` to the public npm registry (v0.1.0)
 - [x] Responsive TUI layout (large/compact/too-small tiers) and shrink-resize stabilization
 - [x] Modular TUI architecture (screens/components/hooks/ui separation)
 - [x] Reusable ASCII asset system
@@ -42,7 +43,6 @@
 
 **Status: Planned, not committed to a specific scope**
 
-- [ ] Publish `@kuyfi/kuyfi` to the public npm registry — v0.1.0 is in release preparation
 - [ ] Broader semantic input provenance for generated attack values (beyond type-correct boundaries)
 - [ ] Richer attack-vector coverage as real-world contract patterns are audited
 - [ ] Additional contract family support as evidence from real campaigns justifies it
