@@ -70,6 +70,29 @@ kuyfi
 
 **Requirements:** Node.js ≥ 20, npm, internet access to Stellar Testnet.
 
+### Windows / PowerShell
+
+Kuyfi v0.1.0 was validated manually on Windows 11 (Windows Terminal, PowerShell), installed with `npm install -g @kuyfi/kuyfi`.
+
+Some PowerShell environments block `.ps1` wrapper scripts through the execution policy. If PowerShell reports that `kuyfi.ps1` cannot be loaded because running scripts is disabled on this system, this is PowerShell's execution-policy behavior, not a Kuyfi runtime error. The installed package is unaffected and you can call the `.cmd` wrapper directly:
+
+```powershell
+kuyfi.cmd
+kuyfi.cmd --help
+```
+
+The same policy may apply to npm itself in that environment, in which case use `npm.cmd`:
+
+```powershell
+npm.cmd install -g @kuyfi/kuyfi
+```
+
+Optionally, to allow locally created scripts for your own user only, set the policy at the `CurrentUser` scope and restart PowerShell:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
 ### Run from source
 
 To run Kuyfi from a source checkout instead:
@@ -179,6 +202,11 @@ Both export formats are built from the exact same `SecurityReport` object, so a 
 
 - Node.js ≥ 20
 - Internet access to Stellar Testnet (`https://soroban-testnet.stellar.org`)
+
+**Platform status (v0.1.0):**
+
+- Validated manually: macOS, and Windows 11 (Windows Terminal, PowerShell — see [Windows / PowerShell](#windows--powershell)).
+- Linux: expected to work with Node.js ≥ 20, but not yet manually validated in v0.1.0.
 
 ## Architecture
 
