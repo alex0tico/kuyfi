@@ -25,7 +25,8 @@
 		"audit"
 	],
 	"bin": {
-		"kuyfi": "dist/cli.js"
+		"kuyfi": "dist/cli.js",
+		"kuyfi-server": "dist/server.js"
 	},
 	"type": "module",
 	"engines": {
@@ -37,6 +38,7 @@
 		"pretest": "npm run build",
 		"test": "prettier --check . && xo && ava",
 		"start": "node dist/cli.js",
+		"serve": "node dist/server.js",
 		"prepack": "npm run build"
 	},
 	"files": [
@@ -46,9 +48,12 @@
 	],
 	"dependencies": {
 		"@stellar/stellar-sdk": "^14.6.1",
+		"@x402/express": "^2.25.0",
+		"express": "^5.2.1",
 		"ink": "^6.8.0",
 		"ink-spinner": "^5.0.0",
 		"ink-text-input": "^6.0.0",
+		"local402-server": "^0.1.1",
 		"meow": "^11.0.0",
 		"pdfkit": "^0.20.2",
 		"react": "^19.2.4"
@@ -56,6 +61,7 @@
 	"devDependencies": {
 		"@ava/typescript": "6.0.0",
 		"@sindresorhus/tsconfig": "^3.0.1",
+		"@types/express": "^5.0.6",
 		"@types/pdfkit": "^0.17.6",
 		"@types/react": "^19.2.14",
 		"@vdemedes/prettier-config": "^2.0.1",

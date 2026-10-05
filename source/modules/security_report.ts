@@ -7,7 +7,7 @@ import type {
 	Severity,
 	VulnerabilitySignal,
 } from './chaos_monkey/result_parser.js';
-import type {ScannedFunction} from './scanner.js';
+import type {ScannedFunction, ScanResult} from './scanner.js';
 import type {UdtDef} from './chaos_monkey/udt_registry.js';
 import type {
 	DiagnosticTraceAnalysis,
@@ -344,6 +344,19 @@ function toReportSummary(chaos: ChaosReport): SecurityReport['summary'] {
 	};
 }
 
+/**
+ * JSON-safe projection of a bare OSINT scan — the `scan` block of a
+ * SecurityReport, usable without a Chaos Monkey run (e.g. the paid
+ * /scan endpoint in scan_server.ts).
+ */
+export function toPublicScan(scan: ScanResult): SecurityReport['scan'] {
+	return {
+		totalFunctions: scan.functions.length,
+		functions: scan.functions.map(toPublicFunction),
+		udts: [...scan.udtRegistry.values()].map(toPublicUdt),
+	};
+}
+
 export interface BuildSecurityReportOptions {
 	/** Injectable for deterministic tests; production callers omit both. */
 	now?: Date;
@@ -375,11 +388,7 @@ export function buildSecurityReport(
 			rpcUrl: TESTNET_RPC_URL,
 			bytecodeSize: scan.bytecodeSize,
 		},
-		scan: {
-			totalFunctions: scan.functions.length,
-			functions: scan.functions.map(toPublicFunction),
-			udts: [...scan.udtRegistry.values()].map(toPublicUdt),
-		},
+		scan: toPublicScan(scan),
 		execution: {
 			vectorsExecuted: chaos.totalVectorsRun,
 			broadcastTransactions: chaos.summary.broadcastTransactions,

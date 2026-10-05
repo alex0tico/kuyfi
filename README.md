@@ -135,6 +135,38 @@ Given only a Contract ID, the scanner:
 
 Nothing here requires the contract's source code, an ABI file, or any cooperation from the contract's author.
 
+## Paid scan API
+
+`kuyfi-server` exposes the OSINT Scanner over HTTP and charges per scan with [x402](https://www.x402.org) on Stellar, priced in Chilean pesos through [Local402](https://github.com/DiegoPoveda01/local402):
+
+```
+GET /scan/<CONTRACT_ID>
+  → 402 Payment Required   price in CLP, converted to USDC by the Reflector oracle
+  → 200 OK                 once paid: functions, parameter types, UDTs (same shape as a SecurityReport's `scan` block)
+```
+
+Only the read-only scanner is exposed. Chaos Monkey broadcasts transactions against its target, so it stays a local, explicit action and is never offered over HTTP. A malformed Contract ID gets `400` before any price is quoted, and a scan that fails after payment (`404`, `422`, `502`) is not settled, so the payer is not charged.
+
+```bash
+cp .env.example .env              # set PAY_TO to your public G... address
+npm run build
+node --env-file=.env dist/server.js
+```
+
+| Variable | Default | |
+|---|---|---|
+| `PAY_TO` | — (required) | Public Stellar address that receives the USDC. Never a secret key. |
+| `PRICE` | `500 CLP` | Any currency Reflector publishes, e.g. `0.50 USD`, `0.02 UF`. |
+| `NETWORK` | `stellar:testnet` | Where the payment settles. Scans always read Testnet. |
+| `FACILITATOR_URL` | public Local402 facilitator for `NETWORK` | The mainnet facilitator only settles for allowlisted `PAY_TO` addresses. |
+| `PORT` | `4021` | |
+
+Any x402 client on Stellar can pay it, for example:
+
+```bash
+npx -y local402-client quote http://localhost:4021/scan/<CONTRACT_ID>
+```
+
 ## Chaos Monkey
 
 Chaos Monkey is **not** random/dumb fuzzing. For each function the scanner discovers, it generates **type-aware** attack values from the function's actual XDR parameter types (`i128`, `u32`, `Address`, `Vec<T>`, UDTs, and more), and tests them **one variable at a time** — every other parameter holds a type-correct baseline value, so a failure can be attributed to the specific input that triggered it, not attributed to "some parameter, we're not sure which."
