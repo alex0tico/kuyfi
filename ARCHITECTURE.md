@@ -4,6 +4,8 @@
 
 Kuyfi is a Node.js CLI/TUI application with **no backend server or daemon**. A single process either renders an interactive terminal UI or runs a headless audit and exits — both paths call into the exact same audit engine.
 
+The one exception is the optional `kuyfi-server` (`source/server.ts` → `source/modules/scan_server.ts`): a paid HTTP endpoint that calls the same `scanner.ts` and returns `toPublicScan()` from `security_report.ts`. It exposes the read-only scanner only, never Chaos Monkey.
+
 ```
 CLI ENTRY
   source/cli.tsx                 meow argument parsing, mode selection
@@ -137,5 +139,6 @@ Pure, non-React helpers with no Ink/side effects:
 
 - **No private key storage.** Ephemeral keypairs are generated in memory and never written to disk or logged.
 - **Testnet only.** The RPC endpoint is hardcoded to `https://soroban-testnet.stellar.org`. Mainnet is not supported.
+- **Paid endpoint is scan-only.** `kuyfi-server` holds no keys: it receives payments to a public `PAY_TO` address through an x402 facilitator, and only runs the read-only scanner.
 - **Read-only phase first.** The OSINT Scanner issues no transactions — only `getContractWasmByContractId`.
 - **Real transactions.** Every vector is simulated first. Each vector whose simulation succeeds is submitted to Stellar Testnet as a real signed transaction, costing a small XLM fee from a Friendbot-funded ephemeral account; a vector that fails simulation is classified without being sent.

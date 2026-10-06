@@ -41,6 +41,7 @@ npm test
 kuyfi/
 ├── source/
 │   ├── cli.tsx                    # Entry point — mode selection (TUI vs headless)
+│   ├── server.ts                  # kuyfi-server entry point (reads env)
 │   ├── app.tsx                    # TUI navigation orchestrator
 │   ├── screens/                   # One file per screen (Home, Scanner, ChaosMonkey, Logs, About)
 │   ├── components/                # Shared chrome/branding (AppHeader, ViewShell, notices)
@@ -53,7 +54,8 @@ kuyfi/
 │       ├── security_report.ts     # Canonical SecurityReport builder
 │       ├── report_export.ts       # JSON/PDF export, shared by TUI and headless CLI
 │       ├── pdf_report.ts          # PDF rendering
-│       └── cli_runtime.ts         # Headless CLI code path
+│       ├── cli_runtime.ts         # Headless CLI code path
+│       └── scan_server.ts         # Paid HTTP scan endpoint (kuyfi-server)
 ├── test-fixtures/                 # Soroban contract fixtures used to validate the engine
 ├── ARCHITECTURE.md
 ├── ROADMAP.md

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `kuyfi-server`: paid HTTP endpoint `GET /scan/:contractId` for the OSINT Scanner, charged per scan with x402 on Stellar and priced in CLP through Local402. Chaos Monkey is not exposed over HTTP.
+
 ## [0.1.0] - 2026-09-20
 
 ### Added
