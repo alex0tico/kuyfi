@@ -5,6 +5,7 @@ import {Keypair, rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {scanWasmBytes} from '../../src/core/scanner.js';
 import {attackVals, baseline, typeName} from '../../src/core/type_gen.js';
 import {TESTNET_RPC_URL} from '../../src/core/network.js';
+import {fuzzContract, getReport, listFunctions, scanContractTool, type ToolContext} from '../../src/tools.js';
 
 const ITERATIONS = 200;
 
@@ -30,9 +31,35 @@ async function sdkChecks(): Promise<Record<string, string>> {
 	return out;
 }
 
+interface CheckEnv {
+	E2E_KV: KVNamespace;
+	DEMO_CONTRACT_ID?: string;
+}
+
+/**
+ * GET /e2e/<list_functions|scan_contract|fuzz_contract|get_report>?max=N&report=ID
+ * Runs the real tool code against Testnet (read from DEMO_CONTRACT_ID in .dev.vars),
+ * with a throwaway local KV and a fake user. Local verification only.
+ */
+async function e2e(url: URL, env: CheckEnv): Promise<Response> {
+	const id = env.DEMO_CONTRACT_ID;
+	if (!id) return new Response('DEMO_CONTRACT_ID is not set in worker/.dev.vars', {status: 500});
+	const ctx: ToolContext = {kv: env.E2E_KV, login: url.searchParams.get('as') ?? 'e2e-local'};
+	const tool = url.pathname.split('/')[2];
+	const t0 = performance.now();
+	let result;
+	if (tool === 'list_functions') result = await listFunctions(ctx, {contract_id: id});
+	else if (tool === 'scan_contract') result = await scanContractTool(ctx, {contract_id: id});
+	else if (tool === 'fuzz_contract') result = await fuzzContract(ctx, {contract_id: id, max_vectors: Number(url.searchParams.get('max') ?? 20)});
+	else if (tool === 'get_report') result = await getReport(ctx, {report_id: url.searchParams.get('report') ?? ''});
+	else return new Response('unknown tool', {status: 404});
+	return Response.json({ms: Math.round(performance.now() - t0), isError: result.isError ?? false, text: result.content[0]!.text});
+}
+
 export default {
-	async fetch(request: Request): Promise<Response> {
+	async fetch(request: Request, env: CheckEnv): Promise<Response> {
 		const url = new URL(request.url);
+		if (url.pathname.startsWith('/e2e/')) return e2e(url, env);
 		if (url.pathname === '/sdk') return Response.json(await sdkChecks());
 
 		if (url.pathname === '/scan' && request.method === 'POST') {
@@ -72,4 +99,4 @@ export default {
 
 		return new Response('POST /scan (wasm bytes) | GET /sdk', {status: 404});
 	},
-} satisfies ExportedHandler;
+} satisfies ExportedHandler<CheckEnv>;

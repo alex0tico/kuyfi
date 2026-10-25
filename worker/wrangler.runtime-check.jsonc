@@ -4,5 +4,6 @@
   "main": "test/runtime/check.ts",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [{ "binding": "E2E_KV", "id": "local-only-throwaway" }],
   "dev": { "port": 8799 }
 }
