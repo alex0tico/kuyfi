@@ -6,135 +6,149 @@
 <title>Kuyfi MCP</title>
 <meta name="description" content="Scan and stress-test deployed Soroban contracts on Stellar Testnet from your AI agent.">
 <meta name="color-scheme" content="dark">
+<link rel="preload" href="/fonts/IBMPlexMono-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/DxRuiga-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexMono-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexMono-500.woff2") format("woff2"); }
+@font-face { font-family: "DxRuiga"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/DxRuiga-SemiBold.woff2") format("woff2"); }
+
 :root {
-  --bg: #0b0d10;
-  --surface: #14181d;
-  --border: #2a313a;
-  --text: #eef0f3;
-  --muted: #a6afba;
-  --accent: #8ecbff;
-  --on-accent: #07121c;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --ink: #0E1113;
+  --surface: #161A1E;
+  --border: #2A313A;
+  --text: #E8E6E0;
+  --muted: #A19F97;
+  --gold: #EBB700;
+  --on-gold: #0E1113;
+  --purple: #8E2F87;
+  --purple-text: #BC67B2;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --display: "DxRuiga", "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); }
-body { font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; background: var(--ink); color: var(--text); }
+body { font-family: var(--mono); font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+::selection { background: var(--purple); color: #fff; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+
+/* language switch */
+.lang { position: fixed; top: 14px; right: 16px; z-index: 5; display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--ink); }
+.lang button { font: inherit; font-size: 12px; letter-spacing: .08em; padding: 5px 10px; color: var(--muted); background: transparent; border: 0; cursor: pointer; }
+.lang button[aria-pressed="true"] { color: var(--on-gold); background: var(--gold); }
+
 main {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.75rem;
-  padding: 2.5rem 1rem 4.5rem;
-  text-align: center;
+  min-height: 100vh; min-height: 100dvh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1.1rem; padding: 2.25rem 1.25rem 3.25rem; text-align: center;
 }
-h1 {
-  margin: 0;
-  max-width: 17ch;
-  font-size: clamp(2rem, 4.6vw, 3.4rem);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  font-weight: 650;
+
+/* ASCII hero + CRT */
+.hero { position: relative; display: inline-block; padding: .5rem 1rem; border-radius: 4px; }
+.hero::before { /* scanlines */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: repeating-linear-gradient(to bottom, rgba(0,0,0,.14) 0 1px, transparent 1px 3px);
 }
-.sub { margin: 0; max-width: 46ch; font-size: 1.125rem; color: var(--muted); }
-.buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
-.btn {
-  display: inline-block;
-  padding: 0.7rem 1.25rem;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  font-weight: 600;
-  font-size: 1rem;
-  text-decoration: none;
-  color: var(--on-accent);
-  background: var(--accent);
+.hero::after { /* vignette */
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(14,17,19,.85) 100%);
 }
-.btn.secondary { color: var(--accent); background: transparent; }
-.btn:hover { filter: brightness(1.1); }
-.btn.secondary:hover { background: rgba(142, 203, 255, 0.1); filter: none; }
-a:focus-visible, button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
-.cmd-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; max-width: 100%; }
-.cmd {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  max-width: 100%;
-  padding: 0.5rem 0.5rem 0.5rem 1rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+#ascii {
+  margin: 0; font-family: var(--mono); font-size: 12px; line-height: 1; color: var(--gold);
+  text-shadow: 0 0 5px rgba(235,183,0,.38);
+  white-space: pre; text-align: left; user-select: none;
 }
-.cmd code { font-family: var(--mono); font-size: 0.9rem; overflow-wrap: anywhere; text-align: left; }
-.copy {
-  flex: none;
-  min-width: 4.5rem;
-  padding: 0.4rem 0.75rem;
-  font: inherit;
-  font-size: 0.85rem;
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  cursor: pointer;
-}
-.copy:hover { border-color: var(--accent); }
-.small { margin: 0; font-size: 0.875rem; color: var(--muted); }
-.tools { margin: 0; font-family: var(--mono); font-size: 0.95rem; overflow-wrap: anywhere; }
-.limits { margin: 0; max-width: 62ch; font-size: 0.8125rem; color: var(--muted); }
-footer {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  padding: 1rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: var(--muted);
-  background: linear-gradient(to top, var(--bg) 60%, transparent);
-}
-footer a { color: var(--text); text-underline-offset: 3px; }
-footer a:hover { color: var(--accent); }
-@media (max-width: 640px) {
-  main { justify-content: flex-start; padding-top: 3rem; padding-bottom: 6rem; }
-  .sub { font-size: 1rem; }
-}
-@media (max-height: 760px) and (min-width: 900px) {
-  main { gap: 1.25rem; }
-}
+#ascii .r { display: block; height: 1em; white-space: pre; }
+#ascii i { font-style: normal; display: inline-block; width: .6em; height: 1em; text-align: center; overflow: visible; }
+#ascii i.f { color: var(--purple-text); text-shadow: none; opacity: .9; }
 @media (prefers-reduced-motion: no-preference) {
-  .btn, .copy { transition: background-color 0.15s, border-color 0.15s, filter 0.15s; }
+  #ascii { animation: flicker 6s steps(1, end) infinite; }
+  @keyframes flicker { 0%, 100% { opacity: 1; } 47% { opacity: 1; } 48% { opacity: .94; } 49% { opacity: 1; } 83% { opacity: .96; } 84% { opacity: 1; } }
 }
+
+/* content */
+.cols { display: grid; grid-template-columns: minmax(0, 31rem) minmax(0, 34rem); gap: 2.25rem; align-items: center; justify-content: center; text-align: left; width: 100%; max-width: 70rem; }
+h1 { margin: 0 0 .7rem; font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 2.2vw, 1.85rem); line-height: 1.15; letter-spacing: -.01em; color: #fff; }
+.sub { margin: 0 0 1rem; color: var(--muted); font-size: .9rem; }
+.buttons { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .9rem; }
+.btn { display: inline-block; padding: .55rem 1rem; border: 1px solid var(--gold); border-radius: 4px; font-family: var(--mono); font-weight: 500; font-size: .85rem; text-decoration: none; color: var(--on-gold); background: var(--gold); }
+.btn.secondary { color: var(--gold); background: transparent; }
+.btn:hover { filter: brightness(1.12); }
+.btn.secondary:hover { background: rgba(235,183,0,.1); filter: none; }
+.cmd { display: flex; align-items: center; gap: .6rem; padding: .4rem .4rem .4rem .8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
+.cmd code { flex: 1; min-width: 0; font-family: var(--mono); font-size: .76rem; overflow-wrap: anywhere; }
+.copy { flex: none; min-width: 4.2rem; padding: .3rem .6rem; font: inherit; font-size: .75rem; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; }
+.copy:hover { border-color: var(--gold); }
+.small { margin: .5rem 0 0; font-size: .75rem; color: var(--muted); }
+
+/* terminal window */
+.term { background: #090B0C; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 24px 60px rgba(0,0,0,.65), 0 0 0 1px rgba(142,47,135,.25); overflow: hidden; }
+.term-bar { display: flex; align-items: center; gap: 6px; padding: .5rem .75rem; background: var(--surface); border-bottom: 1px solid var(--border); font-size: .7rem; color: var(--muted); }
+.term-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--border); display: inline-block; }
+.term-bar i:first-child { background: var(--purple); }
+.term-bar span { margin-left: .5rem; }
+.term-body { margin: 0; padding: .8rem .9rem; min-height: 8.6rem; font-family: var(--mono); font-size: .74rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.term .you { color: var(--muted); }
+.term .ok { color: var(--gold); }
+.term .out { color: var(--text); }
+.caret { display: inline-block; width: .55em; height: 1em; vertical-align: text-bottom; background: var(--gold); }
+@media (prefers-reduced-motion: no-preference) { .caret { animation: blink 1s steps(1) infinite; } @keyframes blink { 50% { opacity: 0; } } }
+
+.tools { margin: 0; font-size: .85rem; overflow-wrap: anywhere; }
+.limits { margin: 0; max-width: 90ch; font-size: .72rem; color: var(--muted); }
+footer { position: fixed; left: 0; right: 0; bottom: 0; padding: .9rem 1rem; text-align: center; font-size: .78rem; color: var(--muted); background: linear-gradient(to top, var(--ink) 60%, transparent); }
+footer a { color: var(--text); text-underline-offset: 3px; }
+footer a:hover { color: var(--gold); }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 900px) {
+  main { justify-content: flex-start; padding-top: 3.5rem; padding-bottom: 6rem; }
+  .cols { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+  #ascii { font-size: 10px; }
+  .hero { padding: .25rem 0; }
+}
 </style>
 </head>
 <body>
-<main>
-  <h1>Audit your Soroban contracts from your AI agent.</h1>
-  <p class="sub">Scan and stress-test deployed contracts on Stellar Testnet from Cursor, VS Code or Claude Code. Nothing to install.</p>
+<div class="lang" role="group" aria-label="Language">
+  <button type="button" data-lang="en" aria-pressed="true">EN</button>
+  <button type="button" data-lang="es" aria-pressed="false">ES</button>
+</div>
 
-  <div class="buttons">
-    <a class="btn" id="cursor-btn" href="#">Add to Cursor</a>
-    <a class="btn secondary" id="vscode-btn" href="#">Add to VS Code</a>
+<main>
+  <div class="hero" id="hero" role="img" aria-label="KUYFI, flanked by two cats. Before the breach.">
+    <pre id="ascii" aria-hidden="true"></pre>
   </div>
 
-  <div class="cmd-wrap">
-    <div class="cmd">
-      <code id="cmd-text"></code>
-      <button class="copy" id="copy-btn" type="button" aria-label="Copy command">Copy</button>
-    </div>
-    <p class="small">You'll sign in with GitHub the first time you connect.</p>
-    <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
+  <div class="cols">
+    <section>
+      <h1 data-i18n="h1">Audit your Soroban contracts from your AI agent.</h1>
+      <p class="sub" data-i18n="sub">Scan and stress-test deployed contracts on Stellar Testnet from Cursor, VS Code or Claude Code. Nothing to install.</p>
+      <div class="buttons">
+        <a class="btn" id="cursor-btn" href="#" data-i18n="addCursor">Add to Cursor</a>
+        <a class="btn secondary" id="vscode-btn" href="#" data-i18n="addVscode">Add to VS Code</a>
+      </div>
+      <div class="cmd">
+        <code id="cmd-text"></code>
+        <button class="copy" id="copy-btn" type="button" aria-label="Copy command" data-i18n="copy">Copy</button>
+      </div>
+      <p class="small" data-i18n="signin">You'll sign in with GitHub the first time you connect.</p>
+      <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
+    </section>
+
+    <section class="term" aria-label="Example session">
+      <div class="term-bar" aria-hidden="true"><i></i><i></i><i></i><span>kuyfi · mcp</span></div>
+      <pre class="term-body" id="term-body" aria-hidden="true"></pre>
+      <div class="sr-only" id="term-sr"></div>
+    </section>
   </div>
 
   <p class="tools">list_functions · scan_contract · get_report · fuzz_contract</p>
-
-  <p class="limits">Testnet only. Simulation does not evaluate authorization. Zero findings is not proof of security. Not a replacement for a manual audit.</p>
+  <p class="limits" data-i18n="limits">Testnet only. Simulation does not evaluate authorization. Zero findings is not proof of security. Not a replacement for a manual audit.</p>
 </main>
 
 <footer>
-  <a id="docs-link" href="#">Docs</a> · <a id="repo-link" href="#">Source (MIT)</a> · Built for HackMeridian
+  <a id="docs-link" href="#" data-i18n="docs">Docs</a> · <a id="repo-link" href="#" data-i18n="source">Source (MIT)</a> · <span data-i18n="built">Built for HackMeridian</span>
 </footer>
 
 <script>
@@ -145,38 +159,203 @@ const REPO_URL = "https://github.com/alex0tico/kuyfi";
 
 const COMMAND = "claude mcp add --transport http kuyfi " + MCP_URL;
 
-// Cursor: base64 of {"url": MCP_URL}
-const cursorConfig = btoa(JSON.stringify({ url: MCP_URL }));
-document.getElementById("cursor-btn").href =
-  "cursor://anysphere.cursor-deeplink/mcp/install?name=kuyfi&config=" + cursorConfig;
+const ART = { large: [
+    "   █▄            ▄█                                                   █▄            ▄█   ",
+    "   ████▄      ▄████    ┌─────────────────────────────────────────┐    ████▄      ▄████   ",
+    "  ▄█ ████████████ █▄   │                                         │   ▄█ ████████████ █▄  ",
+    "  ██▄████████████▄██   │  ██╗  ██╗██╗   ██╗██╗   ██╗███████╗██╗  │   ██▄████████████▄██  ",
+    "  █████  ████  █████   │  ██║ ██╔╝██║   ██║╚██╗ ██╔╝██╔════╝██║  │   █████  ████  █████  ",
+    "  █████▄▄████▄▄█████   │  █████╔╝ ██║   ██║ ╚████╔╝ █████╗  ██║  │   █████▄▄████▄▄█████  ",
+    "  ▀███████▄▄███████▀   │  ██╔═██╗ ██║   ██║  ╚██╔╝  ██╔══╝  ██║  │   ▀███████▄▄███████▀  ",
+    "    ▀████████████▀     │  ██║  ██╗╚██████╔╝   ██║   ██║     ██║  │     ▀████████████▀    ",
+    "    ▄▄▄▄▄▄▄▄▄▄▄▄▄▄     │  ╚═╝  ╚═╝ ╚═════╝    ╚═╝   ╚═╝     ╚═╝  │     ▄▄▄▄▄▄▄▄▄▄▄▄▄▄    ",
+    "    ██████████████     │                                         │     ██████████████    ",
+    "    ██████████████     │          [ BEFORE THE BREACH ]          │     ██████████████    ",
+    "    ██████▀▀██████     │                                         │     ██████▀▀██████    ",
+    "    ▀█████  █████▀     └─────────────────────────────────────────┘     ▀█████  █████▀    ",
+    "     ▀████  ████▀                                                       ▀████  ████▀     "
+  ], compact: [
+    "  █▄      ▄█                                 █▄      ▄█  ",
+    " ████████████  ┌─────────────────────────┐  ████████████ ",
+    " ▀██▀████▀██▀  │        K U Y F I        │  ▀██▀████▀██▀ ",
+    "  ██▄████▄██   │                         │   ██▄████▄██  ",
+    "   ████████    │  [ BEFORE THE BREACH ]  │    ████████   ",
+    "   ████████    └─────────────────────────┘    ████████   ",
+    "   ███▀▀███                                   ███▀▀███   ",
+    "   ▀██  ██▀                                   ▀██  ██▀   "
+  ] };
 
-// VS Code: URL-encoded JSON
-document.getElementById("vscode-btn").href =
-  "vscode:mcp/install?" + encodeURIComponent(JSON.stringify({ name: "kuyfi", type: "http", url: MCP_URL }));
+const I18N = {
+  en: {
+    h1: "Audit your Soroban contracts from your AI agent.",
+    sub: "Scan and stress-test deployed contracts on Stellar Testnet from Cursor, VS Code or Claude Code. Nothing to install.",
+    addCursor: "Add to Cursor", addVscode: "Add to VS Code", copy: "Copy", copied: "Copied", copyFail: "Press Ctrl+C",
+    copyAria: "Copy command", copiedStatus: "Command copied to clipboard", copyFailStatus: "Copy failed; the command is selected, press Ctrl+C",
+    signin: "You'll sign in with GitHub the first time you connect.",
+    limits: "Testnet only. Simulation does not evaluate authorization. Zero findings is not proof of security. Not a replacement for a manual audit.",
+    docs: "Docs", source: "Source (MIT)", built: "Built for HackMeridian",
+    heroAria: "KUYFI, flanked by two cats. Before the breach.",
+    session: [
+      ["you ›", "you", "audit this Testnet contract: CDYU…JTPV7"],
+      ["kuyfi ✓", "ok", "list_functions · 3 functions: get_value, set_admin_value, secure_set_admin_value"],
+      ["kuyfi ✓", "ok", "scan_contract · report saved (24 h)"],
+      ["kuyfi ✓", "ok", "fuzz_contract · simulation · 16 vectors · 14 no finding · 2 not evaluated"],
+      ["kuyfi ●", "out", "no findings in this run. Not proof of security."],
+    ],
+  },
+  es: {
+    h1: "Audita tus contratos Soroban desde tu agente de IA.",
+    sub: "Escanea y somete a pruebas de estrés contratos desplegados en Stellar Testnet desde Cursor, VS Code o Claude Code. Nada que instalar.",
+    addCursor: "Agregar a Cursor", addVscode: "Agregar a VS Code", copy: "Copiar", copied: "Copiado", copyFail: "Pulsa Ctrl+C",
+    copyAria: "Copiar comando", copiedStatus: "Comando copiado al portapapeles", copyFailStatus: "No se pudo copiar; el comando quedó seleccionado, pulsa Ctrl+C",
+    signin: "Iniciarás sesión con GitHub la primera vez que te conectes.",
+    limits: "Solo Testnet. La simulación no evalúa la autorización. Cero hallazgos no es prueba de seguridad. No reemplaza una auditoría manual.",
+    docs: "Documentación", source: "Código (MIT)", built: "Hecho para HackMeridian",
+    heroAria: "KUYFI, flanqueado por dos gatos. Antes de la brecha.",
+    session: [
+      ["you ›", "you", "audita este contrato de Testnet: CDYU…JTPV7"],
+      ["kuyfi ✓", "ok", "list_functions · 3 funciones: get_value, set_admin_value, secure_set_admin_value"],
+      ["kuyfi ✓", "ok", "scan_contract · reporte guardado (24 h)"],
+      ["kuyfi ✓", "ok", "fuzz_contract · simulación · 16 vectores · 14 sin hallazgo · 2 no evaluados"],
+      ["kuyfi ●", "out", "sin hallazgos en esta ejecución. No es prueba de seguridad."],
+    ],
+  },
+};
 
-document.getElementById("cmd-text").textContent = COMMAND;
-document.getElementById("docs-link").href = DOCS_URL;
-document.getElementById("repo-link").href = REPO_URL;
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = (id) => document.getElementById(id);
+let lang = "en";
+try { const saved = localStorage.getItem("kuyfi-lang"); if (saved === "es" || saved === "en") lang = saved; } catch (e) {}
 
-const copyBtn = document.getElementById("copy-btn");
-const status = document.getElementById("copy-status");
+// ── install links ──
+$("cursor-btn").href = "cursor://anysphere.cursor-deeplink/mcp/install?name=kuyfi&config=" + btoa(JSON.stringify({ url: MCP_URL }));
+$("vscode-btn").href = "vscode:mcp/install?" + encodeURIComponent(JSON.stringify({ name: "kuyfi", type: "http", url: MCP_URL }));
+$("cmd-text").textContent = COMMAND;
+$("docs-link").href = DOCS_URL;
+$("repo-link").href = REPO_URL;
+
+// ── copy button ──
+const copyBtn = $("copy-btn"), status = $("copy-status");
 copyBtn.addEventListener("click", async () => {
+  const t = I18N[lang];
   let ok = false;
-  try {
-    await navigator.clipboard.writeText(COMMAND);
-    ok = true;
-  } catch (e) {
-    const range = document.createRange();
-    range.selectNodeContents(document.getElementById("cmd-text"));
-    const sel = getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+  try { await navigator.clipboard.writeText(COMMAND); ok = true; }
+  catch (e) {
+    const range = document.createRange(); range.selectNodeContents($("cmd-text"));
+    const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
     try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
   }
-  copyBtn.textContent = ok ? "Copied" : "Press Ctrl+C";
-  status.textContent = ok ? "Command copied to clipboard" : "Copy failed; the command is selected, press Ctrl+C";
-  setTimeout(() => { copyBtn.textContent = "Copy"; status.textContent = ""; }, 2000);
+  copyBtn.textContent = ok ? t.copied : t.copyFail;
+  status.textContent = ok ? t.copiedStatus : t.copyFailStatus;
+  setTimeout(() => { copyBtn.textContent = I18N[lang].copy; status.textContent = ""; }, 2000);
 });
+
+// ── ASCII hero: fixed-width cells so the grid never depends on the fallback font for ▀▄█ and box glyphs ──
+const pre = $("ascii");
+const FRAME = new Set("┌─┐│└┘");
+const SCRAMBLE = "█▓▒░▀▄#%&*+=<>/";
+let variant = null, cells = [], finals = [], decryptTimer = null;
+
+function buildAscii(name) {
+  variant = name;
+  const lines = ART[name];
+  pre.textContent = "";
+  cells = []; finals = [];
+  const width = Math.max(...lines.map((l) => [...l].length));
+  lines.forEach((line, r) => {
+    const row = document.createElement("span"); row.className = "r";
+    const chars = [...line.padEnd(width, " ")];
+    chars.forEach((ch, c) => {
+      const cell = document.createElement("i");
+      if (FRAME.has(ch)) cell.className = "f";
+      cell.textContent = ch;
+      row.appendChild(cell);
+      cells.push(cell); finals.push({ ch, c });
+    });
+    pre.appendChild(row);
+  });
+  return width;
+}
+
+function decrypt(width, ms) {
+  const start = performance.now();
+  clearInterval(decryptTimer);
+  cells.forEach((cell, i) => { if (finals[i].ch !== " ") cell.textContent = SCRAMBLE[Math.floor(Math.random() * SCRAMBLE.length)]; });
+  decryptTimer = setInterval(() => {
+    const p = Math.min(1, (performance.now() - start) / ms);
+    const edge = p * (width + 8) - 4; // columns left of the edge are settled
+    cells.forEach((cell, i) => {
+      const f = finals[i];
+      if (f.ch === " ") return;
+      cell.textContent = f.c < edge ? f.ch : SCRAMBLE[Math.floor(Math.random() * SCRAMBLE.length)];
+    });
+    if (p >= 1) { clearInterval(decryptTimer); cells.forEach((cell, i) => { cell.textContent = finals[i].ch; }); }
+  }, 40);
+}
+
+const compactMq = matchMedia("(max-width: 640px)");
+function renderHero(animate) {
+  const width = buildAscii(compactMq.matches ? "compact" : "large");
+  if (animate && !reduceMotion) decrypt(width, 1300);
+}
+compactMq.addEventListener("change", () => renderHero(false));
+
+// ── terminal session, typed in a loop ──
+const termBody = $("term-body");
+let termRun = 0;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function lineEl(cls) { const s = document.createElement("span"); s.className = cls; return s; }
+
+function renderSession(final) {
+  const t = I18N[lang];
+  $("term-sr").textContent = t.session.map((l) => l[0] + " " + l[2]).join(". ");
+  termBody.textContent = "";
+  t.session.forEach(([prefix, cls, text]) => {
+    const row = document.createElement("div");
+    const a = lineEl(cls === "you" ? "you" : "ok"); a.textContent = prefix + " ";
+    const b = lineEl(cls === "you" ? "out" : cls === "out" ? "out" : "out"); b.textContent = text;
+    row.append(a, b); termBody.appendChild(row);
+  });
+}
+
+async function playSession() {
+  const run = ++termRun;
+  const t = I18N[lang];
+  $("term-sr").textContent = t.session.map((l) => l[0] + " " + l[2]).join(". ");
+  if (reduceMotion) { renderSession(true); return; }
+  while (run === termRun) {
+    termBody.textContent = "";
+    const caret = document.createElement("span"); caret.className = "caret";
+    for (const [prefix, cls, text] of t.session) {
+      if (run !== termRun) return;
+      const row = document.createElement("div");
+      const a = lineEl(cls === "you" ? "you" : "ok"); a.textContent = prefix + " ";
+      const b = lineEl("out");
+      row.append(a, b, caret); termBody.appendChild(row);
+      if (cls === "you") { for (const ch of text) { if (run !== termRun) return; b.textContent += ch; await sleep(22); } await sleep(450); }
+      else { await sleep(380); b.textContent = text; await sleep(250); }
+    }
+    await sleep(6000);
+  }
+}
+
+// ── language ──
+function applyLang(l, first) {
+  lang = l;
+  const t = I18N[l];
+  document.documentElement.lang = l;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { const k = el.dataset.i18n; if (t[k] !== undefined) el.textContent = t[k]; });
+  copyBtn.setAttribute("aria-label", t.copyAria);
+  $("hero").setAttribute("aria-label", t.heroAria);
+  document.querySelectorAll(".lang button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === l)));
+  try { localStorage.setItem("kuyfi-lang", l); } catch (e) {}
+  playSession();
+}
+document.querySelectorAll(".lang button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
+
+renderHero(true);
+applyLang(lang);
 </script>
 </body>
 </html>
