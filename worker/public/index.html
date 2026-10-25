@@ -7,11 +7,9 @@
 <meta name="description" content="Scan and stress-test deployed Soroban contracts on Stellar Testnet from your AI agent.">
 <meta name="color-scheme" content="dark">
 <link rel="preload" href="/fonts/IBMPlexMono-400.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/DxRuiga-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 @font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexMono-400.woff2") format("woff2"); }
 @font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/IBMPlexMono-500.woff2") format("woff2"); }
-@font-face { font-family: "DxRuiga"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/DxRuiga-SemiBold.woff2") format("woff2"); }
 
 :root {
   --ink: #0E1113;
@@ -24,7 +22,6 @@
   --purple: #8E2F87;
   --purple-text: #BC67B2;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --display: "DxRuiga", "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--ink); color: var(--text); }
@@ -68,7 +65,7 @@ main {
 
 /* content */
 .cols { display: grid; grid-template-columns: minmax(0, 31rem) minmax(0, 34rem); gap: 2.25rem; align-items: center; justify-content: center; text-align: left; width: 100%; max-width: 70rem; }
-h1 { margin: 0 0 .7rem; font-family: var(--display); font-weight: 600; font-size: clamp(1.4rem, 2.2vw, 1.85rem); line-height: 1.15; letter-spacing: -.01em; color: #fff; }
+h1 { margin: 0 0 .7rem; font-family: var(--mono); font-weight: 500; font-size: clamp(1.25rem, 1.9vw, 1.6rem); line-height: 1.2; letter-spacing: -.02em; color: #fff; }
 .sub { margin: 0 0 1rem; color: var(--muted); font-size: .9rem; }
 .buttons { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .9rem; }
 .btn { display: inline-block; padding: .55rem 1rem; border: 1px solid var(--gold); border-radius: 4px; font-family: var(--mono); font-weight: 500; font-size: .85rem; text-decoration: none; color: var(--on-gold); background: var(--gold); }

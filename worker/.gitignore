@@ -9,3 +9,6 @@ node_modules/
 *.pem
 *.key
 worker-configuration.d.ts
+
+# Brand font with a personal-use license: never commit it
+public/fonts/DxRuiga-*

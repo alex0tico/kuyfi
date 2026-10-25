@@ -9,7 +9,6 @@
 		"cf-typegen": "wrangler types",
 		"type-check": "wrangler types && tsc --noEmit",
 		"test": "vitest run",
-		"ascii-lab": "node scripts/svg-to-ascii.mjs",
 		"runtime-check": "wrangler dev -c wrangler.runtime-check.jsonc"
 	},
 	"dependencies": {
