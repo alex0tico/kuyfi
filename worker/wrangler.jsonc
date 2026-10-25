@@ -29,6 +29,10 @@
       "/.well-known/*"
     ]
   },
+  "vars": {
+    // Subrequests per MCP request: 50 on the Workers Free plan. Raise on a paid plan.
+    "SUBREQUEST_BUDGET": "50"
+  },
   "observability": {
     "enabled": true
   },
