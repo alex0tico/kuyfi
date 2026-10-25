@@ -42,7 +42,7 @@ interface CheckEnv {
  * with a throwaway local KV and a fake user. Local verification only.
  */
 async function e2e(url: URL, env: CheckEnv): Promise<Response> {
-	const id = env.DEMO_CONTRACT_ID;
+	const id = url.searchParams.get('id') ?? env.DEMO_CONTRACT_ID;
 	if (!id) return new Response('DEMO_CONTRACT_ID is not set in worker/.dev.vars', {status: 500});
 	const ctx: ToolContext = {kv: env.E2E_KV, login: url.searchParams.get('as') ?? 'e2e-local'};
 	const tool = url.pathname.split('/')[2];
