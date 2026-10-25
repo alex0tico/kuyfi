@@ -9,7 +9,9 @@ import {Resvg} from '@resvg/resvg-js';
 const here = dirname(fileURLToPath(import.meta.url));
 const svgPath = process.argv[2] ?? join(here, 'logo/kuyfi-fox-white-on-black.svg');
 const outDir = join(here, '../public/ascii-lab');
-const WIDTHS = [60, 100];
+const WIDTHS = [60, 100, 140, 180];
+// Preview only: braille and half blocks (no ramp), each width at its own font size.
+const PREVIEW = [[100, 4], [140, 5], [180, 6]];
 const RAMP = ' .:-=+*#%@';
 const RENDER_WIDTH = 2400; // high-res raster; cells average over it
 
@@ -129,10 +131,14 @@ copyFileSync(svgPath, join(outDir, 'logo.svg'));
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const cards = [];
 for (const [key, title, fn] of variants) {
-	for (const cols of WIDTHS) {
+	// The density ramp stays at the original two widths; braille and blocks also get 140 and 180.
+	for (const cols of key === 'ramp' ? [60, 100] : WIDTHS) {
 		const text = fn(cols);
 		writeFileSync(join(outDir, `${key}-${cols}.txt`), text + '\n');
-		cards.push(`<section><h2>${esc(title)} · ${cols} columns (${text.split('\n').length} rows)</h2><pre>${esc(text)}</pre></section>`);
+		const size = PREVIEW.find(([c]) => c === cols);
+		if (key !== 'ramp' && size) {
+			cards.push(`<section><h2>${esc(title)} · ${cols} col · ${size[1]}px</h2><pre style="font-size:${size[1]}px">${esc(text)}</pre></section>`);
+		}
 	}
 }
 
@@ -142,12 +148,12 @@ writeFileSync(
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ASCII lab</title>
 <style>
-body{margin:0;padding:2rem 1rem;background:#070708;color:#F5C518;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-h1,h2{font-weight:500;font-size:.9rem;margin:0 0 .75rem;color:#F5C518}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,34rem),1fr));gap:2.5rem 2rem;align-items:start}
+body{margin:0;padding:2rem 1rem;background:#0E1113;color:#EBB700;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+h1,h2{font-weight:500;font-size:.9rem;margin:0 0 .75rem;color:#EBB700}
+.grid{display:grid;grid-template-columns:repeat(3,max-content);gap:2.5rem 3rem;align-items:start}
 section{overflow-x:auto}
-pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace;font-size:10px;line-height:1;white-space:pre}
-img{display:block;width:240px;height:240px;background:#000}
+pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace;line-height:1;white-space:pre}
+img{display:block;width:240px;height:240px;background:#0E1113}
 .orig{margin-bottom:2.5rem}
 </style></head><body>
 <div class="orig"><h1>Original (SVG)</h1><img src="logo.svg" alt="Kuyfi logo, original SVG"></div>
