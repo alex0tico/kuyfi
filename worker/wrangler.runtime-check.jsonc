@@ -1,0 +1,8 @@
+{
+  // Throwaway Worker used only to verify the scanner port inside workerd. Not deployed.
+  "name": "kuyfi-runtime-check",
+  "main": "test/runtime/check.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "dev": { "port": 8799 }
+}
