@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kuyfi-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Secrets are never stored here. Set them with:
+  //   npx wrangler secret put GITHUB_CLIENT_ID
+  //   npx wrangler secret put GITHUB_CLIENT_SECRET
+  //   npx wrangler secret put COOKIE_ENCRYPTION_KEY
+  // Create the KV namespace with `npx wrangler kv namespace create OAUTH_KV`
+  // and replace the placeholder id below with the id it prints.
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "<Add-KV-ID>"
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    // These paths must reach the Worker (OAuth provider + MCP), never the static assets.
+    "run_worker_first": [
+      "/mcp",
+      "/mcp/*",
+      "/authorize",
+      "/callback",
+      "/token",
+      "/register",
+      "/.well-known/*"
+    ]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "dev": {
+    "port": 8788
+  },
+  "secrets": {
+    "required": ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "COOKIE_ENCRYPTION_KEY"]
+  }
+}
