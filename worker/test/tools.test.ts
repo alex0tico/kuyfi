@@ -95,10 +95,23 @@ describe('fuzz_contract', () => {
 		expect(send).not.toHaveBeenCalled();
 		expect(r.execution).toMatchObject({vectorsExecuted: 5, broadcastTransactions: 0});
 		expect(r.execution.vectorsNotRun).toBeGreaterThan(0);
+		expect(r.execution.vectorsNotGenerated).toBe(0);
+		expect(r.execution.vectorsGenerated).toBe(r.execution.vectorsExecuted + r.execution.vectorsNotRun);
+		expect(r.execution.note).toContain('not run because the limit of 5');
 		expect(r.verdict).toBe('no findings in this run');
 		expect(r.disclaimer).toContain('Not a security guarantee');
 		expect(r.summary.notEvaluated).toBeGreaterThanOrEqual(0);
 		expect(text({content: [{text: JSON.stringify(r)}]})).not.toMatch(/\b(is|are|contract is) (secure|safe)\b/i);
+	});
+
+	it('explains when the contract has fewer vectors than requested', async () => {
+		mockSimulate(() => ({_parsed: true, id: '1', latestLedger: 1, events: [], result: {auth: [], retval: undefined}}));
+		const r = JSON.parse(text(await fuzzContract(makeCtx(new FakeKv()), {contract_id: FAKE_ID, max_vectors: 50})));
+		const e = r.execution;
+		expect(e.vectorsNotRun).toBe(0);
+		expect(e.vectorsNotGenerated).toBe(e.simulationLimit - e.vectorsExecuted);
+		expect(e.vectorsNotGenerated).toBeGreaterThan(0);
+		expect(e.note).toMatch(/only has \d+ possible vectors/);
 	});
 
 	it('an accepted access-control vector is NOT_EVALUATED, never a finding', async () => {

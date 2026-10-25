@@ -117,6 +117,14 @@ export async function runFuzz(scan: ScanResult, options: FuzzOptions, reportId: 
 	const notEvaluated = classified.filter(r => r.signal === 'NOT_EVALUATED').map(r => ({functionName: r.functionName, vectorName: r.vectorName, details: r.details}));
 	const noFinding = classified.filter(r => r.signal === 'SECURE' || r.signal === 'PRECONDITION_FAIL').length;
 
+	const notGenerated = Math.max(0, allowed - server.simulationsRun - server.simulationsSkipped);
+	const vectorNote =
+		notGenerated > 0
+			? `This contract only has ${server.simulationsRun + server.simulationsSkipped} possible vectors, ${notGenerated} fewer than the ${allowed} allowed for this run. All of them were executed.`
+			: server.simulationsSkipped > 0
+				? `${server.simulationsSkipped} generated vector(s) were not run because the limit of ${allowed} simulations was reached.`
+				: 'Every generated vector was executed.';
+
 	const verdict =
 		findings.length === 0
 			? 'no findings in this run'
@@ -133,10 +141,16 @@ export async function runFuzz(scan: ScanResult, options: FuzzOptions, reportId: 
 		execution: {
 			vectorsRequested: options.maxVectors,
 			vectorsExecuted: server.simulationsRun,
+			/** Vectors the contract's types produced: executed + not run. */
+			vectorsGenerated: server.simulationsRun + server.simulationsSkipped,
+			/** Generated but not executed because the simulation limit was reached. */
 			vectorsNotRun: server.simulationsSkipped,
+			/** Allowed simulations that went unused because the contract has no more vectors to generate. */
+			vectorsNotGenerated: notGenerated,
 			simulationLimit: allowed,
 			hardLimit: HARD_MAX_VECTORS,
 			subrequestBudget: options.subrequestBudget,
+			note: vectorNote,
 			cappedBySubrequestBudget: allowed < Math.min(options.maxVectors, HARD_MAX_VECTORS),
 			broadcastTransactions: 0,
 			networkPassphrase: Networks.TESTNET,
