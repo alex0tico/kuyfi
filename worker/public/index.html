@@ -4,9 +4,179 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kuyfi MCP</title>
+<meta name="description" content="Scan and stress-test deployed Soroban contracts on Stellar Testnet from your AI agent.">
+<meta name="color-scheme" content="dark">
+<style>
+:root {
+  --bg: #0b0d10;
+  --surface: #14181d;
+  --border: #2a313a;
+  --text: #eef0f3;
+  --muted: #a6afba;
+  --accent: #8ecbff;
+  --on-accent: #07121c;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+main {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.75rem;
+  padding: 2.5rem 1rem 4.5rem;
+  text-align: center;
+}
+h1 {
+  margin: 0;
+  max-width: 17ch;
+  font-size: clamp(2rem, 4.6vw, 3.4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+.sub { margin: 0; max-width: 46ch; font-size: 1.125rem; color: var(--muted); }
+.buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; }
+.btn {
+  display: inline-block;
+  padding: 0.7rem 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  font-weight: 600;
+  font-size: 1rem;
+  text-decoration: none;
+  color: var(--on-accent);
+  background: var(--accent);
+}
+.btn.secondary { color: var(--accent); background: transparent; }
+.btn:hover { filter: brightness(1.1); }
+.btn.secondary:hover { background: rgba(142, 203, 255, 0.1); filter: none; }
+a:focus-visible, button:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.cmd-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; max-width: 100%; }
+.cmd {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 100%;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cmd code { font-family: var(--mono); font-size: 0.9rem; overflow-wrap: anywhere; text-align: left; }
+.copy {
+  flex: none;
+  min-width: 4.5rem;
+  padding: 0.4rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.copy:hover { border-color: var(--accent); }
+.small { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.tools { margin: 0; font-family: var(--mono); font-size: 0.95rem; overflow-wrap: anywhere; }
+.limits { margin: 0; max-width: 62ch; font-size: 0.8125rem; color: var(--muted); }
+footer {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--muted);
+  background: linear-gradient(to top, var(--bg) 60%, transparent);
+}
+footer a { color: var(--text); text-underline-offset: 3px; }
+footer a:hover { color: var(--accent); }
+@media (max-width: 640px) {
+  main { justify-content: flex-start; padding-top: 3rem; padding-bottom: 6rem; }
+  .sub { font-size: 1rem; }
+}
+@media (max-height: 760px) and (min-width: 900px) {
+  main { gap: 1.25rem; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .btn, .copy { transition: background-color 0.15s, border-color 0.15s, filter 0.15s; }
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
 </head>
 <body>
-<h1>Kuyfi MCP</h1>
-<p>Work in progress: a remote MCP server to audit Soroban contracts from your agent. Simulation only. Not available yet.</p>
+<main>
+  <h1>Audit your Soroban contracts from your AI agent.</h1>
+  <p class="sub">Scan and stress-test deployed contracts on Stellar Testnet from Cursor, VS Code or Claude Code. Nothing to install.</p>
+
+  <div class="buttons">
+    <a class="btn" id="cursor-btn" href="#">Add to Cursor</a>
+    <a class="btn secondary" id="vscode-btn" href="#">Add to VS Code</a>
+  </div>
+
+  <div class="cmd-wrap">
+    <div class="cmd">
+      <code id="cmd-text"></code>
+      <button class="copy" id="copy-btn" type="button" aria-label="Copy command">Copy</button>
+    </div>
+    <p class="small">You'll sign in with GitHub the first time you connect.</p>
+    <span class="sr-only" id="copy-status" role="status" aria-live="polite"></span>
+  </div>
+
+  <p class="tools">list_functions · scan_contract · get_report · fuzz_contract</p>
+
+  <p class="limits">Testnet only. Simulation does not evaluate authorization. Zero findings is not proof of security. Not a replacement for a manual audit.</p>
+</main>
+
+<footer>
+  <a id="docs-link" href="#">Docs</a> · <a id="repo-link" href="#">Source (MIT)</a> · Built for HackMeridian
+</footer>
+
+<script>
+// Change these three values when deploying; everything below is generated from them.
+const MCP_URL = "https://kuyfi-mcp.example.workers.dev/mcp";
+const DOCS_URL = "https://github.com/alex0tico/kuyfi#readme";
+const REPO_URL = "https://github.com/alex0tico/kuyfi";
+
+const COMMAND = "claude mcp add --transport http kuyfi " + MCP_URL;
+
+// Cursor: base64 of {"url": MCP_URL}
+const cursorConfig = btoa(JSON.stringify({ url: MCP_URL }));
+document.getElementById("cursor-btn").href =
+  "cursor://anysphere.cursor-deeplink/mcp/install?name=kuyfi&config=" + cursorConfig;
+
+// VS Code: URL-encoded JSON
+document.getElementById("vscode-btn").href =
+  "vscode:mcp/install?" + encodeURIComponent(JSON.stringify({ name: "kuyfi", type: "http", url: MCP_URL }));
+
+document.getElementById("cmd-text").textContent = COMMAND;
+document.getElementById("docs-link").href = DOCS_URL;
+document.getElementById("repo-link").href = REPO_URL;
+
+const copyBtn = document.getElementById("copy-btn");
+const status = document.getElementById("copy-status");
+copyBtn.addEventListener("click", async () => {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(COMMAND);
+    ok = true;
+  } catch (e) {
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById("cmd-text"));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+  }
+  copyBtn.textContent = ok ? "Copied" : "Press Ctrl+C";
+  status.textContent = ok ? "Command copied to clipboard" : "Copy failed; the command is selected, press Ctrl+C";
+  setTimeout(() => { copyBtn.textContent = "Copy"; status.textContent = ""; }, 2000);
+});
+</script>
 </body>
 </html>
