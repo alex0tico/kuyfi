@@ -53,11 +53,17 @@ Kuyfi is also available as a **remote MCP server**, deployed on Cloudflare Worke
 `report_card` returns a PNG summary card plus the same summary as text; the client decides whether to show the image.
 
 <p>
+  <img src="docs/assets/report-card-scan-real.png" alt="Report card for a scan of the demo contract: 3 functions, 0 user-defined types, 1,700 bytes of bytecode" width="48%">
+</p>
+
+*Real output of report_card for scan_contract on the demo contract (Testnet, 2026-10-26). Reports expire after 24 hours.*
+
+<p>
   <img src="docs/assets/report-card-clean.png" alt="Report card for a fuzz run with no findings: 16 of 16 vectors executed, 14 with no finding, 2 not evaluated" width="48%">
   <img src="docs/assets/report-card-findings.png" alt="Report card for a fuzz run with findings: 1 supported, 2 hypothesis, 2 inconclusive; three listed and +2 more" width="48%">
 </p>
 
-*Example data for illustration: the second card is a made-up sample, not a result from a real contract.*
+*Illustrative samples: the first uses the figures of a real run on the demo contract but its date and report ID are placeholders; the second is a made-up sample, not a result from a real contract.*
 
 ### Example
 

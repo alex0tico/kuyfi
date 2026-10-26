@@ -712,7 +712,8 @@ ${MCP_TOOLS.map(t => `- \`${t.name}\` — ${t.desc}`).join('\n')}
 ## Report card
 
 \`report_card\` returns a PNG summary card plus the same summary as text; the client decides whether to show the image.
-Example data for illustration: the second card is a made-up sample, not a result from a real contract.
+Real output of report_card for scan_contract on the demo contract (Testnet, 2026-10-26). Reports expire after 24 hours.
+Illustrative samples: the first uses the figures of a real run on the demo contract but its date and report ID are placeholders; the second is a made-up sample, not a result from a real contract.
 
 ## Limits
 

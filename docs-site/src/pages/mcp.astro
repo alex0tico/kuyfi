@@ -127,6 +127,18 @@ const statusLabel = MCP_STATUS === 'available' ? 'available · remoto' : 'unavai
 		<code>report_card</code> devuelve una imagen PNG con el resumen del reporte y el mismo resumen
 		en texto; el cliente decide si muestra la imagen.
 	</p>
+	<figure class="cards cards--one">
+		<img
+			src={withBase('/assets/report-card-scan-real.png')}
+			alt="Report card de un scan del contrato de demo: 3 funciones, 0 tipos definidos por el usuario, 1,700 bytes de bytecode"
+			width="1200"
+			height="630"
+			loading="lazy"
+		/>
+		<figcaption>
+			Real output of report_card for scan_contract on the demo contract (Testnet, 2026-10-26). Reports expire after 24 hours.
+		</figcaption>
+	</figure>
 	<figure class="cards">
 		<img
 			src={withBase('/assets/report-card-clean.png')}
@@ -143,8 +155,7 @@ const statusLabel = MCP_STATUS === 'available' ? 'available · remoto' : 'unavai
 			loading="lazy"
 		/>
 		<figcaption>
-			Example data for illustration: the second card is a made-up sample, not a result from a real
-			contract.
+			Illustrative samples: the first uses the figures of a real run on the demo contract but its date and report ID are placeholders; the second is a made-up sample, not a result from a real contract.
 		</figcaption>
 	</figure>
 
@@ -197,6 +208,10 @@ kuyfi <CONTRACT_ID> --json
 		grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 		gap: 1rem;
 		margin: 1rem 0 1.5rem;
+	}
+
+	.cards--one {
+		grid-template-columns: minmax(0, 36rem);
 	}
 
 	.cards img {
