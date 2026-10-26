@@ -51,7 +51,7 @@ Kuyfi is also available as a **remote MCP server**, deployed on Cloudflare Worke
 
 Ask your agent:
 
-> Audit this Testnet contract: `CDYUQGTMJWHPU32VSWVOZ456EUHJMMQXTCFXPFUXPH2JTPV7`
+> Audit this Testnet contract: `CDYUQRWYE6INSGTMJWHPU32VSWVOZ456EUHJMMQXTCFXPFUXPH2JTPV7`
 
 A real run against a small demo contract, in simulation:
 
