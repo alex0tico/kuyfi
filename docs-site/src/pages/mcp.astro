@@ -23,6 +23,20 @@ const toc = [
 	{id: 'fallback', label: 'Sin MCP aún'},
 ];
 
+const REMOTE_MCP_URL = 'https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp';
+const REMOTE_CLAUDE_CODE = `claude mcp add --transport http kuyfi ${REMOTE_MCP_URL}`;
+const REMOTE_CURSOR_JSON = JSON.stringify({mcpServers: {kuyfi: {url: REMOTE_MCP_URL}}}, null, 2);
+const REMOTE_CURSOR_LINK = `cursor://anysphere.cursor-deeplink/mcp/install?name=kuyfi&config=${Buffer.from(JSON.stringify({url: REMOTE_MCP_URL})).toString('base64')}`;
+const REMOTE_VSCODE_JSON = JSON.stringify({name: 'kuyfi', type: 'http', url: REMOTE_MCP_URL});
+const REMOTE_VSCODE_CLI = `code --add-mcp '${REMOTE_VSCODE_JSON}'`;
+const REMOTE_VSCODE_LINK = `vscode:mcp/install?${encodeURIComponent(REMOTE_VSCODE_JSON)}`;
+const REMOTE_TOOLS = [
+	{name: 'list_functions', desc: 'Lista las funciones de un contrato con sus tipos de entrada y de salida.'},
+	{name: 'scan_contract', desc: 'Devuelve la superficie de ataque (funciones y tipos) y guarda el reporte 24 h con un report_id.'},
+	{name: 'fuzz_contract', desc: 'Genera vectores de ataque y los ejecuta solo en simulación contra Testnet (hasta 50 vectores).'},
+	{name: 'get_report', desc: 'Recupera un reporte que creaste antes; solo lo puede leer quien lo creó.'},
+];
+
 const statusLabel =
 	MCP_STATUS === 'available' ? 'available · package live' : 'coming soon · config ready';
 ---
@@ -114,21 +128,94 @@ ${MCP_CONFIG_CURSOR}`}</code></pre>
 	</div>
 	<p>Reinicia Claude Desktop después de guardar.</p>
 
-	<h2 id="http">4 · Server remoto (cuando exista)</h2>
+	<h2 id="http">4 · Server remoto (disponible)</h2>
 	<p>
-		Camino alternativo: apuntar el cliente al <strong>MCP server HTTP de Kuyfi</strong> (host
-		separado del CLI). URL provisional documentada — cámbiala solo cuando el status pase a
-		<em>available</em>:
+		El <strong>MCP server remoto de Kuyfi</strong> está desplegado y no requiere instalar nada: lo
+		agregas a tu agente por URL. La primera vez que te conectas inicias sesión con GitHub.
+		Por defecto <strong>solo simula</strong>: no se envía ninguna transacción ni se manejan claves.
 	</p>
-	<pre><code>{MCP_CONFIG_HTTP}</code></pre>
+	<pre><code>{REMOTE_MCP_URL}</code></pre>
 	<div class="inline-copy">
-		<CopyButton text={MCP_CONFIG_HTTP} label="COPY HTTP CONFIG" />
+		<CopyButton text={REMOTE_MCP_URL} label="COPY URL" />
 	</div>
-	<Callout type="warn" title="stdio vs HTTP">
+
+	<h3 id="http-install">Instalación</h3>
+	<h4>Claude Code</h4>
+	<pre><code>{REMOTE_CLAUDE_CODE}</code></pre>
+	<div class="inline-copy">
+		<CopyButton text={REMOTE_CLAUDE_CODE} label="COPY" />
+	</div>
+
+	<h4>Cursor</h4>
+	<p>
+		Un clic: <a href={REMOTE_CURSOR_LINK}>Add to Cursor</a>. O pega esto en
+		<code>~/.cursor/mcp.json</code> (o en <code>.cursor/mcp.json</code> del proyecto):
+	</p>
+	<pre><code>{REMOTE_CURSOR_JSON}</code></pre>
+	<div class="inline-copy">
+		<CopyButton text={REMOTE_CURSOR_JSON} label="COPY" />
+	</div>
+
+	<h4>VS Code</h4>
+	<p>
+		Un clic: <a href={REMOTE_VSCODE_LINK}>Add to VS Code</a>. O desde la terminal:
+	</p>
+	<pre><code>{REMOTE_VSCODE_CLI}</code></pre>
+	<div class="inline-copy">
+		<CopyButton text={REMOTE_VSCODE_CLI} label="COPY" />
+	</div>
+
+	<h3 id="http-tools">Herramientas del server remoto</h3>
+	<table>
+		<thead>
+			<tr>
+				<th>Tool</th>
+				<th>Qué hace</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				REMOTE_TOOLS.map((t) => (
+					<tr>
+						<td>
+							<code>{t.name}</code>
+						</td>
+						<td>{t.desc}</td>
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+
+	<h3 id="http-limits">Límites y limitaciones</h3>
+	<ul>
+		<li>
+			<strong>Cuota:</strong> 20 corridas de <code>fuzz_contract</code> por hora y por usuario
+			(el mensaje de error indica cuánto falta para volver a intentar). Los reportes duran 24 h.
+		</li>
+		<li>
+			<strong>Solo Testnet</strong>, y <code>fuzz_contract</code> solo acepta
+			<code>mode="simulate"</code>.
+		</li>
+		<li>
+			<strong>Las pruebas de autorización quedan «no evaluadas».</strong> La simulación registra
+			la autorización pero no la aplica, así que una llamada aceptada no dice nada sobre el
+			control de acceso.
+		</li>
+		<li>
+			<strong>La simulación no conserva estado entre llamadas:</strong> las secuencias que
+			dependen de estado (por ejemplo, llamar dos veces a una función de inicialización) no se
+			ejercitan.
+		</li>
+		<li>
+			<strong>Cero hallazgos no es prueba de seguridad.</strong> El reporte dice «no findings in
+			this run»; los resultados inconclusos se informan como inconclusos.
+		</li>
+	</ul>
+	<Callout type="warn" title="Remoto vs. stdio">
 		<p>
-			<strong>stdio</strong> (<code>npx {MCP_PACKAGE}</code>) = local, bueno para Chaos Monkey
-			opt-in. <strong>HTTP</strong> = server remoto; pensado sobre todo para scan read-only /
-			schema. No expongas Chaos Monkey en un endpoint público sin confirmación.
+			El server remoto es la vía sin instalación y de solo simulación. El paquete
+			<strong>stdio</strong> (<code>npx {MCP_PACKAGE}</code>) es local y está descrito arriba.
 		</p>
 	</Callout>
 
