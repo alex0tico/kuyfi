@@ -22,6 +22,78 @@
 
 Kuyfi is a black-box security terminal for Soroban smart contracts. It works directly against a **deployed** contract on Stellar Testnet — fetching and decoding its WASM bytecode on-chain — with no source code and no privileged access required.
 
+## Remote MCP server (built during HackMeridian)
+
+Kuyfi is also available as a **remote MCP server**, deployed on Cloudflare Workers. It lets you audit deployed Soroban contracts from Claude Code, Cursor or VS Code while you code — without installing the CLI or the TUI. You add one URL to your agent and sign in with GitHub the first time you connect.
+
+- **MCP URL:** `https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp`
+- **Landing page (one-click install buttons):** https://kuyfi-mcp.alexbnjmnch.workers.dev/
+- **Docs:** https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/mcp/
+
+### Install
+
+| Client | How |
+|---|---|
+| Claude Code | `claude mcp add --transport http kuyfi https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp` |
+| Cursor | One click from the landing page, or add `{"mcpServers": {"kuyfi": {"url": "https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp"}}}` to `~/.cursor/mcp.json` |
+| VS Code | One click from the landing page, or `code --add-mcp '{"name":"kuyfi","type":"http","url":"https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp"}'` |
+
+### Tools
+
+| Tool | What it does |
+|---|---|
+| `list_functions` | Lists a deployed contract's functions with their input and output types. |
+| `scan_contract` | Returns the attack surface (functions and types) and saves the report for 24 hours, returning a `report_id`. |
+| `fuzz_contract` | Generates attack vectors and runs them in simulation only (`mode="simulate"`, up to 50 vectors). |
+| `get_report` | Retrieves a report you created earlier. Only the GitHub user who created it can read it. |
+
+### Example
+
+Ask your agent:
+
+> Audit this Testnet contract: `CDYUQGTMJWHPU32VSWVOZ456EUHJMMQXTCFXPFUXPH2JTPV7`
+
+A real run against a small demo contract, in simulation:
+
+```
+list_functions  → 3 functions: get_value, set_admin_value, secure_set_admin_value
+scan_contract   → report saved (24 h)
+fuzz_contract   → simulation · 16 vectors · 14 no finding · 2 not evaluated
+                  no findings in this run. Not proof of security.
+```
+
+### What is new in this sprint
+
+New in this sprint (built for HackMeridian):
+
+- The **remote MCP server** itself: a Cloudflare Worker with GitHub login (OAuth), exposing the four tools above.
+- **Simulation by default**, with per-user quotas (20 `fuzz_contract` runs per hour) and private, 24-hour reports.
+- A static **landing page** with one-click install buttons, served by the same Worker.
+- The **MCP section of the docs**, served at `/docs/`.
+
+Already existed before this sprint (unchanged by it):
+
+- The black-box OSINT scanner, the Chaos Monkey fuzzing engine and the finding taxonomy.
+- The headless CLI and the interactive TUI, with JSON and PDF reports.
+- The paid scan API (`kuyfi-server`, x402 on Stellar).
+
+The MCP server reuses the scanner and the vector generation of the existing engine, ported to run inside a Worker; the CLI and TUI are documented as the local alternative and are not replaced.
+
+### Honest limits
+
+- **Testnet only**, and only contracts that are already deployed.
+- **Simulation only:** the server never signs or sends transactions and never handles keys.
+- **Authorization vectors are reported as `not evaluated`.** A simulation records authorization but does not enforce it, so an accepted call says nothing about access control.
+- **No stateful call sequences:** simulations do not keep state between calls, so sequence-dependent behavior is not exercised.
+- **Quotas:** up to 20 `fuzz_contract` runs per hour per user, and at most 50 vectors per run.
+- **Zero findings is not proof of security.** Results are observations and hypotheses; the server does not replace a manual audit.
+
+**Next steps:** tests with state, and wider coverage of authorization.
+
+### Resumen (español)
+
+Kuyfi ahora también existe como **servidor MCP remoto** (Cloudflare Workers): agregas una URL a Claude Code, Cursor o VS Code, inicias sesión con GitHub y auditas contratos Soroban ya desplegados en Testnet sin instalar el CLI ni la TUI. Tiene cuatro herramientas (`list_functions`, `scan_contract`, `fuzz_contract`, `get_report`) y solo simula: no firma ni envía transacciones. Lo nuevo de este sprint es el servidor MCP, sus cuotas, la landing y la sección de docs; el CLI, la TUI, el escáner, Chaos Monkey y la API de pago ya existían. Cero hallazgos no es prueba de seguridad.
+
 ## Why Kuyfi exists
 
 Formal audits (Veridise, Ottersec, CoinFabrik, and peers) require source code, scheduling, and budget. Kuyfi is meant as the layer that comes *before* that: something a developer runs against their own deployed contract to catch obvious, surface-level issues automatically — so a formal audit starts from a cleaner baseline, not so it can be skipped.

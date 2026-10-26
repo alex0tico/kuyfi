@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Remote MCP server (HackMeridian): a Cloudflare Worker with GitHub login (OAuth) that exposes four tools — `list_functions`, `scan_contract`, `fuzz_contract` and `get_report` — to audit deployed Soroban contracts on Testnet from Claude Code, Cursor or VS Code. Simulation only, per-user quotas (20 `fuzz_contract` runs per hour, at most 50 vectors) and private 24-hour reports. Includes a landing page with one-click install and the MCP section of the docs, served under `/docs/` by the same Worker.
 - `kuyfi-server`: paid HTTP endpoint `GET /scan/:contractId` for the OSINT Scanner, charged per scan with x402 on Stellar and priced in CLP through Local402. Chaos Monkey is not exposed over HTTP.
 
 ## [0.1.0] - 2026-09-20
