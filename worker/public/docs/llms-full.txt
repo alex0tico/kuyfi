@@ -1,5 +1,5 @@
 # Kuyfi — full documentation for LLMs and coding agents
-# Source of truth mirror for https://kuyfi.vercel.app/docs
+# Source of truth mirror for https://kuyfi-mcp.alexbnjmnch.workers.dev/docs
 # Package: @kuyfi/kuyfi@0.1.0 | Command: kuyfi | License: MIT
 # Author: Alex B. Hernández Contreras | Repo: https://github.com/alex0tico/kuyfi
 
@@ -217,7 +217,7 @@ The CLI + this file remain the local alternative.
 3. Prefer: kuyfi <ID> --json
 4. Explain POTENTIAL_VULN as investigate-first.
 5. Never claim Mainnet support or that Kuyfi replaces formal audits.
-6. Point humans to https://kuyfi.vercel.app/docs for UI docs.
+6. Point humans to https://kuyfi-mcp.alexbnjmnch.workers.dev/docs for UI docs.
 
 ================================================================================
 13. VECTOR CATALOG (SUMMARY)
@@ -238,7 +238,7 @@ REPEATED_CLAIM_SEQUENCE.
 Fee: BPS_* on fee-shaped numeric params (0,1,9999,10000,10001,type max).
 Liquidity: paired extremes ZERO_A_MAX_B / MAX_A_MAX_B on swap/reserve-shaped fns.
 
-Full page: https://kuyfi.vercel.app/docs/vectors
+Full page: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/vectors
 
 ================================================================================
 14. SCAN ERROR CODES
@@ -249,8 +249,8 @@ XDR_ALIGN_FAILURE   — contractspecv0 parse failed
 RPC_UNAVAILABLE     — transport / endpoint
 UNKNOWN             — catch-all
 
-Troubleshoot: https://kuyfi.vercel.app/docs/troubleshooting
-Glossary: https://kuyfi.vercel.app/docs/glossary
+Troubleshoot: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/troubleshooting
+Glossary: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/glossary
 
 ================================================================================
 15. DOCS SEARCH (HUMANS)
@@ -269,8 +269,8 @@ Markdown for Agents = plain Markdown optimized for LLMs/agents.
 
 Kuyfi provides:
 - Page options → Copy as Markdown / View as Markdown (every HTML docs page)
-- Per-page: https://kuyfi.vercel.app/docs/md/<slug>.md
-- https://kuyfi.vercel.app/docs/agent-setup
+- Per-page: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/md/<slug>.md
+- https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/agent-setup
 - This file + llms.txt
 
 Do NOT tell users that "MDX = Markdown for machines." That is incorrect.

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://kuyfi.vercel.app/docs/sitemap-index.xml
+Sitemap: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/sitemap-index.xml

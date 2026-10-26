@@ -14,6 +14,7 @@ import {
 	MCP_VSCODE_CLI,
 	MCP_VSCODE_LINK,
 } from '../content/mcp';
+import {SITE} from '../content/nav';
 
 export type DocMarkdown = {
 	slug: string;
@@ -630,14 +631,14 @@ On any docs HTML page, use **Copy as Markdown** (page options). Paste into your 
 Every page has a Markdown twin:
 
 \`\`\`
-https://kuyfi.vercel.app/docs/md/<slug>.md
+${SITE.url}/docs/md/<slug>.md
 \`\`\`
 
 Examples:
 
 \`\`\`bash
-curl -sL https://kuyfi.vercel.app/docs/md/chaos-monkey.md
-curl -sL https://kuyfi.vercel.app/docs/md/index.md
+curl -sL ${SITE.url}/docs/md/chaos-monkey.md
+curl -sL ${SITE.url}/docs/md/index.md
 \`\`\`
 
 ### 3. Site-wide feeds
@@ -654,8 +655,8 @@ Human UI at \`/docs/...\` — richer layout, worse token efficiency for models.
 ## Recommended agent bootstrap
 
 \`\`\`text
-Fetch https://kuyfi.vercel.app/docs/llms.txt then https://kuyfi.vercel.app/docs/llms-full.txt.
-For a specific topic, fetch https://kuyfi.vercel.app/docs/md/<slug>.md
+Fetch ${SITE.url}/docs/llms.txt then ${SITE.url}/docs/llms-full.txt.
+For a specific topic, fetch ${SITE.url}/docs/md/<slug>.md
 (e.g. vectors, findings, report-schema).
 Kuyfi is Testnet-only black-box Soroban security CLI (@kuyfi/kuyfi).
 Findings are signals, not formal audit results. A hosted MCP server is available (see /docs/mcp).

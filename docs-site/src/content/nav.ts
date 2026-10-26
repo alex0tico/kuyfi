@@ -66,7 +66,8 @@ export const SITE = {
 	version: 'v0.1.0',
 	description:
 		'Black-box security terminal for Soroban smart contracts — attack-surface reconstruction and Chaos Monkey fuzzing against deployed Testnet contracts, no source code required.',
-	url: 'https://kuyfi.vercel.app',
+	// Follows `site` in astro.config.mjs (DOCS_SITE at build time).
+	url: (import.meta.env.SITE ?? 'https://kuyfi.vercel.app').replace(/\/$/, ''),
 	github: 'https://github.com/alex0tico/kuyfi',
 	npm: 'https://www.npmjs.com/package/@kuyfi/kuyfi',
 	install: 'npm install -g @kuyfi/kuyfi',

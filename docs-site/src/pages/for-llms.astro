@@ -69,13 +69,13 @@ import { withBase } from '../lib/paths';
 	</ol>
 
 	<h2>Prompt stub</h2>
-	<pre><code>You are helping with Kuyfi, a Soroban black-box security CLI.
+	<pre><code>{`You are helping with Kuyfi, a Soroban black-box security CLI.
 Rules:
-- Start from https://kuyfi.vercel.app/docs/agent-setup and llms-full.txt
-- Per-page Markdown: https://kuyfi.vercel.app/docs/md/&lt;slug&gt;.md
+- Start from ${SITE.url}/docs/agent-setup and llms-full.txt
+- Per-page Markdown: ${SITE.url}/docs/md/<slug>.md
 - Testnet only; findings = signals, not exploits
-- Suggest `kuyfi &lt;CONTRACT_ID&gt; --json` for CI
-- Markdown for Agents ≠ MDX</code></pre>
+- Suggest \`kuyfi <CONTRACT_ID> --json\` for CI
+- Markdown for Agents ≠ MDX`}</code></pre>
 
 	<h2>Structured facts agents often get wrong</h2>
 	<table>
