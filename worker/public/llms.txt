@@ -25,4 +25,4 @@ Add it from Claude Code:
 ## Links
 
 - Source (MIT): https://github.com/alex0tico/kuyfi
-- Docs: https://github.com/alex0tico/kuyfi#readme
+- Docs: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/ (MCP setup: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/mcp)
