@@ -9,6 +9,7 @@ const toc = [
 	{id: 'scan', label: 'Scanner errors'},
 	{id: 'chaos', label: 'Chaos Monkey'},
 	{id: 'reports', label: 'Reports'},
+	{id: 'tui', label: 'TUI'},
 	{id: 'server', label: 'Paid server'},
 ];
 ---
@@ -53,6 +54,14 @@ const toc = [
 			<tr>
 				<td><code>invalid</code> Contract ID</td>
 				<td>Must match <code>C</code> + 55 <code>A-Z0-9</code> characters — no lowercase.</td>
+			</tr>
+			<tr>
+				<td>Exit <code>0</code> but findings are CRITICAL</td>
+				<td>
+					<strong>Not a bug.</strong> Exit codes mean tool success/failure, not severity.
+					Parse JSON <code>summary</code> / <code>findings</code> in CI. See
+					<a href={withBase('/cli')}>CLI</a>.
+				</td>
 			</tr>
 		</tbody>
 	</table>
@@ -111,11 +120,17 @@ const toc = [
 			</tr>
 			<tr>
 				<td>Friendbot / funding fails</td>
-				<td>Testnet faucet hiccup — retry later; check RPC health.</td>
+				<td>
+					3 retries then throw. Testnet faucet hiccup — retry later; check RPC health.
+					Headless surfaces as <code>Audit failed: Ephemeral keypair funding failed…</code>
+				</td>
 			</tr>
 			<tr>
 				<td>Many TIMEOUTs</td>
-				<td>Network congestion or slow confirmations — rerun; treat as LOW / inconclusive.</td>
+				<td>
+					Poll window is 20 × 1s after send. Network congestion or slow confirmations —
+					rerun; treat as LOW / inconclusive.
+				</td>
 			</tr>
 			<tr>
 				<td>Function skipped</td>
@@ -136,16 +151,62 @@ const toc = [
 
 	<h2 id="reports">Reports</h2>
 	<ul>
+		<li>
+			<code>Refusing to overwrite existing file: kuyfi-report-…</code> —
+			rename or delete the existing report, then re-export (writes use <code>wx</code>).
+		</li>
 		<li>JSON and PDF disagree? They shouldn’t — same <code>reportId</code>. Re-export from one run.</li>
 		<li>Missing explorer URL? Simulation-only classification never broadcasts.</li>
 		<li>CI parse errors? Gate on <code>schemaVersion === "1.0.0"</code> — see <a href={withBase('/report-schema')}>schema</a>.</li>
 	</ul>
 
-	<h2 id="server">Paid scan server</h2>
+	<h2 id="tui">TUI</h2>
 	<ul>
-		<li><code>PAY_TO</code> missing / secret key → use a public <code>G…</code> only.</li>
-		<li>Always 402 → client must complete x402 payment (Local402 client quote flow).</li>
-		<li>400 before quote → malformed Contract ID.</li>
+		<li>
+			Chaos Monkey blocked with “Run OSINT Scanner first…” — expected. Scan in this session
+			before opening Chaos Monkey.
+		</li>
+		<li>
+			System Logs looks “always green” — <code>LogsScreen</code> is static status text, not
+			a live RPC diagnostic stream.
+		</li>
+		<li>
+			Terminal too small (&lt; 70 cols or &lt; 20 rows) → <code>TooSmallNotice</code>; resize
+			and continue.
+		</li>
+	</ul>
+
+	<h2 id="server">Paid scan server</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Status</th>
+				<th>Meaning</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>400</code></td>
+				<td>
+					<code>INVALID_CONTRACT_ID</code> before paywall — fix the ID shape
+				</td>
+			</tr>
+			<tr>
+				<td><code>402</code></td>
+				<td>Complete x402 payment (Local402 client quote flow)</td>
+			</tr>
+			<tr>
+				<td><code>404</code> / <code>422</code> / <code>502</code> / <code>500</code></td>
+				<td>
+					Scan failed after auth — body <code>&#123; "error": "&lt;ScanErrorCode&gt;" &#125;</code>;
+					<strong>not settled</strong> (payer not charged)
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<ul>
+		<li><code>PAY_TO</code> missing / secret key → use a public <code>G…</code> only; server exits 1 without it.</li>
 		<li>Chaos Monkey over HTTP? Intentionally unsupported.</li>
+		<li>Full contract → <a href={withBase('/paid-api')}>Paid scan API</a>.</li>
 	</ul>
 </DocsLayout>

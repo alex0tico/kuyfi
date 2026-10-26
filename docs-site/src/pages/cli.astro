@@ -1,13 +1,29 @@
 ---
 import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import { withBase } from '../lib/paths';
+
+const toc = [
+	{id: 'binaries', label: 'Binaries'},
+	{id: 'modes', label: 'Modes'},
+	{id: 'flags', label: 'Flags & files'},
+	{id: 'contract-id', label: 'Contract ID'},
+	{id: 'exit', label: 'Exit codes'},
+	{id: 'errors', label: 'Error messages'},
+	{id: 'stdout', label: 'Stdout summary'},
+	{id: 'network', label: 'Network'},
+];
 ---
 
 <DocsLayout
 	title="CLI reference"
 	eyebrow="[ 08 · CLI ]"
-	description="Headless and interactive entry points — same audit engine."
+	description="Headless and interactive entry points — same audit engine, explicit exit semantics for CI."
 >
-	<h2>Binaries</h2>
+	<Toc items={toc} />
+
+	<h2 id="binaries">Binaries</h2>
 	<table>
 		<thead>
 			<tr>
@@ -20,27 +36,55 @@ import DocsLayout from '../layouts/DocsLayout.astro';
 			<tr>
 				<td><code>kuyfi</code></td>
 				<td><code>dist/cli.js</code></td>
-				<td>TUI or headless audit</td>
+				<td>TUI (no args) or headless audit (Contract ID)</td>
 			</tr>
 			<tr>
 				<td><code>kuyfi-server</code></td>
 				<td><code>dist/server.js</code></td>
-				<td>Paid OSINT HTTP API</td>
+				<td>Paid OSINT HTTP API — see <a href={withBase('/paid-api')}>Paid scan API</a></td>
 			</tr>
 		</tbody>
 	</table>
 
-	<h2>Modes</h2>
+	<h2 id="modes">Modes</h2>
 	<p>
-		<code>cli.tsx</code> uses <code>meow</code> + <code>selectCliMode()</code>:
-		<code>tui</code> | <code>headless</code> | <code>invalid</code>.
+		<code>cli.tsx</code> uses <code>meow</code> + <code>selectCliMode()</code> in
+		<code>cli_runtime.ts</code>:
 	</p>
+	<table>
+		<thead>
+			<tr>
+				<th>Mode</th>
+				<th>When</th>
+				<th>Behavior</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>tui</code></td>
+				<td>No positional args</td>
+				<td>Interactive Ink TUI</td>
+			</tr>
+			<tr>
+				<td><code>headless</code></td>
+				<td>Valid Contract ID</td>
+				<td><code>runHeadlessAudit()</code> — full OSINT + Chaos Monkey</td>
+			</tr>
+			<tr>
+				<td><code>invalid</code></td>
+				<td>Positional arg that fails the ID regex</td>
+				<td>Prints expected shape; exits <code>1</code></td>
+			</tr>
+		</tbody>
+	</table>
 
-	<pre><code># Interactive TUI (no args)
+	<pre><code># Interactive TUI
 kuyfi
 
-# Headless audit
+# Headless audit (stdout summary only)
 kuyfi &lt;CONTRACT_ID&gt;
+
+# Headless + exports
 kuyfi &lt;CONTRACT_ID&gt; --json
 kuyfi &lt;CONTRACT_ID&gt; --pdf
 kuyfi &lt;CONTRACT_ID&gt; --json --pdf
@@ -49,20 +93,146 @@ kuyfi &lt;CONTRACT_ID&gt; --json --pdf
 npm start
 node dist/cli.js &lt;CONTRACT_ID&gt; --json</code></pre>
 
-	<h2>Contract ID shape</h2>
-	<pre><code>/^C[A-Z0-9]&#123;55&#125;$/</code></pre>
+	<h2 id="flags">Flags &amp; file names</h2>
+	<p>v0.1.0 exposes exactly two flags — no verbosity, timeout, or network selector:</p>
+	<table>
+		<thead>
+			<tr>
+				<th>Flag</th>
+				<th>Writes</th>
+				<th>Default filename</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>--json</code></td>
+				<td>SecurityReport JSON</td>
+				<td><code>kuyfi-report-&lt;reportId&gt;.json</code></td>
+			</tr>
+			<tr>
+				<td><code>--pdf</code></td>
+				<td>SecurityReport PDF</td>
+				<td><code>kuyfi-report-&lt;reportId&gt;.pdf</code></td>
+			</tr>
+		</tbody>
+	</table>
 
-	<h2>Exit / errors</h2>
+	<ul>
+		<li>
+			When both flags are set, <code>buildSecurityReport()</code> runs <strong>once</strong>
+			— JSON and PDF share the same <code>reportId</code> / findings.
+		</li>
+		<li>
+			Writes use <code>flag: 'wx'</code> — never silent overwrite. Collision →
+			<code>Refusing to overwrite existing file: …</code> and exit <code>1</code>.
+		</li>
+		<li>
+			If JSON succeeds and PDF then fails (or vice versa), the process still exits
+			<code>1</code>; the successful path is still reported when available.
+		</li>
+	</ul>
+
+	<h2 id="contract-id">Contract ID shape</h2>
+	<pre><code>/^C[A-Z0-9]&#123;55&#125;$/
+# Exactly 56 characters: C + 55 uppercase A–Z / 0–9 (no lowercase)</code></pre>
 	<p>
-		Headless path lives in <code>cli_runtime.ts</code>
-		(<code>runHeadlessAudit()</code>). Scan failures surface structured
-		<code>ScanError</code> codes; presentation formatting is CLI-specific but classification
-		is shared.
+		Invalid ID message: <code>Expected 56 characters starting with C (A-Z, 0-9)</code>.
 	</p>
 
-	<h2>Network</h2>
+	<h2 id="exit">Exit codes</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Code</th>
+				<th>Meaning</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>0</code></td>
+				<td>
+					Audit completed (scan + Chaos Monkey finished). <strong>Independent of
+					finding severity</strong> — CRITICAL findings still exit 0.
+				</td>
+			</tr>
+			<tr>
+				<td><code>1</code></td>
+				<td>
+					Tool failure: invalid Contract ID, <code>ScanError</code>, Chaos Monkey
+					internal throw, or export I/O (including EEXIST overwrite refusal).
+				</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<Callout type="warn" title="CI pitfall">
+		<p>
+			Do <strong>not</strong> treat exit code as “vulnerabilities found.” Parse the
+			JSON report (<code>summary</code> / <code>findings</code>) for severity gates.
+			See <a href={withBase('/reports')}>Reports</a>.
+		</p>
+	</Callout>
+
+	<h2 id="errors">Error messages (<code>describeAuditError</code>)</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Source</th>
+				<th>CLI text</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>CONTRACT_NOT_FOUND</code></td>
+				<td>Contract not found on Testnet. Check the Contract ID.</td>
+			</tr>
+			<tr>
+				<td><code>XDR_ALIGN_FAILURE</code></td>
+				<td>Could not parse the contract spec (contractspecv0 section missing or invalid).</td>
+			</tr>
+			<tr>
+				<td><code>RPC_UNAVAILABLE</code></td>
+				<td>Soroban Testnet RPC is unreachable.</td>
+			</tr>
+			<tr>
+				<td><code>UNKNOWN</code> ScanError</td>
+				<td><code>Scan failed: &lt;message&gt;</code></td>
+			</tr>
+			<tr>
+				<td>Other thrown Error</td>
+				<td><code>Audit failed: &lt;message&gt;</code></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="stdout">Stdout summary</h2>
+	<p>
+		On a successful headless run, stdout starts with
+		<code>formatAuditSummary()</code>:
+	</p>
+	<pre><code>KUYFI AUDIT COMPLETE
+
+Contract: C…
+Network: TESTNET
+Functions scanned: N
+Vectors executed: N
+Findings: N
+  Critical / High / Medium / Low / Info: …
+
+Evidence:
+  Broadcast transactions: N
+  Transactions with hash: N</code></pre>
+	<p>
+		Progress during the run comes from <code>onProgress</code> in <code>audit.ts</code>
+		(e.g. scanning / Chaos Monkey stage lines). With <code>--json</code> /
+		<code>--pdf</code>, successful paths append
+		<code>JSON report written to: …</code> / <code>PDF report written to: …</code>.
+	</p>
+
+	<h2 id="network">Network</h2>
 	<p>
 		RPC URL is a single constant in <code>network.ts</code>:
-		<code>https://soroban-testnet.stellar.org</code>. No mainnet selector in v0.1.0.
+		<code>https://soroban-testnet.stellar.org</code>. No mainnet selector, no
+		<code>--rpc</code> flag in v0.1.0.
 	</p>
 </DocsLayout>

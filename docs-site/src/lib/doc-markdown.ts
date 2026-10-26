@@ -210,15 +210,33 @@ vector → simulate
 
 **Type-correct ≠ semantically valid.** Random Address ≠ admin.
 
+## Session order (\`runChaosMonkey\`)
+
+1. Ephemeral keypair + Friendbot (3 retries; poll confirm 10×1s)
+2. Per function: math → access → fee → liquidity
+3. Once per session: call-order sequences
+4. Aggregate ChaosReport (\`SECURE\` / \`PRECONDITION_FAIL\` filtered from findings list)
+
+## expectedToFail
+
+- Authorization family: \`true\`
+- Math / fee / liquidity / call-order: \`false\`
+
+## Router constants
+
+- \`BASE_FEE='100'\`, tx timeout 30s
+- Poll getTransaction: 20×1000ms → \`TIMEOUT\`
+- \`broadcasted\` vs hash: hash may exist on SEND_ERROR with \`broadcasted:false\`
+
 ## Five families
 
 1. Math / boundary
 2. Authorization / access control
-3. Call ordering
-4. Fee / BPS
-5. Liquidity ratio
+3. Fee / BPS
+4. Liquidity ratio
+5. Call ordering (end of session)
 
-See full catalog: /docs/vectors
+Full catalog: /docs/vectors
 
 Keys never persisted. Testnet only.
 `,
@@ -229,32 +247,43 @@ Keys never persisted. Testnet only.
 		'Complete Chaos Monkey vector catalog.',
 		`# Attack vectors reference
 
-## Math / boundary (\`fuzzer_math.ts\`)
+## Math / boundary (\`fuzzer_math.ts\` + \`type_gen.ts\`)
 
-OAT mutations. Labels: \`ZERO\`, \`ONE\`, \`NEG_ONE\`, \`MAX_*\`/\`MIN_*\`, \`RANDOM_ADDR_A/B\`, \`EMPTY_BYTES\`, \`EMPTY_VEC\`, \`NONE\`, recursive UDTs. Names like \`amount::MAX_I128\`.
+OAT mutations. Unsigned: no \`NEG_ONE\`/\`MIN_*\`. Symbol: \`LONG_SYMBOL\`(32) \`OVERSIZE_SYMBOL\`(64). String \`LONG_STR\`=256. Bytes \`LARGE_BYTES\`=256. \`MAX_UDT_DEPTH=4\`. Names like \`amount::MAX_I128\`.
 
 ## Authorization (\`fuzzer_access.ts\`)
 
 | Vector | Targets |
 |--------|---------|
-| \`UNAUTHORIZED_CALL\` | Admin-pattern names |
+| \`UNAUTHORIZED_CALL\` | Admin-pattern substrings |
 | \`REINIT_ATTACK\` | initialize / init / setup |
-| \`SELF_CALL_ATTACK\` | set_admin family |
+| \`SELF_CALL_ATTACK\` | **exact** \`set_admin\` \| \`set_pending_admin\` \| \`transfer_admin\` |
 | \`UNAUTHORIZED_ADDR_CALL\` | Non-admin + Address param |
 
 Admin substrings: pause, unpause, initialize, init, setup, upgrade, set_admin, set_pending_admin, transfer_admin, emergency.
 
-## Call ordering
+Only this family sets \`expectedToFail=true\`.
 
-\`REINIT_SEQUENCE\`, \`REPEATED_WITHDRAW_SEQUENCE\`, \`REPEATED_CLAIM_SEQUENCE\`
+## Call ordering (\`fuzzer_call_order.ts\`)
 
-## Fee / BPS
+Once per session. ≤1 fn per group; no reuse across groups.
 
-\`BPS_*\`: 0, 1, 9999, 10000, 10001, type max
+| Group | Patterns |
+|-------|----------|
+| \`REINIT_SEQUENCE\` | initialize, init, setup |
+| \`REPEATED_WITHDRAW_SEQUENCE\` | withdraw, remove |
+| \`REPEATED_CLAIM_SEQUENCE\` | \`claim\` only (no harvest) |
 
-## Liquidity
+## Fee / BPS (\`fuzzer_fee.ts\`)
 
-\`ZERO_A_MAX_B\`, \`MAX_A_MAX_B\`, … on swap/reserve-shaped names
+Param name \`/fee|fees|bps|basis_point/i\` + numeric types.
+Labels: \`BPS_0|1|9999|10000|10001\` + \`MAX_<TYPE>\`.
+
+## Liquidity (\`fuzzer_liquidity.ts\`)
+
+Fn name \`/liquidity|swap|reserve/i\`; first two numeric params.
+Labels: \`ZERO_A_MAX_B\`, \`MAX_A_ZERO_B\`, \`MAX_A_MAX_B\`, \`ONE_A_MAX_B\`, \`MAX_A_ONE_B\`, \`MIN_A_MAX_B\` (signed A only).
+Name: \`LIQUIDITY::<paramA>x<paramB>::<pairLabel>\`
 `,
 	),
 	page(
@@ -289,14 +318,27 @@ IDs: \`KYF-NNN\`. Traces from DiagnosticEvents.
 
 One \`SecurityReport\` (\`schemaVersion: "1.0.0"\`). JSON and PDF are the same object.
 
+## reportId
+
+\`kyf-<ISO-stamp>-<8 uuid chars>\` — not derived from Contract ID alone. Headless \`--json --pdf\` share one \`buildSecurityReport()\` call.
+
 ## Evidence
 
-- Run-wide counters
+- Run-wide counters (\`broadcastTransactions\` / \`transactionsWithHash\` over all results)
 - Per-finding simulation/broadcast + trace
-- Hash, ledger, stellar.expert URL when broadcast
-- \`verificationTransactions\` sample (first success + first fail)
+- Hash, ledger, \`https://stellar.expert/explorer/testnet/tx/<hash>\` when broadcast
+- \`verificationTransactions\`: at most 2 — first success+hash and first failed+hash
 
-TUI: \`[J]\` \`[P]\` \`[B]\` · CLI: \`--json\` \`--pdf\`
+## Export policy
+
+- Filenames: \`kuyfi-report-<reportId>.json|.pdf\`
+- Writes use \`flag: 'wx'\` — \`Refusing to overwrite existing file: …\`
+- TUI \`[J]/[P]/[B]\`: formats attempted independently
+- CLI write failure → exit 1
+
+## CI
+
+Exit 0 with CRITICAL findings is expected. Gate on JSON \`summary\`/\`findings\`, not process exit. Do not treat \`POTENTIAL_VULN\` as confirmed CVE.
 
 Schema details: /docs/report-schema
 `,
@@ -329,20 +371,49 @@ Do not auto-fail CI as “CVE confirmed” on \`POTENTIAL_VULN\`.
 
 ## Binaries
 
-- \`kuyfi\` → \`dist/cli.js\`
-- \`kuyfi-server\` → \`dist/server.js\`
+- \`kuyfi\` → \`dist/cli.js\` (TUI or headless)
+- \`kuyfi-server\` → \`dist/server.js\` (paid OSINT)
+
+## Modes (\`selectCliMode\`)
+
+- no args → \`tui\`
+- valid Contract ID → \`headless\` (\`runHeadlessAudit\`)
+- invalid ID → \`invalid\` → exit 1
 
 ## Usage
 
 \`\`\`bash
 kuyfi
 kuyfi <CONTRACT_ID>
+kuyfi <CONTRACT_ID> --json
+kuyfi <CONTRACT_ID> --pdf
 kuyfi <CONTRACT_ID> --json --pdf
 \`\`\`
 
-Contract ID: \`/^C[A-Z0-9]{55}$/\`
+Flags only: \`--json\` / \`--pdf\`. Files: \`kuyfi-report-<reportId>.json|.pdf\` (\`wx\` — no overwrite).
 
-RPC: \`https://soroban-testnet.stellar.org\` (hardcoded)
+Contract ID: \`/^C[A-Z0-9]{55}$/\` — "Expected 56 characters starting with C (A-Z, 0-9)."
+
+## Exit codes
+
+- \`0\` — audit completed (even with CRITICAL findings)
+- \`1\` — tool failure (ScanError, invalid ID, I/O / EEXIST)
+
+CI: parse JSON for severity — do not use exit as vuln signal.
+
+## Errors (\`describeAuditError\`)
+
+| Code | Message |
+|------|---------|
+| CONTRACT_NOT_FOUND | Contract not found on Testnet… |
+| XDR_ALIGN_FAILURE | Could not parse the contract spec… |
+| RPC_UNAVAILABLE | Soroban Testnet RPC is unreachable. |
+| UNKNOWN | Scan failed: \<msg\> |
+| other | Audit failed: \<msg\> |
+
+Stdout success starts with \`KUYFI AUDIT COMPLETE\` + counters.
+
+RPC: \`https://soroban-testnet.stellar.org\` (hardcoded; no --rpc).
 `,
 	),
 	page(
@@ -351,13 +422,14 @@ RPC: \`https://soroban-testnet.stellar.org\` (hardcoded)
 		'Ink terminal UI.',
 		`# Interactive TUI
 
-1. OSINT Scanner
-2. Chaos Monkey
-3. System Logs
+1. OSINT Scanner — stores \`lastScanResult\`
+2. Chaos Monkey — **requires** prior scan in-session (notice if null)
+3. System Logs — **static** status panel (not live RPC stream)
 4. About
 
-Layout: large (≥100 cols) / compact / tooSmall.
-Exports: \`[J]\` JSON · \`[P]\` PDF · \`[B]\` both.
+Layout: large (≥100 cols) / compact (70–99) / tooSmall (<70 cols or <20 rows → TooSmallNotice).
+Resize: debounced clear without killing in-flight runs.
+Exports: \`[J]\` JSON · \`[P]\` PDF · \`[B]\` both (\`wx\` policy). Quit → exit 0.
 `,
 	),
 	page(
@@ -368,13 +440,39 @@ Exports: \`[J]\` JSON · \`[P]\` PDF · \`[B]\` both.
 
 \`\`\`
 GET /scan/<CONTRACT_ID>
+  → 400 INVALID_CONTRACT_ID (before paywall)
   → 402 Payment Required
   → 200 OK (scan surface)
+  → 404/422/502/500 scan fail (not settled)
 \`\`\`
 
 **Scanner only.** Chaos Monkey never over HTTP.
 
-Env: \`PAY_TO\` (public G…), \`PRICE\` (default \`500 CLP\`), \`NETWORK\`, \`PORT\` (4021).
+## 200 body
+
+\`{ contractId, network: "testnet", bytecodeSize, …toPublicScan(scan) }\`
+
+## Status map
+
+| ScanError | HTTP |
+|-----------|------|
+| CONTRACT_NOT_FOUND | 404 |
+| XDR_ALIGN_FAILURE | 422 |
+| RPC_UNAVAILABLE | 502 |
+| UNKNOWN | 500 |
+
+Failure body: \`{ "error": "<code>" }\`. x402 settles only if status < 400.
+
+## Env
+
+- \`PAY_TO\` required (public G…) — missing → exit 1
+- \`PRICE\` default \`500 CLP\`
+- \`NETWORK\` \`stellar:testnet\` | \`stellar:pubnet\` (payment; scans always Testnet)
+- \`FACILITATOR_URL\` defaults: testnet \`https://local402.vercel.app/facilitator\`; pubnet \`https://local402-mainnet.vercel.app/facilitator\`
+- \`PORT\` 4021
+- \`LOCAL402_QUOTE_SECRET\` multi-instance only
+
+Startup: \`kuyfi-server: GET http://localhost:<port>/scan/<CONTRACT_ID>\`
 `,
 	),
 	page(
@@ -416,6 +514,12 @@ Security: no key storage · Testnet only · paid endpoint scan-only · simulate-
 		'Common failures.',
 		`# Troubleshooting
 
+## CLI
+
+- Exit 0 with CRITICAL findings = expected (parse JSON for severity)
+- \`Refusing to overwrite existing file\` → rename/delete prior report (\`wx\`)
+- Invalid ID → Expected 56 characters starting with C (A-Z, 0-9)
+
 ## Scanner
 
 | Code | Try |
@@ -427,7 +531,16 @@ Security: no key storage · Testnet only · paid endpoint scan-only · simulate-
 ## Chaos Monkey
 
 Many PRECONDITION results = normal (ephemeral account not authorized).
+Friendbot: 3 retries then throw. TIMEOUT = 20×1s poll window.
 Zero findings ≠ secure.
+
+## TUI
+
+Chaos without prior OSINT → notice, not crash. LogsScreen is static (not live RPC).
+
+## Paid API
+
+400 before quote; 404/422/502/500 after auth not settled. PAY_TO required.
 
 ## Windows
 
