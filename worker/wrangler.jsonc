@@ -29,6 +29,8 @@
       "/.well-known/*"
     ]
   },
+  // Fonts for the report card are bundled as raw data; resvg-wasm is imported as a module.
+  "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }],
   "vars": {
     // Subrequests per MCP request: 50 on the Workers Free plan. Raise on a paid plan.
     "SUBREQUEST_BUDGET": "50"
