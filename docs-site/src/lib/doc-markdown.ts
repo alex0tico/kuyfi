@@ -709,6 +709,11 @@ ${MCP_VSCODE_CLI}
 
 ${MCP_TOOLS.map(t => `- \`${t.name}\` — ${t.desc}`).join('\n')}
 
+## Report card
+
+\`report_card\` returns a PNG summary card plus the same summary as text; the client decides whether to show the image.
+Example data for illustration: the second card is a made-up sample, not a result from a real contract.
+
 ## Limits
 
 ${MCP_LIMITS.map(l => `- ${l}`).join('\n')}

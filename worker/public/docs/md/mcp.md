@@ -54,6 +54,11 @@ code --add-mcp '{"name":"kuyfi","type":"http","url":"https://kuyfi-mcp.alexbnjmn
 - `get_report` — Recupera un reporte que creaste antes; solo lo puede leer quien lo creó.
 - `report_card` — Genera una tarjeta PNG con el resumen de un reporte tuyo, más el mismo resumen en texto; solo la ve quien creó el reporte.
 
+## Report card
+
+`report_card` returns a PNG summary card plus the same summary as text; the client decides whether to show the image.
+Example data for illustration: the second card is a made-up sample, not a result from a real contract.
+
 ## Limits
 
 - Cuota: 20 corridas de fuzz_contract por hora y por usuario; los reportes duran 24 h.

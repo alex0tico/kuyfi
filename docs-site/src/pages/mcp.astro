@@ -122,6 +122,32 @@ const statusLabel = MCP_STATUS === 'available' ? 'available · remoto' : 'unavai
 		</tbody>
 	</table>
 
+	<h3 id="report-card">Report card</h3>
+	<p>
+		<code>report_card</code> devuelve una imagen PNG con el resumen del reporte y el mismo resumen
+		en texto; el cliente decide si muestra la imagen.
+	</p>
+	<figure class="cards">
+		<img
+			src={withBase('/assets/report-card-clean.png')}
+			alt="Report card de una corrida de fuzz sin hallazgos: 16 de 16 vectores ejecutados, 14 sin hallazgo, 2 no evaluados"
+			width="1200"
+			height="630"
+			loading="lazy"
+		/>
+		<img
+			src={withBase('/assets/report-card-findings.png')}
+			alt="Report card de una corrida de fuzz con hallazgos: 1 supported, 2 hypothesis, 2 inconclusive; tres listados y +2 more"
+			width="1200"
+			height="630"
+			loading="lazy"
+		/>
+		<figcaption>
+			Example data for illustration: the second card is a made-up sample, not a result from a real
+			contract.
+		</figcaption>
+	</figure>
+
 	<h2 id="limits">6 · Límites y limitaciones</h2>
 	<ul>
 		{MCP_LIMITS.map((l) => <li>{l}</li>)}
@@ -166,6 +192,26 @@ kuyfi <CONTRACT_ID> --json
 </DocsLayout>
 
 <style>
+	.cards {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+		gap: 1rem;
+		margin: 1rem 0 1.5rem;
+	}
+
+	.cards img {
+		width: 100%;
+		height: auto;
+		border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+		border-radius: var(--radius-lg);
+	}
+
+	.cards figcaption {
+		grid-column: 1 / -1;
+		font-size: 0.8rem;
+		color: var(--text-dim);
+	}
+
 	.hero-row {
 		display: flex;
 		flex-wrap: wrap;

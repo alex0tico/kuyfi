@@ -48,6 +48,17 @@ Kuyfi is also available as a **remote MCP server**, deployed on Cloudflare Worke
 | `get_report` | Retrieves a report you created earlier. Only the GitHub user who created it can read it. |
 | `report_card` | Renders a PNG summary card (plus the same summary as text) for one of your reports. Same owner-only rule as `get_report`. |
 
+### Report card
+
+`report_card` returns a PNG summary card plus the same summary as text; the client decides whether to show the image.
+
+<p>
+  <img src="docs/assets/report-card-clean.png" alt="Report card for a fuzz run with no findings: 16 of 16 vectors executed, 14 with no finding, 2 not evaluated" width="48%">
+  <img src="docs/assets/report-card-findings.png" alt="Report card for a fuzz run with findings: 1 supported, 2 hypothesis, 2 inconclusive; three listed and +2 more" width="48%">
+</p>
+
+*Example data for illustration: the second card is a made-up sample, not a result from a real contract.*
+
 ### Example
 
 Ask your agent:
