@@ -121,6 +121,10 @@ describe('report card SVG', () => {
 		// Everything between the logo's own <svg> tags is byte-identical to the file.
 		const inner = (s: string) => s.slice(s.indexOf('>', s.indexOf('<svg')) + 1, s.lastIndexOf('</svg>')).trim();
 		expect(svg).toContain(inner(logo));
+		// The white cat, without the black background tile (only that rectangle was removed from the original file).
+		expect(logo).toContain('fill: #fff');
+		expect(logo).not.toMatch(/<rect\b/);
+		expect(inner(svg)).toContain('class="cls-1"');
 		// Tagline next to it, wordmark kept because the logo has no text.
 		expect(svg).toContain('BEFORE THE BREACH');
 		expect(svg).toContain('>KUYFI<');

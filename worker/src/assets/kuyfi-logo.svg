@@ -3,16 +3,10 @@
   <defs>
     <style>
       .cls-1 {
-        fill: #ebb700;
-      }
-
-      .cls-2 {
-        fill: #8e2f87;
+        fill: #fff;
       }
     </style>
   </defs>
-  <rect class="cls-2" x="431.51" width="1080" height="1080"/>
-  <rect class="cls-2" width="1080" height="1080"/>
   <g>
     <line class="cls-1" x1="680.29" y1="559.86" x2="680.27" y2="559.88"/>
     <g>
