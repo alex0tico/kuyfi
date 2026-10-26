@@ -66,4 +66,4 @@ Findings are signals, not formal audit results. A hosted MCP server is available
 ## MCP
 
 **MCP Connect** → `/docs/mcp#connect` — wire agents to the hosted Kuyfi MCP server (https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp).
-Simulation only; sign in with GitHub on first connect. Tools: list_functions, scan_contract, fuzz_contract, get_report.
+Simulation only; sign in with GitHub on first connect. Tools: list_functions, scan_contract, fuzz_contract, get_report, report_card.

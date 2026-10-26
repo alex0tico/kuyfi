@@ -33,7 +33,7 @@ curl -sL https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/md/chaos-monkey.md
 - Only fuzz contracts the user owns or is authorized to test.
 - Paid HTTP API exposes OSINT scan only — never Chaos Monkey.
 - Ephemeral Friendbot keypairs; secrets are not persisted.
-- MCP: hosted server at https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp (simulation only, GitHub login; tools list_functions, scan_contract, fuzz_contract, get_report). Setup: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/mcp#connect (“Conectar el MCP al server de Kuyfi”).
+- MCP: hosted server at https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp (simulation only, GitHub login; tools list_functions, scan_contract, fuzz_contract, get_report, report_card). Setup: https://kuyfi-mcp.alexbnjmnch.workers.dev/docs/mcp#connect (“Conectar el MCP al server de Kuyfi”).
 
 ## Install
 

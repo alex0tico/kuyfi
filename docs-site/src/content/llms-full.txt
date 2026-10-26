@@ -201,7 +201,8 @@ Sign in with GitHub on first connect. Testnet only, simulation only: no
 transactions are sent and no keys are handled.
 
 Tools:
-  list_functions, scan_contract, fuzz_contract, get_report
+  list_functions, scan_contract, fuzz_contract, get_report, report_card
+  (report_card: PNG summary card plus the same summary as text, owner-only)
 
 Limits: 20 fuzz_contract runs per hour per user; authorization checks are
 reported as not evaluated (a simulation does not enforce authorization); no

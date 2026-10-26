@@ -277,7 +277,7 @@ export const SEARCH_INDEX: SearchEntry[] = [
 		hash: 'connect',
 		group: 'Agents & MCP',
 		blurb: 'Remote Kuyfi MCP server: install in Claude Code, Cursor or VS Code (simulation only).',
-		body: 'conectar mcp server kuyfi remoto claude code cursor vscode list_functions scan_contract fuzz_contract get_report cuota simulacion connect button',
+		body: 'conectar mcp server kuyfi remoto claude code cursor vscode list_functions scan_contract fuzz_contract get_report report_card cuota simulacion connect button',
 		keywords: [
 			'mcp',
 			'connect',

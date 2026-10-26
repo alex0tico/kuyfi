@@ -38,6 +38,10 @@ export const MCP_TOOLS = [
 		name: 'get_report',
 		desc: 'Recupera un reporte que creaste antes; solo lo puede leer quien lo creó.',
 	},
+	{
+		name: 'report_card',
+		desc: 'Genera una tarjeta PNG con el resumen de un reporte tuyo, más el mismo resumen en texto; solo la ve quien creó el reporte.',
+	},
 ] as const;
 
 /** Honest limits of the hosted server, shared by the HTML page and the Markdown twin. */

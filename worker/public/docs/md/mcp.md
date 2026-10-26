@@ -52,6 +52,7 @@ code --add-mcp '{"name":"kuyfi","type":"http","url":"https://kuyfi-mcp.alexbnjmn
 - `scan_contract` — Devuelve la superficie de ataque (funciones y tipos) y guarda el reporte 24 h con un report_id.
 - `fuzz_contract` — Genera vectores de ataque y los ejecuta solo en simulación (hasta 50 vectores; 20 corridas por hora y usuario).
 - `get_report` — Recupera un reporte que creaste antes; solo lo puede leer quien lo creó.
+- `report_card` — Genera una tarjeta PNG con el resumen de un reporte tuyo, más el mismo resumen en texto; solo la ve quien creó el reporte.
 
 ## Limits
 

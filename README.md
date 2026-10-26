@@ -46,6 +46,7 @@ Kuyfi is also available as a **remote MCP server**, deployed on Cloudflare Worke
 | `scan_contract` | Returns the attack surface (functions and types) and saves the report for 24 hours, returning a `report_id`. |
 | `fuzz_contract` | Generates attack vectors and runs them in simulation only (`mode="simulate"`, up to 50 vectors). |
 | `get_report` | Retrieves a report you created earlier. Only the GitHub user who created it can read it. |
+| `report_card` | Renders a PNG summary card (plus the same summary as text) for one of your reports. Same owner-only rule as `get_report`. |
 
 ### Example
 
@@ -66,7 +67,7 @@ fuzz_contract   → simulation · 16 vectors · 14 no finding · 2 not evaluated
 
 New in this sprint (built for HackMeridian):
 
-- The **remote MCP server** itself: a Cloudflare Worker with GitHub login (OAuth), exposing the four tools above.
+- The **remote MCP server** itself: a Cloudflare Worker with GitHub login (OAuth), exposing the five tools above.
 - **Simulation by default**, with per-user quotas (20 `fuzz_contract` runs per hour) and private, 24-hour reports.
 - A static **landing page** with one-click install buttons, served by the same Worker.
 - The **MCP section of the docs**, served at `/docs/`.
@@ -92,7 +93,7 @@ The MCP server reuses the scanner and the vector generation of the existing engi
 
 ### Resumen (español)
 
-Kuyfi ahora también existe como **servidor MCP remoto** (Cloudflare Workers): agregas una URL a Claude Code, Cursor o VS Code, inicias sesión con GitHub y auditas contratos Soroban ya desplegados en Testnet sin instalar el CLI ni la TUI. Tiene cuatro herramientas (`list_functions`, `scan_contract`, `fuzz_contract`, `get_report`) y solo simula: no firma ni envía transacciones. Lo nuevo de este sprint es el servidor MCP, sus cuotas, la landing y la sección de docs; el CLI, la TUI, el escáner, Chaos Monkey y la API de pago ya existían. Cero hallazgos no es prueba de seguridad.
+Kuyfi ahora también existe como **servidor MCP remoto** (Cloudflare Workers): agregas una URL a Claude Code, Cursor o VS Code, inicias sesión con GitHub y auditas contratos Soroban ya desplegados en Testnet sin instalar el CLI ni la TUI. Tiene cinco herramientas (`list_functions`, `scan_contract`, `fuzz_contract`, `get_report`, `report_card`) y solo simula: no firma ni envía transacciones. Lo nuevo de este sprint es el servidor MCP, sus cuotas, la landing y la sección de docs; el CLI, la TUI, el escáner, Chaos Monkey y la API de pago ya existían. Cero hallazgos no es prueba de seguridad.
 
 ## Why Kuyfi exists
 

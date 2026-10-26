@@ -597,7 +597,7 @@ Canonical: https://github.com/alex0tico/kuyfi/blob/main/CHANGELOG.md
 - Testnet only
 - Findings = signals
 - Prefer \`kuyfi <ID> --json\`
-- Do not invent MCP tools beyond the four documented ones (list_functions, scan_contract, fuzz_contract, get_report)
+- Do not invent MCP tools beyond the five documented ones (list_functions, scan_contract, fuzz_contract, get_report, report_card)
 
 See also: /docs/agent-setup
 `,

@@ -13,6 +13,7 @@ Add it from Claude Code:
 - list_functions: lists a contract's functions with their input and output types.
 - scan_contract: returns the contract's attack surface (functions, types) and saves a report for 24 hours.
 - get_report: retrieves a report you created earlier; reports are private to the user who created them.
+- report_card: renders a PNG summary card (plus the same summary as text) for one of your reports; owner-only.
 - fuzz_contract: generates attack vectors and runs them in simulation only (mode=simulate, up to 50 vectors, 20 runs per hour per user).
 
 ## Limits
