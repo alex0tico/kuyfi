@@ -5,7 +5,7 @@ import {Keypair, rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {scanWasmBytes} from '../../src/core/scanner.js';
 import {attackVals, baseline, typeName} from '../../src/core/type_gen.js';
 import {TESTNET_RPC_URL} from '../../src/core/network.js';
-import {fuzzContract, getReport, listFunctions, scanContractTool, type ToolContext} from '../../src/tools.js';
+import {fuzzContract, getReport, listFunctions, reportCard, scanContractTool, type ToolContext} from '../../src/tools.js';
 
 const ITERATIONS = 200;
 
@@ -52,8 +52,15 @@ async function e2e(url: URL, env: CheckEnv): Promise<Response> {
 	else if (tool === 'scan_contract') result = await scanContractTool(ctx, {contract_id: id});
 	else if (tool === 'fuzz_contract') result = await fuzzContract(ctx, {contract_id: id, max_vectors: Number(url.searchParams.get('max') ?? 20)});
 	else if (tool === 'get_report') result = await getReport(ctx, {report_id: url.searchParams.get('report') ?? ''});
+	else if (tool === 'report_card') result = await reportCard(ctx, {report_id: url.searchParams.get('report') ?? ''});
 	else return new Response('unknown tool', {status: 404});
-	return Response.json({ms: Math.round(performance.now() - t0), isError: result.isError ?? false, text: result.content[0]!.text});
+	const ms = Math.round(performance.now() - t0);
+	const first = result.content[0]!;
+	if (first.type === 'image') {
+		return Response.json({ms, isError: false, image: {mimeType: first.mimeType, base64Length: first.data.length, base64: url.searchParams.get('png') ? first.data : undefined}, text: result.content.map((c) => (c.type === 'text' ? c.text : '')).join('')});
+	}
+
+	return Response.json({ms, isError: result.isError ?? false, text: first.type === 'text' ? first.text : ''});
 }
 
 export default {

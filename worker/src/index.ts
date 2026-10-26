@@ -4,7 +4,7 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler, getMcpAuthContext } from "agents/mcp/server";
 import { z } from "zod";
 import { GitHubHandler } from "./github-handler";
-import { fuzzContract, getReport, listFunctions, scanContractTool, type ToolContext } from "./tools";
+import { fuzzContract, getReport, listFunctions, reportCard, scanContractTool, type ToolContext } from "./tools";
 import type { Props } from "./utils";
 
 const contractId = z.string().describe("Soroban contract address on Testnet (56 characters, starts with C).");
@@ -46,6 +46,16 @@ function createServer(): McpServer {
 			inputSchema: z.object({ report_id: z.string().describe("The report_id returned by scan_contract or fuzz_contract.") }),
 		},
 		(args) => getReport(ctx, args),
+	);
+
+	server.registerTool(
+		"report_card",
+		{
+			description:
+				"Render a PNG summary card (plus the same summary as text) for a report you created with scan_contract or fuzz_contract. Private to the user who created the report; expires with it after 24 hours.",
+			inputSchema: z.object({ report_id: z.string().describe("The report_id returned by scan_contract or fuzz_contract.") }),
+		},
+		(args) => reportCard(ctx, args),
 	);
 
 	server.registerTool(

@@ -3,7 +3,7 @@ import {rpc as SorobanRpc, StrKey} from '@stellar/stellar-sdk';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {simulationAllowance} from '../src/core/fuzz_runner.js';
 import {scanWasmBytes} from '../src/core/scanner.js';
-import {fuzzContract, getReport, listFunctions, scanContractTool, type ToolContext} from '../src/tools.js';
+import {fuzzContract, getReport, listFunctions, reportCard, scanContractTool, type ToolContext} from '../src/tools.js';
 
 // Valid checksum, generated at runtime from 32 constant bytes; it points at nothing real.
 const FAKE_ID = StrKey.encodeContract(Buffer.alloc(32, 7));
@@ -154,5 +154,40 @@ describe('fuzz_contract', () => {
 		expect(simulationAllowance(20, 50)).toBe(20);
 		expect(simulationAllowance(50, 1000)).toBe(50);
 		expect(simulationAllowance(50, 3)).toBe(0);
+	});
+});
+
+describe('report_card', () => {
+	const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+	const withRender = (kv: FakeKv, login: string | null = 'alice'): ToolContext => ({...makeCtx(kv, login), renderPng: async () => PNG});
+
+	it('returns an image block and the same summary as text, for the owner only', async () => {
+		const kv = new FakeKv();
+		const scan = JSON.parse(text(await scanContractTool(makeCtx(kv, 'alice'), {contract_id: FAKE_ID})));
+		const own = await reportCard(withRender(kv, 'alice'), {report_id: scan.report_id});
+		expect(own.isError).toBeUndefined();
+		const [image, summary] = own.content as Array<{type: string; data?: string; mimeType?: string; text?: string}>;
+		expect(image!.type).toBe('image');
+		expect(image!.mimeType).toBe('image/png');
+		expect(Buffer.from(image!.data!, 'base64').subarray(0, 8)).toEqual(Buffer.from(PNG.subarray(0, 8)));
+		expect(summary!.text).toContain('SCAN REPORT');
+		expect(summary!.text).toContain('FUNCTIONS: 3');
+
+		const other = await reportCard(withRender(kv, 'bob'), {report_id: scan.report_id});
+		expect(other.isError).toBe(true);
+		expect(text(other)).toContain('Report not found');
+		expect((await reportCard(withRender(kv, null), {report_id: scan.report_id})).isError).toBe(true);
+		expect((await reportCard(withRender(kv, 'alice'), {report_id: 'nope'})).isError).toBe(true);
+	});
+
+	it('falls back to the text summary when the image cannot be rendered', async () => {
+		const kv = new FakeKv();
+		const scan = JSON.parse(text(await scanContractTool(makeCtx(kv, 'alice'), {contract_id: FAKE_ID})));
+		const ctx: ToolContext = {...makeCtx(kv, 'alice'), renderPng: async () => { throw new Error('wasm failed'); }};
+		const r = await reportCard(ctx, {report_id: scan.report_id});
+		expect(r.isError).toBeUndefined();
+		expect(r.content).toHaveLength(1);
+		expect(text(r)).toContain('The image could not be generated');
+		expect(text(r)).toContain('Not a security guarantee');
 	});
 });

@@ -4,6 +4,7 @@ import {assertTestnet, parseContractId, parseMaxVectors, parseMode, testnetRpcUr
 import {buildScanReport, toPublicFunction} from './core/public_scan.js';
 import {scanContract, ScanError} from './core/scanner.js';
 import type {ScanResult} from './core/scanner.js';
+import {buildCardModel, buildCardSvg, cardText} from './core/report_card.js';
 import {consumeQuota, loadReport, newReportId, saveReport} from './core/storage.js';
 
 export const FUZZ_PER_HOUR = 20;
@@ -15,13 +16,15 @@ export interface ToolContext {
 	/** GitHub login from the OAuth session. Required: every tool is per-user. */
 	login: string | undefined;
 	subrequestBudget?: number;
+	/** Injectable for tests: SVG -> PNG. Production loads resvg-wasm lazily. */
+	renderPng?: (svg: string) => Promise<Uint8Array>;
 	/** Injectable for tests; production uses the Testnet RPC. */
 	scan?: (contractId: string) => Promise<ScanResult>;
 }
 
 export interface ToolResult {
 	[key: string]: unknown;
-	content: Array<{type: 'text'; text: string}>;
+	content: Array<{type: 'text'; text: string} | {type: 'image'; data: string; mimeType: 'image/png'}>;
 	isError?: boolean;
 }
 
@@ -90,6 +93,38 @@ export function getReport(ctx: ToolContext, args: {report_id: string}): Promise<
 	return guarded(async () => {
 		const login = requireLogin(ctx);
 		return ok(await loadReport(ctx.kv, login, args.report_id));
+	});
+}
+
+function toBase64(bytes: Uint8Array): string {
+	let binary = '';
+	for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	return btoa(binary);
+}
+
+/** A PNG summary card for one of the caller's own reports, plus the same summary as text. */
+export function reportCard(ctx: ToolContext, args: {report_id: string}): Promise<ToolResult> {
+	return guarded(async () => {
+		const login = requireLogin(ctx);
+		// Same loader and owner rule as get_report.
+		const report = await loadReport(ctx.kv, login, args.report_id);
+		let model;
+		try {
+			model = buildCardModel(report);
+		} catch {
+			throw new ToolError('This report cannot be summarized as a card.');
+		}
+
+		const summary = cardText(model);
+		const render = ctx.renderPng ?? (async (svg: string) => (await import('./card_worker.js')).renderCardPng(svg));
+		try {
+			const png = await render(buildCardSvg(model));
+			return {content: [{type: 'image', data: toBase64(png), mimeType: 'image/png'}, {type: 'text', text: summary}]};
+		} catch (error) {
+			console.error('report_card render failed', error instanceof Error ? error.name : 'unknown');
+			// The text summary still carries everything the image would.
+			return {content: [{type: 'text', text: `${summary}\n\n(The image could not be generated.)`}]};
+		}
 	});
 }
 
