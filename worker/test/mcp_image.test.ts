@@ -17,7 +17,7 @@ const deps = {wasm: new Uint8Array(readFileSync(require.resolve('@resvg/resvg-wa
 it('an MCP client receives report_card as an image block followed by text, over the protocol', async () => {
 	const store = new Map<string, string>();
 	const kv = {get: async (k: string) => store.get(k) ?? null, put: async (k: string, v: string) => void store.set(k, v)} as unknown as KVNamespace;
-	const ctx: ToolContext = {kv, login: 'alice', scan: async (id) => scanWasmBytes(id, wasm), renderPng: (svg) => renderPng(svg, deps)};
+	const ctx: ToolContext = {kv, login: 'alice', scan: async (id) => scanWasmBytes(id, wasm), renderPng: (svg) => renderPng(svg, deps), logoSvg: readFileSync(new URL('../src/assets/kuyfi-logo.svg', import.meta.url), 'utf8')};
 	const scanned = await scanContractTool(ctx, {contract_id: StrKey.encodeContract(Buffer.alloc(32, 7))});
 	const scan = JSON.parse((scanned.content[0] as {text: string}).text);
 

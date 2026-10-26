@@ -2,12 +2,13 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {describe, expect, it} from 'vitest';
 import {renderPng} from '../src/core/card_png.js';
-import {abbreviateContract, buildCardModel, buildCardSvg, cardText, CARD_HEIGHT, CARD_WIDTH, formatDate} from '../src/core/report_card.js';
+import {abbreviateContract, buildCardModel, buildCardSvg, cardText, CARD_HEIGHT, CARD_WIDTH, formatDate, placeLogo} from '../src/core/report_card.js';
 
 const require = createRequire(import.meta.url);
 const wasmBytes = new Uint8Array(readFileSync(require.resolve('@resvg/resvg-wasm/index_bg.wasm')));
 const font = (name: string) => new Uint8Array(readFileSync(new URL(`../src/assets/fonts/${name}`, import.meta.url)));
 const deps = {wasm: wasmBytes, fonts: [font('IBMPlexMono-400.ttf'), font('IBMPlexMono-500.ttf')]};
+const logoSvg = readFileSync(new URL('../src/assets/kuyfi-logo.svg', import.meta.url), 'utf8');
 
 const ID = 'C' + 'A'.repeat(55); // placeholder-shaped, not a real contract
 const base = {schemaVersion: '1.0.0', reportId: 'kyf-20261026T021733Z-0123456789ab', generatedAt: '2026-10-26T02:17:33.000Z', target: {contractId: ID, network: 'testnet'}};
@@ -111,11 +112,22 @@ describe('report card SVG', () => {
 		expect(long).toContain('…');
 	});
 
-	it('embeds an official logo as given when one is provided', () => {
-		const svg = buildCardSvg(buildCardModel(fuzzClean), {logoSvg: '<g id="official-logo"/>'});
-		expect(svg).toContain('<g id="official-logo"/>');
-		expect(svg).toContain('height="72"');
-		expect(svg).not.toContain('>KUYFI<');
+	it('embeds the official logo file as given: position and size only, content untouched', () => {
+		const logo = readFileSync(new URL('../src/assets/kuyfi-logo.svg', import.meta.url), 'utf8');
+		const svg = buildCardSvg(buildCardModel(fuzzClean), {logoSvg: logo});
+		// 72 px tall, top-left.
+		expect(svg).toMatch(/<svg[^>]*x="48" y="34" width="72" height="72">/);
+		expect(svg).not.toContain('<?xml');
+		// Everything between the logo's own <svg> tags is byte-identical to the file.
+		const inner = (s: string) => s.slice(s.indexOf('>', s.indexOf('<svg')) + 1, s.lastIndexOf('</svg>')).trim();
+		expect(svg).toContain(inner(logo));
+		// Tagline next to it, wordmark kept because the logo has no text.
+		expect(svg).toContain('BEFORE THE BREACH');
+		expect(svg).toContain('>KUYFI<');
+	});
+
+	it('rejects a logo that is not an SVG document', () => {
+		expect(() => placeLogo('<html/>', 0, 0, 72)).toThrow();
 	});
 });
 
@@ -127,7 +139,7 @@ describe('report card PNG', () => {
 
 	for (const [name, report] of [['clean fuzz', fuzzClean], ['fuzz with findings', fuzzFindings], ['scan', scan]] as const) {
 		it(`${name}: valid PNG signature and 1200x630`, async () => {
-			const png = await renderPng(buildCardSvg(buildCardModel(report)), deps);
+			const png = await renderPng(buildCardSvg(buildCardModel(report), {logoSvg}), deps);
 			expect([...png.slice(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 			expect(dims(png)).toEqual([CARD_WIDTH, CARD_HEIGHT]);
 			expect(png.length).toBeGreaterThan(5000);

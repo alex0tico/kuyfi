@@ -18,6 +18,8 @@ export interface ToolContext {
 	subrequestBudget?: number;
 	/** Injectable for tests: SVG -> PNG. Production loads resvg-wasm lazily. */
 	renderPng?: (svg: string) => Promise<Uint8Array>;
+	/** Injectable for tests: official logo file contents. */
+	logoSvg?: string;
 	/** Injectable for tests; production uses the Testnet RPC. */
 	scan?: (contractId: string) => Promise<ScanResult>;
 }
@@ -116,9 +118,15 @@ export function reportCard(ctx: ToolContext, args: {report_id: string}): Promise
 		}
 
 		const summary = cardText(model);
-		const render = ctx.renderPng ?? (async (svg: string) => (await import('./card_worker.js')).renderCardPng(svg));
 		try {
-			const png = await render(buildCardSvg(model));
+			let png: Uint8Array;
+			if (ctx.renderPng) {
+				png = await ctx.renderPng(buildCardSvg(model, {logoSvg: ctx.logoSvg ?? null}));
+			} else {
+				const worker = await import('./card_worker.js');
+				png = await worker.renderCardPng(buildCardSvg(model, {logoSvg: worker.LOGO_SVG}));
+			}
+
 			return {content: [{type: 'image', data: toBase64(png), mimeType: 'image/png'}, {type: 'text', text: summary}]};
 		} catch (error) {
 			console.error('report_card render failed', error instanceof Error ? error.name : 'unknown');

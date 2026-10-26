@@ -4,7 +4,10 @@
   "main": "test/runtime/check.ts",
   "compatibility_date": "2026-06-01",
   "compatibility_flags": ["nodejs_compat"],
-  "rules": [{ "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true }],
+  "rules": [
+    { "type": "Data", "globs": ["**/*.ttf"], "fallthrough": true },
+    { "type": "Text", "globs": ["**/kuyfi-logo.svg"], "fallthrough": true }
+  ],
   "kv_namespaces": [{ "binding": "E2E_KV", "id": "local-only-throwaway" }],
   "dev": { "port": 8799 }
 }

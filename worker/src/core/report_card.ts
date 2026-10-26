@@ -1,8 +1,7 @@
 /**
  * Report card: a pure summary + SVG builder for a stored scan or fuzz report.
  * Everything shown comes from the report; nothing is estimated or rounded.
- * The logo file is not bundled: when it is missing the card uses a text
- * wordmark (see LOGO_SVG in card_brand.ts).
+ * The official logo file is passed in by the caller (bundled in the Worker).
  */
 
 export const CARD_WIDTH = 1200;
@@ -158,8 +157,20 @@ const fit = (s: string, max: number) => (s.length <= max ? s : `${s.slice(0, Mat
 const text = (x: number, y: number, size: number, fill: string, body: string, extra = '') =>
 	`<text x="${x}" y="${y}" font-family="${FONT}" font-size="${size}" fill="${fill}" ${extra}>${esc(body)}</text>`;
 
+/**
+ * Embeds the official logo as given: the file's own <svg> element is nested at
+ * the requested position and height. Nothing inside it is redrawn or recolored.
+ */
+export function placeLogo(logoSvg: string, x: number, y: number, size: number): string {
+	const doc = logoSvg.replace(/<\?xml[^>]*\?>/g, '').trim();
+	const open = /<svg\b([^>]*)>/.exec(doc);
+	if (!open) throw new Error('The logo is not an SVG document.');
+	const attrs = open[1]!.replace(/\s(x|y|width|height)="[^"]*"/g, '');
+	return doc.replace(open[0], `<svg${attrs} x="${x}" y="${y}" width="${size}" height="${size}">`);
+}
+
 export interface CardBrand {
-	/** Official logo SVG markup (a complete <svg> element), or null to use the text wordmark. */
+	/** Official logo file contents (a complete, square <svg> document), or null to use the text wordmark only. */
 	logoSvg: string | null;
 }
 
@@ -170,10 +181,11 @@ export function buildCardSvg(m: CardModel, brand: CardBrand = {logoSvg: null}): 
 	out.push(`<rect width="${CARD_WIDTH}" height="${CARD_HEIGHT}" fill="${INK}"/>`);
 	out.push(`<rect x="12" y="12" width="${CARD_WIDTH - 24}" height="${CARD_HEIGHT - 24}" rx="10" fill="none" stroke="${PURPLE}" stroke-opacity="0.55" stroke-width="2"/>`);
 
-	// Header: logo (or wordmark) + tagline on the left, report chips on the right.
+	// Header: logo + wordmark + tagline on the left, report chips on the right.
 	if (brand.logoSvg) {
-		out.push(`<svg x="48" y="34" width="72" height="72" viewBox="0 0 1080 1080">${brand.logoSvg}</svg>`);
-		out.push(text(136, 78, 22, GOLD, 'BEFORE THE BREACH', 'letter-spacing="5"'));
+		out.push(placeLogo(brand.logoSvg, 48, 34, 72));
+		out.push(text(138, 72, 44, TEXT, 'KUYFI', 'font-weight="500" letter-spacing="5"'));
+		out.push(text(140, 102, 19, GOLD, 'BEFORE THE BREACH', 'letter-spacing="5"'));
 	} else {
 		out.push(text(48, 88, 64, TEXT, 'KUYFI', 'font-weight="500" letter-spacing="6"'));
 		out.push(text(300, 82, 22, GOLD, 'BEFORE THE BREACH', 'letter-spacing="5"'));
