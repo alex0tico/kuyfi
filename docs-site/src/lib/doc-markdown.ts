@@ -4,6 +4,17 @@
  * for LLMs/agents: Copy as Markdown, /md/<slug>.md, llms.txt.
  */
 
+import {
+	MCP_CLAUDE_CODE,
+	MCP_CONFIG_CURSOR,
+	MCP_CURSOR_LINK,
+	MCP_LIMITS,
+	MCP_TOOLS,
+	MCP_URL,
+	MCP_VSCODE_CLI,
+	MCP_VSCODE_LINK,
+} from '../content/mcp';
+
 export type DocMarkdown = {
 	slug: string;
 	title: string;
@@ -585,7 +596,7 @@ Canonical: https://github.com/alex0tico/kuyfi/blob/main/CHANGELOG.md
 - Testnet only
 - Findings = signals
 - Prefer \`kuyfi <ID> --json\`
-- Do not invent Mainnet or live MCP tools
+- Do not invent MCP tools beyond the four documented ones (list_functions, scan_contract, fuzz_contract, get_report)
 
 See also: /docs/agent-setup
 `,
@@ -647,69 +658,61 @@ Fetch https://kuyfi.vercel.app/docs/llms.txt then https://kuyfi.vercel.app/docs/
 For a specific topic, fetch https://kuyfi.vercel.app/docs/md/<slug>.md
 (e.g. vectors, findings, report-schema).
 Kuyfi is Testnet-only black-box Soroban security CLI (@kuyfi/kuyfi).
-Findings are signals, not formal audit results. MCP server not shipped yet.
+Findings are signals, not formal audit results. A hosted MCP server is available (see /docs/mcp).
 \`\`\`
 
 ## MCP
 
-**MCP Connect** → \`/docs/mcp#connect\` — path to wire agents to the Kuyfi MCP server.
-Package \`@kuyfi/mcp\` may still be coming soon; the connect path and JSON stay stable.
+**MCP Connect** → \`/docs/mcp#connect\` — wire agents to the hosted Kuyfi MCP server (${MCP_URL}).
+Simulation only; sign in with GitHub on first connect. Tools: ${MCP_TOOLS.map(t => t.name).join(', ')}.
 `,
 	),
 	page(
 		'mcp',
 		'Conectar el MCP al server de Kuyfi',
-		'Camino fijo: botón MCP Connect → config Cursor/Claude/HTTP.',
+		'Server MCP remoto: instalación en Claude Code, Cursor y VS Code, herramientas y límites.',
 		`# Conectar el MCP al server de Kuyfi
 
 Canonical button target: \`/docs/mcp#connect\`
 
-Status: coming soon until \`@kuyfi/mcp\` publishes — config below is the stable contract.
+Status: available (hosted, remote). Server: ${MCP_URL}
+Simulation only — no transactions are sent. Sign in with GitHub the first time you connect.
 
-## Quick (Cursor / Claude stdio)
+## Claude Code
 
-\`\`\`json
-{
-  "mcpServers": {
-    "kuyfi": {
-      "command": "npx",
-      "args": ["-y", "@kuyfi/mcp@latest"],
-      "env": {
-        "KUYFI_NETWORK": "stellar:testnet"
-      }
-    }
-  }
-}
+\`\`\`bash
+${MCP_CLAUDE_CODE}
 \`\`\`
 
-1. Paste into Cursor MCP settings or \`.cursor/mcp.json\`
-2. Or Claude Desktop \`claude_desktop_config.json\`
-3. Reload MCP / restart the app
-4. Confirm tools \`kuyfi_*\` appear
+## Cursor
 
-## Remote HTTP (when hosted)
+One click: ${MCP_CURSOR_LINK}
+
+Or merge into \`~/.cursor/mcp.json\` / \`.cursor/mcp.json\`:
 
 \`\`\`json
-{
-  "mcpServers": {
-    "kuyfi": {
-      "url": "https://mcp.kuyfi.vercel.app/mcp",
-      "headers": {}
-    }
-  }
-}
+${MCP_CONFIG_CURSOR}
 \`\`\`
 
-stdio = local (Chaos Monkey opt-in). HTTP = remote read-oriented tools.
+## VS Code
+
+One click: ${MCP_VSCODE_LINK}
+
+Or from the terminal:
+
+\`\`\`bash
+${MCP_VSCODE_CLI}
+\`\`\`
 
 ## Tools
 
-- \`kuyfi_scan\` — OSINT surface
-- \`kuyfi_audit\` — Chaos Monkey (confirm; Testnet)
-- \`kuyfi_report_schema\` — SecurityReport 1.0.0
-- \`kuyfi_signals\` — taxonomy
+${MCP_TOOLS.map(t => `- \`${t.name}\` — ${t.desc}`).join('\n')}
 
-## Fallback without MCP
+## Limits
+
+${MCP_LIMITS.map(l => `- ${l}`).join('\n')}
+
+## Alternative: CLI and TUI
 
 \`\`\`bash
 npm install -g @kuyfi/kuyfi

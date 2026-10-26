@@ -267,7 +267,7 @@ export const SEARCH_INDEX: SearchEntry[] = [
 		href: '/for-llms',
 		group: 'Agents & MCP',
 		blurb: 'llms.txt playbook and safe agent rules.',
-		body: 'llms-full.txt prompt stub agent playbook cursor do not invent mainnet markdown for agents not mdx',
+		body: 'llms-full.txt prompt stub agent playbook cursor do not invent mainnet mcp tools markdown for agents not mdx',
 		keywords: ['llm', 'agent', 'cursor', 'prompt', 'llms.txt', 'ai'],
 	},
 	{
@@ -276,8 +276,8 @@ export const SEARCH_INDEX: SearchEntry[] = [
 		href: '/mcp',
 		hash: 'connect',
 		group: 'Agents & MCP',
-		blurb: 'MCP Connect → copy Cursor/Claude/HTTP config for the Kuyfi server.',
-		body: 'conectar mcp server kuyfi mcpServers npx @kuyfi/mcp cursor claude desktop http mcp.kuyfi kuyfi_scan connect button',
+		blurb: 'Remote Kuyfi MCP server: install in Claude Code, Cursor or VS Code (simulation only).',
+		body: 'conectar mcp server kuyfi remoto claude code cursor vscode list_functions scan_contract fuzz_contract get_report cuota simulacion connect button',
 		keywords: [
 			'mcp',
 			'connect',
@@ -285,7 +285,7 @@ export const SEARCH_INDEX: SearchEntry[] = [
 			'server',
 			'cursor',
 			'claude',
-			'@kuyfi/mcp',
+			'vscode',
 			'protocol',
 		],
 		weight: 1.25,

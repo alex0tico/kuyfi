@@ -102,7 +102,7 @@ curl -sL ${SITE.url}/docs/llms.txt`}</code></pre>
 2. For deep topics fetch ${SITE.url}/docs/md/<slug>.md (vectors, findings, report-schema, …)
 3. Prefer: kuyfi <CONTRACT_ID> --json
 4. Findings are signals, not formal audit results or CVEs
-5. Do not invent Mainnet support or a live MCP server
+5. Do not invent Mainnet support or MCP tools beyond the four documented (list_functions, scan_contract, fuzz_contract, get_report)
 6. Plain Markdown feeds ≠ MDX`}</code></pre>
 
 	<h2 id="index">Markdown page index</h2>
@@ -135,8 +135,8 @@ curl -sL ${SITE.url}/docs/llms.txt`}</code></pre>
 	<p>
 		<strong>Conectar el MCP al server de Kuyfi:</strong> el botón{' '}
 		<strong>MCP Connect</strong> siempre lleva a{' '}
-		<a href={`${withBase('/mcp')}#connect`}>/docs/mcp#connect</a> — config listo para Cursor /
-		Claude / HTTP. Cuando <code>@kuyfi/mcp</code> esté live, no cambia la URL del botón.
+		<a href={`${withBase('/mcp')}#connect`}>/docs/mcp#connect</a> — server MCP remoto
+		disponible: comando para Claude Code, Cursor y VS Code, solo simulación, login con GitHub.
 	</p>
 </DocsLayout>
 

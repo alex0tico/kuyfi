@@ -14,7 +14,7 @@ Never describe MDX as “Markdown for machines.”
 - Site path: `https://kuyfi.vercel.app/docs`
 - Brand: dark UI, yellow CTAs (`#f5c518`), pink labels, Syne + Outfit + IBM Plex Mono
 - Agent feeds: `/docs/llms.txt`, `/docs/llms-full.txt`, `/docs/md/*.md`, `/docs/agent-setup`
-- MCP Connect button is a **stub** until `@kuyfi/mcp` ships — see `/docs/mcp`
+- MCP Connect button opens `/docs/mcp`: the hosted Kuyfi MCP server is live (simulation only; tools list_functions, scan_contract, fuzz_contract, get_report)
 
 ## Commands
 
@@ -30,5 +30,5 @@ npm run preview
 
 - Commit as a co-author / push unless the maintainer (`wrever`) asks
 - Confuse this folder with `docs/` (demo writeups)
-- Claim MCP tools are live
+- Claim MCP tools beyond the four live ones (list_functions, scan_contract, fuzz_contract, get_report)
 - Call the agent Markdown layer “MDX”

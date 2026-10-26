@@ -1,47 +1,50 @@
 /** Shared MCP connection copy — single source for HTML docs + Markdown twin. */
 
-export const MCP_STATUS = 'coming-soon' as const; // flip to 'available' when @kuyfi/mcp ships
+export const MCP_STATUS = 'available' as const;
 
-export const MCP_PACKAGE = '@kuyfi/mcp';
+/** Hosted Kuyfi MCP server (streamable HTTP). Simulation only; sign in with GitHub on first connect. */
+export const MCP_URL = 'https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp';
 
-/** Cursor / Claude Desktop style stdio config */
-export const MCP_CONFIG_CURSOR = `{
-  "mcpServers": {
-    "kuyfi": {
-      "command": "npx",
-      "args": ["-y", "@kuyfi/mcp@latest"],
-      "env": {
-        "KUYFI_NETWORK": "stellar:testnet"
-      }
-    }
-  }
-}`;
+export const MCP_CLAUDE_CODE = `claude mcp add --transport http kuyfi ${MCP_URL}`;
 
-/** Remote HTTP MCP (when the hosted server is live) */
-export const MCP_CONFIG_HTTP = `{
-  "mcpServers": {
-    "kuyfi": {
-      "url": "https://mcp.kuyfi.vercel.app/mcp",
-      "headers": {}
-    }
-  }
-}`;
+/** Cursor mcp.json (~/.cursor/mcp.json or .cursor/mcp.json) */
+export const MCP_CONFIG_CURSOR = JSON.stringify(
+	{mcpServers: {kuyfi: {url: MCP_URL}}},
+	null,
+	2,
+);
+
+const VSCODE_SERVER = JSON.stringify({name: 'kuyfi', type: 'http', url: MCP_URL});
+export const MCP_VSCODE_CLI = `code --add-mcp '${VSCODE_SERVER}'`;
+
+/** One-click install links (Cursor deeplink, VS Code URL handler). */
+export const MCP_CURSOR_LINK = `cursor://anysphere.cursor-deeplink/mcp/install?name=kuyfi&config=${btoa(JSON.stringify({url: MCP_URL}))}`;
+export const MCP_VSCODE_LINK = `vscode:mcp/install?${encodeURIComponent(VSCODE_SERVER)}`;
 
 export const MCP_TOOLS = [
 	{
-		name: 'kuyfi_scan',
-		desc: 'OSINT attack-surface reconstruction for a Contract ID (read-only).',
+		name: 'list_functions',
+		desc: 'Lista las funciones de un contrato de Testnet con sus tipos de entrada y de salida.',
 	},
 	{
-		name: 'kuyfi_audit',
-		desc: 'Local Chaos Monkey campaign — requires explicit user confirmation; Testnet only.',
+		name: 'scan_contract',
+		desc: 'Devuelve la superficie de ataque (funciones y tipos) y guarda el reporte 24 h con un report_id.',
 	},
 	{
-		name: 'kuyfi_report_schema',
-		desc: 'SecurityReport schemaVersion 1.0.0 field map.',
+		name: 'fuzz_contract',
+		desc: 'Genera vectores de ataque y los ejecuta solo en simulación (hasta 50 vectores; 20 corridas por hora y usuario).',
 	},
 	{
-		name: 'kuyfi_signals',
-		desc: 'Finding taxonomy (SECURE, POTENTIAL_VULN, …).',
+		name: 'get_report',
+		desc: 'Recupera un reporte que creaste antes; solo lo puede leer quien lo creó.',
 	},
+] as const;
+
+/** Honest limits of the hosted server, shared by the HTML page and the Markdown twin. */
+export const MCP_LIMITS = [
+	'Cuota: 20 corridas de fuzz_contract por hora y por usuario; los reportes duran 24 h.',
+	'Solo Testnet; fuzz_contract solo acepta mode="simulate". No se envía ninguna transacción ni se manejan claves.',
+	'Las pruebas de autorización quedan «no evaluadas»: la simulación registra la autorización pero no la aplica.',
+	'La simulación no conserva estado entre llamadas: las secuencias que dependen de estado no se ejercitan.',
+	'Cero hallazgos no es prueba de seguridad: el reporte dice «no findings in this run» y los inconclusos se informan como inconclusos.',
 ] as const;
