@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kuyfi-mcp.alexbnjmnch.workers.dev/sitemap.xml

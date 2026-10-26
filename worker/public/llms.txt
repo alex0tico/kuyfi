@@ -1,0 +1,28 @@
+# Kuyfi MCP
+
+> A remote MCP server that lets your AI agent (Cursor, VS Code, Claude Code) scan and stress-test deployed Soroban smart contracts on Stellar Testnet. Nothing to install: add the server URL to your agent and sign in with GitHub the first time you connect.
+
+MCP endpoint (streamable HTTP): https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp
+
+Add it from Claude Code:
+
+    claude mcp add --transport http kuyfi https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp
+
+## Tools
+
+- list_functions: lists a contract's functions with their input and output types.
+- scan_contract: returns the contract's attack surface (functions, types) and saves a report for 24 hours.
+- get_report: retrieves a report you created earlier; reports are private to the user who created them.
+- fuzz_contract: generates attack vectors and runs them in simulation only (mode=simulate, up to 50 vectors, 20 runs per hour per user).
+
+## Limits
+
+- Stellar Testnet only. There is no mainnet support.
+- Simulation only: the server never signs or sends transactions and never handles keys.
+- Simulation does not evaluate authorization, so access-control vectors are reported as not evaluated.
+- Zero findings is not proof of security. Results are hypotheses and observations, not a replacement for a manual audit.
+
+## Links
+
+- Source (MIT): https://github.com/alex0tico/kuyfi
+- Docs: https://github.com/alex0tico/kuyfi#readme
