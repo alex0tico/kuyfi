@@ -60,10 +60,10 @@ Fetch https://kuyfi.vercel.app/docs/llms.txt then https://kuyfi.vercel.app/docs/
 For a specific topic, fetch https://kuyfi.vercel.app/docs/md/<slug>.md
 (e.g. vectors, findings, report-schema).
 Kuyfi is Testnet-only black-box Soroban security CLI (@kuyfi/kuyfi).
-Findings are signals, not formal audit results. MCP server not shipped yet.
+Findings are signals, not formal audit results. A hosted MCP server is available (see /docs/mcp).
 ```
 
 ## MCP
 
-**MCP Connect** → `/docs/mcp#connect` — path to wire agents to the Kuyfi MCP server.
-Package `@kuyfi/mcp` may still be coming soon; the connect path and JSON stay stable.
+**MCP Connect** → `/docs/mcp#connect` — wire agents to the hosted Kuyfi MCP server (https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp).
+Simulation only; sign in with GitHub on first connect. Tools: list_functions, scan_contract, fuzz_contract, get_report.

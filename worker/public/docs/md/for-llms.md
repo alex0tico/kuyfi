@@ -24,6 +24,6 @@ note: "Plain Markdown for LLMs/agents — NOT MDX (Markdown+JSX)."
 - Testnet only
 - Findings = signals
 - Prefer `kuyfi <ID> --json`
-- Do not invent Mainnet or live MCP tools
+- Do not invent MCP tools beyond the four documented ones (list_functions, scan_contract, fuzz_contract, get_report)
 
 See also: /docs/agent-setup

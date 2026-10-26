@@ -191,15 +191,22 @@ Planned/not committed: richer semantic inputs, more patterns, CI integrations.
 Explicitly out of scope: Mainnet, other chains, SaaS certification platform.
 
 ================================================================================
-11. MCP (RESERVED)
+11. MCP (HOSTED SERVER)
 ================================================================================
 
 Docs expose an MCP Connect button at /docs/mcp.
-Draft config references @kuyfi/mcp (NOT PUBLISHED YET).
-Until shipped, agents must use the CLI + this file.
+A hosted MCP server is available (streamable HTTP):
+  https://kuyfi-mcp.alexbnjmnch.workers.dev/mcp
+Sign in with GitHub on first connect. Testnet only, simulation only: no
+transactions are sent and no keys are handled.
 
-Intended future tools (names may change):
-  kuyfi_scan, kuyfi_audit (local confirm), kuyfi_report_schema, kuyfi_signals
+Tools:
+  list_functions, scan_contract, fuzz_contract, get_report
+
+Limits: 20 fuzz_contract runs per hour per user; authorization checks are
+reported as not evaluated (a simulation does not enforce authorization); no
+state is kept between simulated calls; zero findings is not proof of security.
+The CLI + this file remain the local alternative.
 
 ================================================================================
 12. AGENT PLAYBOOK (SHORT)
