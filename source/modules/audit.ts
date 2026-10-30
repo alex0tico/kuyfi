@@ -3,7 +3,11 @@ import {scanContract} from './scanner.js';
 import type {ScanResult} from './scanner.js';
 import {TESTNET_RPC_URL} from './network.js';
 import {runChaosMonkey} from './chaos_monkey/index.js';
-import type {ChaosMonkeyOptions, ChaosReport} from './chaos_monkey/index.js';
+import type {
+	CampaignConfig,
+	ChaosMonkeyOptions,
+	ChaosReport,
+} from './chaos_monkey/index.js';
 
 /**
  * Result of one full audit run: the OSINT scan phase plus the Chaos Monkey
@@ -24,6 +28,8 @@ export interface RunAuditOptions {
 	/** Injection seams for tests — production callers never need these. */
 	scan?: typeof scanContract;
 	chaos?: (options: ChaosMonkeyOptions) => Promise<ChaosReport>;
+	/** Validated campaign configuration (context + limits). Absent = v0.1.0 behaviour. */
+	campaign?: CampaignConfig;
 }
 
 /**
@@ -52,6 +58,13 @@ export async function runAudit(
 		functions: scanResult.functions,
 		udtRegistry: scanResult.udtRegistry,
 		onProgress,
+		...(options.campaign
+			? {
+					context: options.campaign.context,
+					limits: options.campaign.limits,
+					authorizationRecord: options.campaign.authorizationRecord,
+				}
+			: {}),
 	});
 
 	return {scan: scanResult, chaos: chaosReport};

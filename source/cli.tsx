@@ -4,15 +4,27 @@ import {render} from 'ink';
 import meow from 'meow';
 import App from './app.js';
 import {selectCliMode, runHeadlessAudit} from './modules/cli_runtime.js';
+import {runAuthzCli} from './modules/authz/cli.js';
 
 const cli = meow(
 	`
 	Usage
-	  $ kuyfi [CONTRACT_ID] [--json] [--pdf]
+	  $ kuyfi [CONTRACT_ID] [--json] [--pdf] [--config <file>]
+	  $ kuyfi authz <matrix.json> [--out <dir>]
 
 	Options
 	  --json    Also write a SecurityReport JSON file (kuyfi-report-<id>.json)
 	  --pdf     Also write a SecurityReport PDF file (kuyfi-report-<id>.pdf)
+	  --config  Campaign configuration (JSON): context, limits, simulate-only/broadcast.
+	            Without it the audit runs exactly as before.
+
+	  --out     (authz) Directory for the JSON evidence file (default: current directory)
+
+	Authorization-aware matrix
+	  kuyfi authz runs the cases of a matrix file in EXPLICIT enforcing-mode
+	  simulation (relay account as source; actors authorize only through signed
+	  entries) and writes JSON evidence. simulate-only by default; sending
+	  transactions needs mode "broadcast" plus an authorizationRecord.
 
 	Examples
 	  $ kuyfi
@@ -33,12 +45,33 @@ const cli = meow(
 		flags: {
 			json: {type: 'boolean', default: false},
 			pdf: {type: 'boolean', default: false},
+			config: {type: 'string'},
+			out: {type: 'string'},
 		},
 	},
 );
 
 async function main() {
 	const mode = selectCliMode(cli.input);
+
+	if (mode.kind === 'authz') {
+		if (!mode.file) {
+			console.error('Usage: kuyfi authz <matrix.json> [--out <dir>]');
+			process.exitCode = 1;
+			return;
+		}
+
+		const result = await runAuthzCli(mode.file, {
+			outDir: cli.flags.out,
+			onProgress(message: string) {
+				console.log(message);
+			},
+		});
+		if (result.errorOutput) console.error(result.errorOutput);
+		else if (result.output) console.log('\n' + result.output);
+		process.exitCode = result.exitCode;
+		return;
+	}
 
 	if (mode.kind === 'invalid') {
 		console.error(
@@ -55,6 +88,7 @@ async function main() {
 			},
 			writeJson: cli.flags.json,
 			writePdf: cli.flags.pdf,
+			configPath: cli.flags.config,
 		});
 
 		if (result.errorOutput) {

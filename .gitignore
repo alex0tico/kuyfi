@@ -44,3 +44,6 @@ Kuyfi_GIF.mov
 general.cursorrules
 
 
+
+# Local-only experiment data (contains third-party identifiers); never publish
+test-fixtures/authz-fixtures/

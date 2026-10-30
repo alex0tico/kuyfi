@@ -2,7 +2,9 @@ import {Address, Keypair, Networks, xdr} from '@stellar/stellar-sdk';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
-import {baseline} from './type_gen.js';
+import {buildBaselineInput, injectedInput} from './input_builder.js';
+import type {TracedInput} from './provenance.js';
+import type {ContextConfig} from './context_config.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
 
@@ -56,6 +58,7 @@ export async function fuzzAccessVectors(
 	keypair: Keypair,
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
+	context?: ContextConfig,
 ): Promise<FuzzResult[]> {
 	const results: FuzzResult[] = [];
 	const fnName = target.functionName.toLowerCase();
@@ -66,8 +69,13 @@ export async function fuzzAccessVectors(
 	// or a depth/cycle limit hit) means we can't build a valid call at all for
 	// these baseline-args vectors — skip them rather than substitute a
 	// fabricated value for the unresolved parameter.
-	const baselineArgs = target.params.map(p => baseline(p.type, registry));
-	const canBuildBaselineCall = baselineArgs.every(a => a !== null);
+	const baselineTraced = target.params.map(p =>
+		buildBaselineInput(p, registry, context),
+	);
+	const canBuildBaselineCall = baselineTraced.every(a => a !== null);
+	const baselineInputs = baselineTraced as TracedInput[];
+	const baselineArgs = baselineInputs.map(a => a.val);
+	const baselineProvenance = baselineInputs.map(a => a.provenance);
 	const hasUnverifiedAddressArg = hasAddressTypeParam(target.params);
 
 	// 1. UNAUTHORIZED_CALL — call any admin function from a random (non-admin) keypair
@@ -75,7 +83,7 @@ export async function fuzzAccessVectors(
 		const raw = await invokeContract({
 			contractId: target.contractId,
 			functionName: target.functionName,
-			args: baselineArgs as xdr.ScVal[],
+			args: baselineArgs,
 			keypair,
 			server,
 			networkPassphrase: Networks.TESTNET,
@@ -88,7 +96,12 @@ export async function fuzzAccessVectors(
 			true,
 			hasUnverifiedAddressArg,
 		);
-		results.push({target, vectorName: 'UNAUTHORIZED_CALL', result: parsed});
+		results.push({
+			target,
+			vectorName: 'UNAUTHORIZED_CALL',
+			result: parsed,
+			inputs: baselineProvenance,
+		});
 	}
 
 	// 2. REINIT_ATTACK — call init/setup on an already-initialised contract
@@ -97,7 +110,7 @@ export async function fuzzAccessVectors(
 		const raw = await invokeContract({
 			contractId: target.contractId,
 			functionName: target.functionName,
-			args: baselineArgs as xdr.ScVal[],
+			args: baselineArgs,
 			keypair,
 			server,
 			networkPassphrase: Networks.TESTNET,
@@ -110,18 +123,26 @@ export async function fuzzAccessVectors(
 			true,
 			hasUnverifiedAddressArg,
 		);
-		results.push({target, vectorName: 'REINIT_ATTACK', result: parsed});
+		results.push({
+			target,
+			vectorName: 'REINIT_ATTACK',
+			result: parsed,
+			inputs: baselineProvenance,
+		});
 	}
 
 	// 3. SELF_CALL_ATTACK — try to promote the attacker's address as admin.
 	//    Address-typed params receive the attacker's address; all others get baseline.
 	const isSelfCall = SELF_CALL_FUNCTION_PATTERNS.some(p => fnName === p);
 	if (isSelfCall) {
-		const args = target.params.map(p => {
+		const traced = target.params.map(p => {
 			const isAddr =
 				(p.type as xdr.ScSpecTypeDef).switch().name === 'scSpecTypeAddress';
-			return isAddr ? attackerAddrVal : baseline(p.type, registry);
+			return isAddr
+				? injectedInput(p.name, attackerAddrVal, 'self_call:attacker_address')
+				: buildBaselineInput(p, registry, context);
 		});
+		const args = traced.map(t => t?.val ?? null);
 
 		if (args.every(a => a !== null)) {
 			const raw = await invokeContract({
@@ -140,7 +161,12 @@ export async function fuzzAccessVectors(
 				true,
 				hasUnverifiedAddressArg,
 			);
-			results.push({target, vectorName: 'SELF_CALL_ATTACK', result: parsed});
+			results.push({
+				target,
+				vectorName: 'SELF_CALL_ATTACK',
+				result: parsed,
+				inputs: (traced as TracedInput[]).map(t => t.provenance),
+			});
 		}
 	}
 
@@ -165,7 +191,7 @@ export async function fuzzAccessVectors(
 		const raw = await invokeContract({
 			contractId: target.contractId,
 			functionName: target.functionName,
-			args: baselineArgs as xdr.ScVal[],
+			args: baselineArgs,
 			keypair,
 			server,
 			networkPassphrase: Networks.TESTNET,
@@ -182,6 +208,7 @@ export async function fuzzAccessVectors(
 			target,
 			vectorName: 'UNAUTHORIZED_ADDR_CALL',
 			result: parsed,
+			inputs: baselineProvenance,
 		});
 	}
 

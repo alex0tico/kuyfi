@@ -3,7 +3,9 @@ import type {Keypair} from '@stellar/stellar-sdk';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
-import {baseline} from './type_gen.js';
+import {buildBaselineInput} from './input_builder.js';
+import type {ContextConfig} from './context_config.js';
+import type {TracedInput} from './provenance.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {AttackVector} from './type_gen.js';
 import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
@@ -135,6 +137,7 @@ export async function fuzzFeeVectors(
 	keypair: Keypair,
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
+	context?: ContextConfig,
 ): Promise<FuzzResult[]> {
 	const feeParamIndices = target.params
 		.map((p, i) => (isFeeShapedParam(p.name, p.type) ? i : -1))
@@ -142,10 +145,12 @@ export async function fuzzFeeVectors(
 
 	if (feeParamIndices.length === 0) return [];
 
-	const rawBaselines = target.params.map(p => baseline(p.type, registry));
+	const rawBaselines = target.params.map(p =>
+		buildBaselineInput(p, registry, context),
+	);
 	if (rawBaselines.some(b => b === null)) return []; // unresolved param — can't build any valid call
 
-	const baselines = rawBaselines as xdr.ScVal[];
+	const baselines = rawBaselines as TracedInput[];
 	const hasUnverifiedAddressArg = hasAddressTypeParam(target.params);
 	const results: FuzzResult[] = [];
 
@@ -154,7 +159,17 @@ export async function fuzzFeeVectors(
 		const vectors = feeAttackVals(param.type);
 
 		for (const vec of vectors) {
-			const args = baselines.map((b, j) => (j === i ? vec.val : b));
+			const vecInput: TracedInput = {
+				val: vec.val,
+				provenance: {
+					param: param.name,
+					rule: `fee:${vec.name}`,
+					source: 'type_boundary',
+					seeded: false,
+				},
+			};
+			const traced = baselines.map((b, j) => (j === i ? vecInput : b));
+			const args = traced.map(t => t.val);
 			const vectorName = `FEE::${param.name}::${vec.name}`;
 
 			const raw = await invokeContract({
@@ -174,7 +189,12 @@ export async function fuzzFeeVectors(
 				target.isAdminFunction,
 				hasUnverifiedAddressArg,
 			);
-			results.push({target, vectorName, result: parsed});
+			results.push({
+				target,
+				vectorName,
+				result: parsed,
+				inputs: traced.map(t => t.provenance),
+			});
 		}
 	}
 

@@ -1,8 +1,10 @@
-import {Keypair, Networks, xdr} from '@stellar/stellar-sdk';
+import {Keypair, Networks} from '@stellar/stellar-sdk';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
-import {baseline, attackVals} from './type_gen.js';
+import {buildAttackInputs, buildBaselineInput} from './input_builder.js';
+import type {ContextConfig} from './context_config.js';
+import type {InputProvenance} from './provenance.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {ParsedResult} from './result_parser.js';
 import {hasAddressTypeParam} from './fuzzer_access.js';
@@ -21,6 +23,8 @@ export interface FuzzResult {
 	target: FuzzTarget;
 	vectorName: string;
 	result: ParsedResult;
+	/** One provenance entry per argument of this invocation. */
+	inputs?: InputProvenance[];
 }
 
 /**
@@ -38,11 +42,14 @@ export async function fuzzMathVectors(
 	keypair: Keypair,
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
+	context?: ContextConfig,
 ): Promise<FuzzResult[]> {
 	if (target.params.length === 0) return [];
 
 	const results: FuzzResult[] = [];
-	const rawBaselines = target.params.map(p => baseline(p.type, registry));
+	const rawBaselines = target.params.map(p =>
+		buildBaselineInput(p, registry, context),
+	);
 
 	// Any parameter that can't be safely resolved (unknown/unregistered UDT,
 	// or a depth/cycle limit hit while expanding a nested UDT) means we can't
@@ -51,17 +58,20 @@ export async function fuzzMathVectors(
 	// substitute a fabricated value for the unresolved parameter.
 	if (rawBaselines.some(b => b === null)) return [];
 
-	const baselines = rawBaselines as xdr.ScVal[];
+	const baselines = rawBaselines as Array<
+		NonNullable<(typeof rawBaselines)[0]>
+	>;
 	const hasUnverifiedAddressArg = hasAddressTypeParam(target.params);
 
 	for (let i = 0; i < target.params.length; i++) {
 		const param = target.params[i]!;
-		const vectors = attackVals(param.type, registry);
+		const vectors = buildAttackInputs(param, registry);
 
 		if (vectors.length === 0) continue; // direct UDT / unknown — skip param
 
 		for (const vec of vectors) {
-			const args = baselines.map((b, j) => (j === i ? vec.val : b));
+			const traced = baselines.map((b, j) => (j === i ? vec : b));
+			const args = traced.map(t => t.val);
 			const vectorName = `${param.name}::${vec.name}`;
 
 			const raw = await invokeContract({
@@ -81,7 +91,12 @@ export async function fuzzMathVectors(
 				target.isAdminFunction,
 				hasUnverifiedAddressArg,
 			);
-			results.push({target, vectorName, result: parsed});
+			results.push({
+				target,
+				vectorName,
+				result: parsed,
+				inputs: traced.map(t => t.provenance),
+			});
 		}
 	}
 

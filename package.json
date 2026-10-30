@@ -85,6 +85,9 @@
 		}
 	},
 	"xo": {
+		"ignores": [
+			"test-fixtures/**"
+		],
 		"extends": "xo-react",
 		"prettier": true,
 		"semicolon": true,

@@ -3,7 +3,9 @@ import type {Keypair} from '@stellar/stellar-sdk';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
-import {baseline} from './type_gen.js';
+import {buildBaselineInput} from './input_builder.js';
+import type {ContextConfig} from './context_config.js';
+import type {TracedInput} from './provenance.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
 import {hasAddressTypeParam} from './fuzzer_access.js';
@@ -180,6 +182,7 @@ export async function fuzzLiquidityVectors(
 	keypair: Keypair,
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
+	context?: ContextConfig,
 ): Promise<FuzzResult[]> {
 	if (!isLiquidityShapedFunction(target.functionName)) return [];
 
@@ -190,17 +193,33 @@ export async function fuzzLiquidityVectors(
 	const paramA = target.params[ia!]!;
 	const paramB = target.params[ib!]!;
 
-	const rawBaselines = target.params.map(p => baseline(p.type, registry));
+	const rawBaselines = target.params.map(p =>
+		buildBaselineInput(p, registry, context),
+	);
 	if (rawBaselines.some(b => b === null)) return []; // unresolved param — can't build any valid call
-	const baselines = rawBaselines as xdr.ScVal[];
+	const baselines = rawBaselines as TracedInput[];
 	const hasUnverifiedAddressArg = hasAddressTypeParam(target.params);
 
 	const results: FuzzResult[] = [];
 
 	for (const pv of pairedBoundaryVectors(paramA.type, paramB.type)) {
-		const args = baselines.map((b, j) =>
-			j === ia ? pv.valA : j === ib ? pv.valB : b,
+		const injected = (param: {name: string}, val: xdr.ScVal): TracedInput => ({
+			val,
+			provenance: {
+				param: param.name,
+				rule: `liquidity:${pv.name}`,
+				source: 'type_boundary',
+				seeded: false,
+			},
+		});
+		const traced = baselines.map((b, j) =>
+			j === ia
+				? injected(paramA, pv.valA)
+				: j === ib
+					? injected(paramB, pv.valB)
+					: b,
 		);
+		const args = traced.map(t => t.val);
 		const vectorName = `LIQUIDITY::${paramA.name}x${paramB.name}::${pv.name}`;
 
 		const raw = await invokeContract({
@@ -220,7 +239,12 @@ export async function fuzzLiquidityVectors(
 			target.isAdminFunction,
 			hasUnverifiedAddressArg,
 		);
-		results.push({target, vectorName, result: parsed});
+		results.push({
+			target,
+			vectorName,
+			result: parsed,
+			inputs: traced.map(t => t.provenance),
+		});
 	}
 
 	return results;

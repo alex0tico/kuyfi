@@ -1,5 +1,10 @@
 import {writeFile as fsWriteFile} from 'node:fs/promises';
 import {isValidContractId, ScanError} from './scanner.js';
+import {
+	CampaignConfigError,
+	loadCampaignConfig,
+} from './chaos_monkey/campaign.js';
+import type {CampaignConfig} from './chaos_monkey/campaign.js';
 import {runAudit, formatAuditSummary} from './audit.js';
 import type {RunAuditOptions} from './audit.js';
 import {buildSecurityReport} from './security_report.js';
@@ -20,6 +25,7 @@ export {
 
 export type CliMode =
 	| {kind: 'tui'}
+	| {kind: 'authz'; file: string | undefined}
 	| {kind: 'headless'; contractId: string}
 	| {kind: 'invalid'; contractId: string};
 
@@ -31,12 +37,16 @@ export type CliMode =
 export function selectCliMode(positionalArgs: readonly string[]): CliMode {
 	const contractId = positionalArgs[0];
 	if (!contractId) return {kind: 'tui'};
+	// `authz` is never a valid Contract ID (56 chars starting with C), so the subcommand cannot collide.
+	if (contractId === 'authz') return {kind: 'authz', file: positionalArgs[1]};
 	if (!isValidContractId(contractId)) return {kind: 'invalid', contractId};
 	return {kind: 'headless', contractId};
 }
 
 /** Domain error → clear headless-CLI text. Never parses/re-derives from a presentation string. */
 export function describeAuditError(error: unknown): string {
+	if (error instanceof CampaignConfigError) return error.message;
+
 	if (error instanceof ScanError) {
 		switch (error.code) {
 			case 'CONTRACT_NOT_FOUND':
@@ -94,13 +104,41 @@ export async function runHeadlessAudit(
 		writePdf?: boolean;
 		writeFile?: typeof fsWriteFile;
 		renderPdf?: typeof renderSecurityReportPdf;
+		/** Path of a campaign configuration file (`--config`). */
+		configPath?: string;
+		/** Injection seam for tests. */
+		loadConfig?: typeof loadCampaignConfig;
 	} = {},
 ): Promise<HeadlessRunResult> {
 	const audit = options.runAudit ?? runAudit;
 
+	// A bad or mismatching configuration is a tool failure BEFORE any network
+	// activity: nothing is scanned or sent under limits that failed to load.
+	let campaign: CampaignConfig | undefined;
+	if (options.configPath !== undefined) {
+		try {
+			campaign = await (options.loadConfig ?? loadCampaignConfig)(
+				options.configPath,
+			);
+			if (campaign.target !== undefined && campaign.target !== contractId) {
+				throw new CampaignConfigError([
+					`target ${campaign.target} does not match the Contract ID ${contractId}`,
+				]);
+			}
+		} catch (error) {
+			return {
+				exitCode: 1,
+				output: null,
+				errorOutput: describeAuditError(error),
+				reportFilePath: null,
+				pdfFilePath: null,
+			};
+		}
+	}
+
 	let auditRun;
 	try {
-		auditRun = await audit(contractId, options);
+		auditRun = await audit(contractId, {...options, campaign});
 	} catch (error) {
 		return {
 			exitCode: 1,

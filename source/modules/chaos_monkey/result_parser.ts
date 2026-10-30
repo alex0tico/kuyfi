@@ -10,9 +10,50 @@ export type VulnerabilitySignal =
 	| 'UNEXPECTED_ERROR'
 	| 'TIMEOUT'
 	| 'PRECONDITION_FAIL'
-	| 'SIMULATION_FAIL';
+	| 'SIMULATION_FAIL'
+	/**
+	 * The tool/network failed to run the vector (SEND_ERROR, EXCEPTION, an
+	 * exhausted campaign budget). Says nothing about the contract: never a
+	 * security finding, always reported in the coverage block.
+	 */
+	| 'OPERATIONAL_ERROR'
+	/**
+	 * The hypothesis cannot be evaluated by what was executed — e.g. an
+	 * access-control vector in a simulate-only campaign, where recording-mode
+	 * simulation never rejects missing authorization.
+	 */
+	| 'NOT_EVALUATED';
 
 export type Severity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+
+/**
+ * What a finding establishes, independent of its severity.
+ *
+ *   supported    — the trace directly shows the reported behaviour (e.g. the
+ *                  function traps instead of returning a contract error).
+ *                  Says nothing about exploitability.
+ *   hypothesis   — a candidate defect that depends on a policy KUYFI cannot
+ *                  see black-box (e.g. "this call succeeded without the
+ *                  address's authorization" is only a gap if the function is
+ *                  meant to be restricted). Needs confirmation; NOT a
+ *                  confirmed vulnerability.
+ *   inconclusive — the trace does not explain the failure either way.
+ *
+ * `severity` keeps meaning "triage priority if the finding holds", unchanged
+ * so historical reports stay comparable; `status` says how far it is established.
+ */
+export type FindingStatus = 'supported' | 'hypothesis' | 'inconclusive';
+
+export function findingStatus(signal: VulnerabilitySignal): FindingStatus {
+	switch (signal) {
+		case 'UNCONTROLLED_PANIC':
+			return 'supported';
+		case 'POTENTIAL_VULN':
+			return 'hypothesis';
+		default:
+			return 'inconclusive';
+	}
+}
 
 /**
  * JSON-safe execution evidence for one invocation, carried forward from
@@ -39,6 +80,10 @@ export interface ExecutionEvidence {
 	transactionHash: string | null;
 	ledger: number | null;
 	simulationFailed: boolean;
+	/** `simulation` when nothing was sent (simulate-only campaign). Absent = v0.1.0 flow. */
+	mode?: 'simulation' | 'broadcast';
+	/** Re-submissions after a txBadSeq rejection. Absent = 0. */
+	sendRetries?: number;
 	trace: DiagnosticTraceAnalysis;
 }
 
@@ -82,6 +127,8 @@ export function signalToSeverity(
 		case 'SIMULATION_FAIL':
 			return 'LOW';
 		case 'SECURE':
+		case 'OPERATIONAL_ERROR':
+		case 'NOT_EVALUATED':
 			return 'INFO';
 	}
 }
@@ -597,8 +644,50 @@ export function parseInvokeResult(
 		transactionHash: result.transactionHash,
 		ledger: result.ledger,
 		simulationFailed: result.simulationFailed,
+		...(result.executionMode ? {mode: result.executionMode} : {}),
+		...(result.sendRetries ? {sendRetries: result.sendRetries} : {}),
 		trace: analyzeDiagnosticTrace(result.diagnosticEvents),
 	};
+
+	// Tool/network failures are not contract behaviour: they must not surface
+	// as a MEDIUM "unexpected error" security finding (v0.1.0 did, via the
+	// generic fallback of classifyError).
+	if (
+		result.errorCode === 'SEND_ERROR' ||
+		result.errorCode === 'EXCEPTION' ||
+		result.errorCode === 'BUDGET_EXHAUSTED'
+	) {
+		return {
+			signal: 'OPERATIONAL_ERROR',
+			severity: 'INFO',
+			details: `Operational error (${result.errorCode}): ${
+				result.errorMessage ?? 'no details'
+			}`,
+			rawErrorCode: result.errorCode,
+			functionName,
+			vectorName,
+			evidence,
+		};
+	}
+
+	// Simulate-only: recording-mode simulation never rejects missing
+	// authorization, so "succeeded" proves nothing about an access-control
+	// hypothesis. Report the gap instead of a false POTENTIAL_VULN.
+	if (
+		result.success &&
+		result.executionMode === 'simulation' &&
+		expectedToFail
+	) {
+		return {
+			signal: 'NOT_EVALUATED',
+			severity: 'INFO',
+			details: `${vectorName}: not evaluated in a simulate-only campaign (a recording-mode simulation cannot show whether ${functionName} would reject the call)`,
+			rawErrorCode: null,
+			functionName,
+			vectorName,
+			evidence,
+		};
+	}
 
 	if (result.errorCode === 'TIMEOUT') {
 		return {
@@ -675,7 +764,7 @@ export function parseInvokeResult(
 		return {
 			signal: 'POTENTIAL_VULN',
 			severity: signalToSeverity('POTENTIAL_VULN', isAdminFunction),
-			details: `${vectorName}: access control bypass — call was NOT rejected on ${functionName}`,
+			details: `${vectorName}: the call to ${functionName} succeeded without authorization from the address argument(s) — possible access-control gap. This is a HYPOTHESIS, not a confirmed vulnerability: a call that is allowed proves nothing unless ${functionName} is meant to be restricted, which is not knowable black-box — confirm against the contract's intended access policy`,
 			rawErrorCode: null,
 			functionName,
 			vectorName,

@@ -4,6 +4,7 @@ import {TESTNET_RPC_URL} from './network.js';
 import {typeName} from './chaos_monkey/type_gen.js';
 import {stellarExpertTestnetUrl} from './chaos_monkey/result_parser.js';
 import type {
+	FindingStatus,
 	Severity,
 	VulnerabilitySignal,
 } from './chaos_monkey/result_parser.js';
@@ -20,6 +21,16 @@ import type {
 	VerificationTransaction,
 } from './chaos_monkey/index.js';
 import type {AuditRun} from './audit.js';
+import {auditProvenance} from './chaos_monkey/provenance.js';
+import type {
+	InputProvenance,
+	ProvenanceAudit,
+} from './chaos_monkey/provenance.js';
+import type {
+	CampaignInfo,
+	CoverageNote,
+	VectorOutcome,
+} from './chaos_monkey/reporter.js';
 
 /**
  * Schema version for the public SecurityReport JSON shape — independent
@@ -149,6 +160,8 @@ export interface PublicFinding {
 	vectorName: string;
 	signal: VulnerabilitySignal;
 	severity: Severity;
+	/** Additive: how far the finding is established (supported | hypothesis | inconclusive). */
+	status?: FindingStatus;
 	details: string;
 	evidence: PublicEvidence;
 }
@@ -188,8 +201,39 @@ export interface SecurityReport {
 		};
 		/** Tallied over findings[] only — SECURE/PRECONDITION_FAIL never appear here since they're excluded from findings[] by design; see bySeverity.preconditionFail for that count instead. */
 		findingsBySignal: Partial<Record<VulnerabilitySignal, number>>;
+		/** Additive: findings by what they establish; sums to totalFindings. */
+		byStatus?: Record<FindingStatus, number>;
 	};
 	findings: PublicFinding[];
+	/**
+	 * Additive (schemaVersion unchanged): where every generated input came
+	 * from. Holds parameter names, rules and config KEYS — never configured
+	 * values, keys or secrets.
+	 */
+	provenance?: {
+		audit: ProvenanceAudit;
+		invocations: Array<{
+			functionName: string;
+			vectorName: string;
+			mode: 'simulation' | 'broadcast';
+			/** Additive: how the vector was classified, including SECURE/PRECONDITION_FAIL results that never become findings. */
+			signal?: VulnerabilitySignal;
+			/** Additive: accepted / rejected (blockedBy category + code) / not_run. */
+			outcome?: VectorOutcome;
+			inputs: InputProvenance[];
+		}>;
+	};
+	/** Additive: what the run did NOT establish. Gaps are reported as gaps. */
+	coverage?: {
+		functionsWithZeroInvocations: string[];
+		/** Vectors that failed operationally (not contract behaviour, not findings). */
+		operationalErrors: CoverageNote[];
+		/** Hypotheses that could not be evaluated by what was executed. */
+		notEvaluated: CoverageNote[];
+		vectorBudgetExhausted: boolean;
+	};
+	/** Additive: present only when a campaign configuration was used. */
+	campaign?: CampaignInfo;
 }
 
 // ─── Transforms — each one is a pure projection, no re-classification ─────
@@ -272,6 +316,7 @@ function toPublicFinding(finding: Finding): PublicFinding {
 		vectorName: finding.vectorName,
 		signal: finding.signal,
 		severity: finding.severity,
+		status: finding.status,
 		details: finding.details,
 		evidence: {
 			simulationFailed: finding.evidence.simulationFailed,
@@ -336,11 +381,24 @@ function tallyFindingsBySeverity(
 	return tally;
 }
 
+function tallyFindingsByStatus(
+	findings: Finding[],
+): Record<FindingStatus, number> {
+	const tally: Record<FindingStatus, number> = {
+		supported: 0,
+		hypothesis: 0,
+		inconclusive: 0,
+	};
+	for (const f of findings) tally[f.status]++;
+	return tally;
+}
+
 function toReportSummary(chaos: ChaosReport): SecurityReport['summary'] {
 	return {
 		totalFindings: chaos.findings.length,
 		bySeverity: tallyFindingsBySeverity(chaos.findings),
 		findingsBySignal: tallyFindingsBySignal(chaos.findings),
+		byStatus: tallyFindingsByStatus(chaos.findings),
 	};
 }
 
@@ -354,6 +412,43 @@ export function toPublicScan(scan: ScanResult): SecurityReport['scan'] {
 		totalFunctions: scan.functions.length,
 		functions: scan.functions.map(toPublicFunction),
 		udts: [...scan.udtRegistry.values()].map(toPublicUdt),
+	};
+}
+
+function toProvenanceBlock(
+	chaos: ChaosReport,
+): NonNullable<SecurityReport['provenance']> {
+	const records = chaos.invocations ?? [];
+	return {
+		audit: auditProvenance(
+			records,
+			chaos.refusedInvocations ?? [],
+			chaos.summary.operationalErrors ?? 0,
+		),
+		invocations: records.map(r => ({
+			functionName: r.functionName,
+			vectorName: r.vectorName,
+			mode: r.mode,
+			signal: r.signal,
+			...(r.outcome ? {outcome: r.outcome} : {}),
+			inputs: r.inputs ?? [],
+		})),
+	};
+}
+
+function toCoverageBlock(
+	scan: ScanResult,
+	chaos: ChaosReport,
+): NonNullable<SecurityReport['coverage']> {
+	const exercised = new Set((chaos.invocations ?? []).map(i => i.functionName));
+	const notes = chaos.coverageNotes ?? [];
+	return {
+		functionsWithZeroInvocations: scan.functions
+			.map(f => f.name)
+			.filter(n => !exercised.has(n)),
+		operationalErrors: notes.filter(n => n.signal === 'OPERATIONAL_ERROR'),
+		notEvaluated: notes.filter(n => n.signal === 'NOT_EVALUATED'),
+		vectorBudgetExhausted: (chaos.campaign?.refusedByBudget ?? 0) > 0,
 	};
 }
 
@@ -399,6 +494,9 @@ export function buildSecurityReport(
 		},
 		summary: toReportSummary(chaos),
 		findings: chaos.findings.map(toPublicFinding),
+		provenance: toProvenanceBlock(chaos),
+		coverage: toCoverageBlock(scan, chaos),
+		...(chaos.campaign ? {campaign: chaos.campaign} : {}),
 	};
 }
 

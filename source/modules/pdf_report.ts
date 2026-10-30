@@ -344,9 +344,12 @@ function renderFinding(doc: PDFKit.PDFDocument, finding: PublicFinding): void {
 		.font('Helvetica-Bold')
 		.fontSize(11)
 		.fillColor(PURPLE)
-		.text(`[${finding.id}] ${finding.severity} — ${finding.signal}`, {
-			width: contentWidth(doc),
-		});
+		.text(
+			`[${finding.id}] ${finding.severity} — ${finding.signal}${finding.status ? ` (${finding.status})` : ''}`,
+			{
+				width: contentWidth(doc),
+			},
+		);
 	doc.fillColor(DARK);
 	doc.moveDown(0.2);
 

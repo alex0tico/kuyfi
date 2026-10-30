@@ -1,4 +1,5 @@
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
+import type {Keypair} from '@stellar/stellar-sdk';
 import {TESTNET_RPC_URL as RPC_URL} from '../network.js';
 import {generateEphemeralKeypair} from './keypair_factory.js';
 import {fuzzMathVectors} from './fuzzer_math.js';
@@ -7,9 +8,18 @@ import {fuzzFeeVectors} from './fuzzer_fee.js';
 import {fuzzLiquidityVectors} from './fuzzer_liquidity.js';
 import {fuzzCallOrderVectors} from './fuzzer_call_order.js';
 import {buildReport} from './reporter.js';
+import type {CampaignInfo} from './reporter.js';
+import {
+	CampaignServer,
+	isFamilyAllowed,
+	isFunctionAllowed,
+} from './campaign.js';
+import type {CampaignLimits, VectorFamily} from './campaign.js';
+import {unusedContextKeys} from './context_config.js';
 import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {ChaosReport} from './reporter.js';
+import type {ContextConfig} from './context_config.js';
 
 export type {ChaosReport} from './reporter.js';
 export type {Finding} from './reporter.js';
@@ -19,6 +29,16 @@ export type {FuzzResult} from './fuzzer_math.js';
 export type {ParsedResult, ExecutionEvidence} from './result_parser.js';
 export {stellarExpertTestnetUrl} from './result_parser.js';
 export type {UdtRegistry, UdtField} from './type_gen.js';
+export type {ContextConfig} from './context_config.js';
+export {parseContextConfig, ContextConfigError} from './context_config.js';
+export type {InputProvenance} from './provenance.js';
+export {provenanceCoverage} from './provenance.js';
+export type {CampaignConfig, CampaignLimits} from './campaign.js';
+export {
+	CampaignConfigError,
+	loadCampaignConfig,
+	parseCampaignConfig,
+} from './campaign.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTypeDef = any;
@@ -35,6 +55,18 @@ export interface ChaosMonkeyOptions {
 	 */
 	udtRegistry: UdtRegistry;
 	onProgress: (message: string) => void;
+	/** Optional campaign context (roles, known values). Absent = v0.1.0 behaviour. */
+	context?: ContextConfig;
+	/**
+	 * Optional campaign limits. Absent = v0.1.0 behaviour (everything, broadcast).
+	 * When present, every RPC call goes through a CampaignServer that enforces them.
+	 */
+	limits?: CampaignLimits;
+	/** Free-text reference recorded in the report (never interpreted). */
+	authorizationRecord?: string;
+	/** Test seams — production callers omit both. */
+	keypair?: Keypair;
+	server?: SorobanRpc.Server;
 }
 
 /**
@@ -52,23 +84,79 @@ export interface ChaosMonkeyOptions {
  * Every vector's outcome is classified by the same trace-primary classifier
  * (result_parser.ts) — a vector can only PROVE an attack hypothesis by
  * producing evidence; it never itself declares a finding.
+ *
+ * Campaign limits (functions, families, vector budget, simulate-only) are
+ * applied here for scheduling and ALSO enforced at the network layer by
+ * CampaignServer, so a code path that bypasses the scheduler still cannot
+ * exceed them.
  */
 export async function runChaosMonkey(
 	options: ChaosMonkeyOptions,
 ): Promise<ChaosReport> {
-	const {contractId, functions, udtRegistry, onProgress} = options;
+	const {contractId, functions, udtRegistry, onProgress, context} = options;
 
 	onProgress('Generating ephemeral keypair...');
-	const keypair = await generateEphemeralKeypair();
+	const keypair = options.keypair ?? (await generateEphemeralKeypair());
 	onProgress(`Keypair funded: ${keypair.publicKey().slice(0, 10)}...`);
 
-	const server = new SorobanRpc.Server(RPC_URL);
+	const server =
+		options.server ??
+		(options.limits
+			? new CampaignServer(RPC_URL, options.limits)
+			: new SorobanRpc.Server(RPC_URL));
+	const campaignServer = server instanceof CampaignServer ? server : undefined;
+	const limits = campaignServer?.limits;
 	onProgress(`Connected to RPC: ${RPC_URL}`);
-	onProgress(`Starting fuzzing session on ${functions.length} function(s)...`);
+	if (limits) {
+		onProgress(
+			`Campaign limits: mode=${limits.mode}` +
+				(limits.maxVectors === undefined
+					? ''
+					: `, maxVectors=${limits.maxVectors}`),
+		);
+	}
+
+	const selected = functions.filter(fn => isFunctionAllowed(limits, fn.name));
+	const skippedFunctions = functions
+		.filter(fn => !isFunctionAllowed(limits, fn.name))
+		.map(fn => fn.name);
+	onProgress(`Starting fuzzing session on ${selected.length} function(s)...`);
 
 	const allResults: FuzzResult[] = [];
+	const refusedResults: FuzzResult[] = [];
 
-	for (const fn of functions) {
+	/** Runs one family for one scope, keeping out results the budget refused. */
+	const runFamily = async (
+		family: VectorFamily,
+		label: string,
+		run: () => Promise<FuzzResult[]>,
+		describe: (results: FuzzResult[]) => string | undefined,
+	) => {
+		if (!isFamilyAllowed(limits, family)) return;
+		if (campaignServer?.budgetExhausted) return;
+		try {
+			const results = await run();
+			const kept = results.filter(
+				r => r.result.rawErrorCode !== 'BUDGET_EXHAUSTED',
+			);
+			// Refused vectors never ran, but their inputs WERE generated: keep
+			// them so provenance is audited over everything generated.
+			refusedResults.push(
+				...results.filter(r => r.result.rawErrorCode === 'BUDGET_EXHAUSTED'),
+			);
+			allResults.push(...kept);
+			const message = describe(kept);
+			if (message) onProgress(`${label} ${message}`);
+		} catch (error) {
+			onProgress(
+				`${label} ${family} fuzzer error: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+	};
+
+	for (const fn of selected) {
 		const target: FuzzTarget = {
 			contractId,
 			functionName: fn.name,
@@ -76,122 +164,112 @@ export async function runChaosMonkey(
 			isAdminFunction: isAdminFunctionByName(fn.name),
 		};
 
-		onProgress(
-			`[${fn.name}] Running math vectors (${fn.params.length} params)...`,
-		);
-		try {
-			const mathResults = await fuzzMathVectors(
-				target,
-				keypair,
-				server,
-				udtRegistry,
-			);
-			allResults.push(...mathResults);
-			onProgress(`[${fn.name}] Math done (${mathResults.length} invocations)`);
-		} catch (error) {
+		if (isFamilyAllowed(limits, 'math')) {
 			onProgress(
-				`[${fn.name}] Math fuzzer error: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
+				`[${fn.name}] Running math vectors (${fn.params.length} params)...`,
 			);
 		}
+
+		await runFamily(
+			'math',
+			`[${fn.name}]`,
+			async () =>
+				fuzzMathVectors(target, keypair, server, udtRegistry, context),
+			r => `Math done (${r.length} invocations)`,
+		);
 
 		// Always attempted — fuzzAccessVectors self-gates each of its vectors
 		// (admin-name UNAUTHORIZED_CALL/REINIT_ATTACK/SELF_CALL_ATTACK, and
 		// UNAUTHORIZED_ADDR_CALL for non-admin functions with an Address
 		// parameter), so a function with none of those shapes just yields [].
-		onProgress(`[${fn.name}] Running access control vectors...`);
-		try {
-			const accessResults = await fuzzAccessVectors(
-				target,
-				keypair,
-				server,
-				udtRegistry,
-			);
-			allResults.push(...accessResults);
-			onProgress(
-				`[${fn.name}] Access done (${accessResults.length} invocations)`,
-			);
-		} catch (error) {
-			onProgress(
-				`[${fn.name}] Access fuzzer error: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
-			);
+		if (isFamilyAllowed(limits, 'access')) {
+			onProgress(`[${fn.name}] Running access control vectors...`);
 		}
+
+		await runFamily(
+			'access',
+			`[${fn.name}]`,
+			async () =>
+				fuzzAccessVectors(target, keypair, server, udtRegistry, context),
+			r => `Access done (${r.length} invocations)`,
+		);
 
 		// Fee/BPS and liquidity-ratio vectors self-gate on param name/type and
 		// function name respectively — a function with neither shape yields [].
-		try {
-			const feeResults = await fuzzFeeVectors(
-				target,
-				keypair,
-				server,
-				udtRegistry,
-			);
-			if (feeResults.length > 0) {
-				allResults.push(...feeResults);
-				onProgress(
-					`[${fn.name}] Fee/BPS vectors: ${feeResults.length} invocation(s)`,
-				);
-			}
-		} catch (error) {
-			onProgress(
-				`[${fn.name}] Fee fuzzer error: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
-			);
-		}
+		await runFamily(
+			'fee',
+			`[${fn.name}]`,
+			async () => fuzzFeeVectors(target, keypair, server, udtRegistry, context),
+			r =>
+				r.length > 0 ? `Fee/BPS vectors: ${r.length} invocation(s)` : undefined,
+		);
 
-		try {
-			const liquidityResults = await fuzzLiquidityVectors(
-				target,
-				keypair,
-				server,
-				udtRegistry,
-			);
-			if (liquidityResults.length > 0) {
-				allResults.push(...liquidityResults);
-				onProgress(
-					`[${fn.name}] Liquidity-ratio vectors: ${liquidityResults.length} invocation(s)`,
-				);
-			}
-		} catch (error) {
-			onProgress(
-				`[${fn.name}] Liquidity fuzzer error: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
-			);
-		}
+		await runFamily(
+			'liquidity',
+			`[${fn.name}]`,
+			async () =>
+				fuzzLiquidityVectors(target, keypair, server, udtRegistry, context),
+			r =>
+				r.length > 0
+					? `Liquidity-ratio vectors: ${r.length} invocation(s)`
+					: undefined,
+		);
 	}
 
 	// Call-ordering runs once per session (not per function) — it matches at
 	// most one function per sequence group across the whole discovered set.
-	onProgress('Checking for call-ordering sequence candidates...');
-	try {
-		const callOrderResults = await fuzzCallOrderVectors(
-			contractId,
-			functions,
-			keypair,
-			server,
-			udtRegistry,
-		);
-		if (callOrderResults.length > 0) {
-			allResults.push(...callOrderResults);
-			onProgress(
-				`Call-ordering vectors: ${callOrderResults.length} invocation(s)`,
-			);
-		}
-	} catch (error) {
-		onProgress(
-			`Call-ordering fuzzer error: ${
-				error instanceof Error ? error.message : String(error)
-			}`,
-		);
+	if (isFamilyAllowed(limits, 'call_order')) {
+		onProgress('Checking for call-ordering sequence candidates...');
 	}
 
+	await runFamily(
+		'call_order',
+		'',
+		async () =>
+			fuzzCallOrderVectors(
+				contractId,
+				selected,
+				keypair,
+				server,
+				udtRegistry,
+				context,
+			),
+		r =>
+			r.length > 0
+				? `Call-ordering vectors: ${r.length} invocation(s)`
+				: undefined,
+	);
+
 	onProgress('Building report...');
-	const report = buildReport(contractId, allResults);
+	const campaignInfo: CampaignInfo | undefined = limits
+		? {
+				mode: limits.mode,
+				...(limits.functions ? {allowedFunctions: limits.functions} : {}),
+				...(limits.families ? {allowedFamilies: limits.families} : {}),
+				...(limits.maxVectors === undefined
+					? {}
+					: {maxVectors: limits.maxVectors}),
+				refusedByBudget: Math.max(
+					refusedResults.length,
+					campaignServer?.refused ?? 0,
+				),
+				blockedSends: campaignServer?.blockedSends ?? 0,
+				functionsSkippedByLimit: skippedFunctions,
+				contextKeysUsed: usedContextKeys(allResults),
+				contextKeysUnused: context
+					? unusedContextKeys(context, usedContextKeys(allResults))
+					: [],
+				...(options.authorizationRecord
+					? {authorizationRecord: options.authorizationRecord}
+					: {}),
+			}
+		: undefined;
+	const report = buildReport(
+		contractId,
+		allResults,
+		campaignInfo,
+		refusedResults,
+	);
 
 	onProgress(
 		`Scan complete — ${report.findings.length} finding(s) | ` +
@@ -199,4 +277,15 @@ export async function runChaosMonkey(
 	);
 
 	return report;
+}
+
+function usedContextKeys(results: FuzzResult[]): string[] {
+	const keys = new Set<string>();
+	for (const r of results) {
+		for (const input of r.inputs ?? []) {
+			if (input.configKey) keys.add(input.configKey);
+		}
+	}
+
+	return [...keys].sort();
 }
