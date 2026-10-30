@@ -1,0 +1,43 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+---
+
+<DocsLayout
+	title="Responsible use"
+	eyebrow="[ POLICY ]"
+	description="Kuyfi sends real on-chain transactions to Stellar Testnet. Use it like a pentest tool — with authorization."
+>
+	<Callout type="danger" title="Authorization required">
+		<p>
+			Run only against contracts you own or have <strong>explicit written authorization</strong>
+			to test. Unauthorized fuzzing of third-party contracts may violate terms of service and
+			may be illegal in your jurisdiction.
+		</p>
+	</Callout>
+
+	<h2>Rules of engagement</h2>
+	<ul>
+		<li>Testnet only — Kuyfi does not support Mainnet in v0.1.0.</li>
+		<li>Do not point tooling at Mainnet contracts without the owner’s consent (even with other tools).</li>
+		<li>Treat every finding as a lead, not a verdict.</li>
+		<li>Do not market Kuyfi output as a formal audit deliverable or certification.</li>
+		<li>Do not store or log ephemeral private keys (Kuyfi does not; keep it that way).</li>
+	</ul>
+
+	<h2>What Kuyfi does not claim</h2>
+	<ul>
+		<li>Absence of findings ≠ absence of vulnerabilities</li>
+		<li><code>POTENTIAL_VULN</code> ≠ confirmed exploitable bug</li>
+		<li>Black-box coverage ≠ full semantic understanding of author intent</li>
+	</ul>
+
+	<h2>Disclosure</h2>
+	<p>
+		If you discover a real issue in a third-party contract while authorized to test, follow
+		that project’s responsible disclosure process. Kuyfi’s own security issues: open a private
+		report via the GitHub repository maintainers.
+	</p>
+
+	<p>License: MIT. Not affiliated with the Stellar Development Foundation.</p>
+</DocsLayout>

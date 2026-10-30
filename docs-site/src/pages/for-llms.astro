@@ -1,0 +1,154 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import InstallBar from '../components/InstallBar.astro';
+import McpButton from '../components/McpButton.astro';
+import { SITE } from '../content/nav';
+import { withBase } from '../lib/paths';
+---
+
+<DocsLayout
+	title="For LLMs & agents"
+	eyebrow="[ LLM · COPY ]"
+	description="How agents should ingest Kuyfi docs — Markdown for Agents, not MDX."
+>
+	<div class="llm-actions">
+		<a class="pill pill--accent" href={withBase('/agent-setup')}>Agent setup</a>
+		<a class="pill" href={withBase('/llms.txt')}>llms.txt</a>
+		<a class="pill" href={withBase('/llms-full.txt')}>llms-full.txt</a>
+		<a class="pill" href={withBase('/md/index.md')}>index.md</a>
+		<McpButton />
+	</div>
+
+	<Callout type="danger" title="Do not confuse with MDX">
+		<p>
+			<strong>MDX</strong> = Markdown + <strong>JSX components</strong> (docs UI authoring).
+			It is <em>not</em> “Markdown for machines.”
+		</p>
+		<p>
+			Kuyfi exposes <strong>Markdown for Agents</strong>: plain Markdown via
+			<strong>Copy as Markdown</strong>, <code>/docs/md/&lt;slug&gt;.md</code>, and
+			<code>llms.txt</code> — the Cloudflare-style pattern.
+		</p>
+	</Callout>
+
+	<Callout type="tip" title="Preferred ingestion order">
+		<ol>
+			<li><code>{SITE.url}/docs/llms.txt</code> — compact index</li>
+			<li><code>{SITE.url}/docs/llms-full.txt</code> — full manual</li>
+			<li>
+				<code>{SITE.url}/docs/md/&lt;slug&gt;.md</code> — per-page Markdown (or use Page options →
+				Copy as Markdown)
+			</li>
+			<li>HTML pages only for human navigation / diagrams</li>
+		</ol>
+	</Callout>
+
+	<p>
+		Full setup guide (terminology, curl examples, page index):{' '}
+		<a href={withBase('/agent-setup')}>Agent setup</a>.
+	</p>
+
+	<h2>One-paragraph project card (copy)</h2>
+	<pre><code>Kuyfi (@kuyfi/kuyfi, CLI `kuyfi`) is an open-source black-box security terminal for Soroban smart contracts on Stellar Testnet. Given a Contract ID, it fetches on-chain WASM, reconstructs the attack surface from contractspecv0, runs type-aware Chaos Monkey fuzzing (simulate-first, optional Testnet broadcast with ephemeral Friendbot keys), classifies DiagnosticEvent traces into a six-signal taxonomy, and exports a SecurityReport as JSON/PDF. It is not a formal audit. Testnet only. Never fuzz unauthorized contracts.</code></pre>
+
+	<h2>Install copy for agents</h2>
+	<InstallBar />
+
+	<h2>Safe agent playbook</h2>
+	<ol>
+		<li>Confirm the user owns the Contract ID or has written authorization.</li>
+		<li>Confirm network is Testnet (Kuyfi hardcodes Testnet RPC).</li>
+		<li>Prefer headless: <code>kuyfi &lt;ID&gt; --json</code> for structured output.</li>
+		<li>
+			Treat <code>POTENTIAL_VULN</code> as investigate-first; never rewrite findings into
+			“confirmed CVE”.
+		</li>
+		<li>Do not invent Mainnet support, SaaS dashboards, or MCP tools that are not shipped.</li>
+		<li>Ingest plain Markdown / llms.txt — never assume MDX is the agent format.</li>
+	</ol>
+
+	<h2>Prompt stub</h2>
+	<pre><code>You are helping with Kuyfi, a Soroban black-box security CLI.
+Rules:
+- Start from https://kuyfi.vercel.app/docs/agent-setup and llms-full.txt
+- Per-page Markdown: https://kuyfi.vercel.app/docs/md/&lt;slug&gt;.md
+- Testnet only; findings = signals, not exploits
+- Suggest `kuyfi &lt;CONTRACT_ID&gt; --json` for CI
+- Markdown for Agents ≠ MDX</code></pre>
+
+	<h2>Structured facts agents often get wrong</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Fact</th>
+				<th>Truth</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>Package name</td>
+				<td><code>@kuyfi/kuyfi</code> (command <code>kuyfi</code>)</td>
+			</tr>
+			<tr>
+				<td>Network</td>
+				<td>Stellar Testnet only</td>
+			</tr>
+			<tr>
+				<td>Source required?</td>
+				<td>No — WASM / contractspec on-chain</td>
+			</tr>
+			<tr>
+				<td>HTTP API</td>
+				<td>Optional paid OSINT scan only; no remote Chaos Monkey</td>
+			</tr>
+			<tr>
+				<td>Report schema</td>
+				<td><code>schemaVersion: "1.0.0"</code></td>
+			</tr>
+			<tr>
+				<td>Agent docs format</td>
+				<td>Plain Markdown + llms.txt — <strong>not MDX</strong></td>
+			</tr>
+			<tr>
+				<td>Tagline</td>
+				<td>Before the Breach.</td>
+			</tr>
+		</tbody>
+	</table>
+</DocsLayout>
+
+<style>
+	.llm-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		align-items: center;
+		margin: 0 0 1.5rem;
+	}
+
+	.pill {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.45rem 0.75rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius);
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: var(--text);
+		text-decoration: none;
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	.pill:hover {
+		border-color: var(--yellow);
+		color: var(--yellow);
+		text-decoration: none;
+	}
+
+	.pill--accent {
+		border-color: rgba(245, 197, 24, 0.45);
+		background: var(--yellow-soft);
+		color: var(--yellow);
+	}
+</style>

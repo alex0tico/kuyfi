@@ -1,0 +1,192 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import { withBase } from '../lib/paths';
+
+const toc = [
+	{id: 'execution', label: 'Execution model'},
+	{id: 'constraint', label: 'Type-correct ≠ valid'},
+	{id: 'families', label: 'Five families'},
+	{id: 'session', label: 'Session lifecycle'},
+	{id: 'funding', label: 'Friendbot & keypairs'},
+	{id: 'router', label: 'Invoke / poll'},
+	{id: 'modules', label: 'Modules'},
+	{id: 'fixtures', label: 'Fixtures'},
+];
+---
+
+<DocsLayout
+	title="Chaos Monkey"
+	eyebrow="[ 05 · FUZZ ]"
+	description="Type-aware fuzzing for Soroban — not random dumb bytes. Simulate first; broadcast only when preflight proceeds."
+>
+	<Toc items={toc} />
+
+	<p>
+		Full attack-label catalog (math labels, admin patterns, sequences):{' '}
+		<a href={withBase('/vectors')}>Attack vectors reference</a>.
+	</p>
+
+	<Callout type="warn" title="Real Testnet transactions">
+		<p>
+			Vectors whose simulation succeeds are signed with an ephemeral Friendbot-funded
+			keypair and submitted on-chain. Keypairs are never written to disk or logged.
+		</p>
+	</Callout>
+
+	<h2 id="execution">Execution model</h2>
+	<pre><code>vector → simulate (preflight)
+           ├─ simulation fails    → classify from diagnostic events (nothing sent)
+           └─ simulation succeeds → sign → broadcast → poll → classify</code></pre>
+
+	<p>
+		Many findings are therefore classified <em>without</em> an on-chain transaction. Only
+		broadcast txs appear in verification samples and explorer links.
+	</p>
+
+	<h2 id="constraint">Design constraint</h2>
+	<p>
+		<strong>Type-correct ≠ semantically valid.</strong> A random <code>Address</code> is not
+		a funded account, token, or authorized signer. Kuyfi classifies conservatively and treats
+		ambiguity as ambiguity — see <a href={withBase('/findings')}>Findings</a>.
+	</p>
+
+	<h2 id="families">Five vector families</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Family</th>
+				<th>Module</th>
+				<th>What it probes</th>
+				<th>expectedToFail</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>Math / boundary</td>
+				<td><code>fuzzer_math.ts</code></td>
+				<td>
+					Per-type boundaries (<code>ZERO</code>, <code>MAX_I128</code>, empty/oversized
+					bytes/strings, recursive UDT fields one-at-a-time).
+				</td>
+				<td><code>false</code></td>
+			</tr>
+			<tr>
+				<td>Authorization</td>
+				<td><code>fuzzer_access.ts</code></td>
+				<td>
+					<code>UNAUTHORIZED_CALL</code>, <code>REINIT_ATTACK</code>,
+					<code>SELF_CALL_ATTACK</code>, <code>UNAUTHORIZED_ADDR_CALL</code>.
+				</td>
+				<td><code>true</code></td>
+			</tr>
+			<tr>
+				<td>Fee / BPS</td>
+				<td><code>fuzzer_fee.ts</code></td>
+				<td>
+					<code>BPS_*</code> + type max on fee-shaped numeric params.
+				</td>
+				<td><code>false</code></td>
+			</tr>
+			<tr>
+				<td>Liquidity ratio</td>
+				<td><code>fuzzer_liquidity.ts</code></td>
+				<td>
+					Paired extremes on swap/reserve-shaped functions.
+				</td>
+				<td><code>false</code></td>
+			</tr>
+			<tr>
+				<td>Call ordering</td>
+				<td><code>fuzzer_call_order.ts</code></td>
+				<td>
+					Same function twice: reinit / withdraw / claim sequences (once per session).
+				</td>
+				<td><code>false</code></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="session">Session lifecycle (<code>runChaosMonkey</code>)</h2>
+	<ol>
+		<li>Generate ephemeral keypair + Friendbot fund + on-chain confirmation.</li>
+		<li>Connect Testnet RPC.</li>
+		<li>
+			<strong>Per discovered function</strong>, in this order: math → access → fee →
+			liquidity (each self-gates on name/params).
+		</li>
+		<li>
+			<strong>Once per session</strong> (after all per-function work): call-ordering
+			candidates.
+		</li>
+		<li>
+			Aggregate <code>ChaosReport</code> —
+			<code>SECURE</code> / <code>PRECONDITION_FAIL</code> filtered from findings list,
+			kept in counters.
+		</li>
+	</ol>
+	<p>
+		Progress strings include stages like generating the ephemeral keypair and per-function
+		family lines (math / access / …) via the progress callback.
+	</p>
+
+	<h2 id="funding">Friendbot &amp; ephemeral keypairs</h2>
+	<p>Module <code>keypair_factory.ts</code>:</p>
+	<ul>
+		<li>Friendbot URL: <code>https://friendbot.stellar.org/?addr=</code></li>
+		<li><strong>3</strong> funding retries with backoff between attempts</li>
+		<li>
+			After HTTP OK: poll <code>getAccount</code> up to <strong>10 × 1s</strong> for
+			on-chain confirmation
+		</li>
+		<li>
+			Failure after retries → throw
+			<code>Ephemeral keypair funding failed after 3 retries: …</code>
+			(headless surfaces as <code>Audit failed: …</code>)
+		</li>
+		<li>Keys never persisted to disk or logged</li>
+	</ul>
+
+	<h2 id="router">Invoke / poll constants</h2>
+	<p>Module <code>router.ts</code> — <code>invokeContract()</code> never throws; always returns typed <code>InvokeResult</code>:</p>
+	<ul>
+		<li><code>BASE_FEE = '100'</code></li>
+		<li><code>TX_TIMEOUT_SECONDS = 30</code> on the built transaction</li>
+		<li>Poll <code>getTransaction</code>: <strong>20 × 1000ms</strong> → <code>TIMEOUT</code></li>
+		<li>
+			<code>broadcasted</code> is true only when <code>sendTransaction</code> was called
+			successfully. A hash may still exist on <code>SEND_ERROR</code> (local envelope
+			hash) with <code>broadcasted: false</code> — check both fields.
+		</li>
+	</ul>
+
+	<h2 id="modules">Key modules</h2>
+	<ul>
+		<li><code>keypair_factory.ts</code> — ephemeral keys, never persisted</li>
+		<li><code>type_gen.ts</code> — baseline + attack <code>ScVal</code>s from XDR types</li>
+		<li><code>router.ts</code> — <code>invokeContract()</code> lifecycle</li>
+		<li><code>trace_analyzer.ts</code> — AUTH / CONTRACT / CONTEXT / OBJECT / STORAGE / WASM_VM / …</li>
+		<li><code>result_parser.ts</code> — maps traces → VulnerabilitySignal + Severity</li>
+		<li><code>reporter.ts</code> — <code>KYF-NNN</code> IDs, verification transaction sample</li>
+	</ul>
+
+	<h2 id="fixtures">Fixtures</h2>
+	<p>
+		Repo <code>test-fixtures/</code> includes an intentionally vulnerable access-control
+		contract and a composite UDT fixture for controlled Testnet demos — not production code.
+	</p>
+	<ul>
+		<li>
+			<code>intentionally-vulnerable-contract</code> — <code>set_admin_value</code> without
+			<code>require_auth</code> vs secure twin; name chosen to match admin patterns.
+		</li>
+		<li>
+			<code>composite-udt-fixture</code> — nested structs/unions for recursive type_gen coverage.
+		</li>
+	</ul>
+	<p>
+		Classify outcomes with <a href={withBase('/findings')}>Findings &amp; signals</a>. Stuck?
+		<a href={withBase('/troubleshooting')}>Troubleshooting</a>.
+	</p>
+</DocsLayout>

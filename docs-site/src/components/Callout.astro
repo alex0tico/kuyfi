@@ -1,0 +1,74 @@
+---
+interface Props {
+	type?: 'info' | 'warn' | 'danger' | 'tip';
+	title?: string;
+}
+
+const { type = 'info', title } = Astro.props;
+const labels = {
+	info: 'Note',
+	warn: 'Warning',
+	danger: 'Critical',
+	tip: 'Tip',
+};
+---
+
+<aside class:list={['callout', `callout--${type}`]} role="note">
+	<div class="callout__title">{title ?? labels[type]}</div>
+	<div class="callout__body">
+		<slot />
+	</div>
+</aside>
+
+<style>
+	.callout {
+		margin: 1.25rem 0;
+		padding: 0.9rem 1rem;
+		border-radius: var(--radius);
+		border: 1px solid var(--border);
+		background: var(--bg-panel);
+	}
+
+	.callout__title {
+		font-family: var(--font-display);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		margin-bottom: 0.35rem;
+	}
+
+	.callout__body :global(p:last-child) {
+		margin-bottom: 0;
+	}
+
+	.callout--info {
+		border-color: rgba(96, 165, 250, 0.35);
+	}
+	.callout--info .callout__title {
+		color: var(--info);
+	}
+
+	.callout--warn {
+		border-color: rgba(245, 197, 24, 0.4);
+		background: var(--yellow-soft);
+	}
+	.callout--warn .callout__title {
+		color: var(--yellow);
+	}
+
+	.callout--danger {
+		border-color: rgba(248, 113, 113, 0.4);
+	}
+	.callout--danger .callout__title {
+		color: var(--danger);
+	}
+
+	.callout--tip {
+		border-color: rgba(244, 114, 182, 0.35);
+		background: var(--pink-soft);
+	}
+	.callout--tip .callout__title {
+		color: var(--pink);
+	}
+</style>

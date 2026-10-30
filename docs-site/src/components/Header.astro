@@ -1,0 +1,171 @@
+---
+import McpButton from './McpButton.astro';
+import Search from './Search.astro';
+import { SITE } from '../content/nav';
+import { withBase } from '../lib/paths';
+---
+
+<header class="header">
+	<div class="header__inner">
+		<a class="brand" href={withBase('/')}>
+			<span class="brand__mark" aria-hidden="true">◆</span>
+			<span class="brand__name">KUYFI</span>
+			<span class="brand__docs">Docs</span>
+		</a>
+
+		<div class="header__search">
+			<Search />
+		</div>
+
+		<nav class="header__links" aria-label="External">
+			<a href={SITE.url} target="_blank" rel="noreferrer">Site</a>
+			<a href={SITE.github} target="_blank" rel="noreferrer">GitHub</a>
+			<a href={withBase('/agent-setup')}>Agents</a>
+			<McpButton />
+		</nav>
+
+		<button
+			type="button"
+			class="menu-toggle"
+			aria-label="Open navigation"
+			aria-controls="docs-sidebar"
+			aria-expanded="false"
+			data-menu-toggle
+		>
+			<span></span><span></span><span></span>
+		</button>
+	</div>
+</header>
+
+<script>
+	function bindMenu() {
+		const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+		const sidebar = document.getElementById('docs-sidebar');
+		if (!toggle || !sidebar || toggle.dataset.bound === '1') return;
+		toggle.dataset.bound = '1';
+		toggle.onclick = () => {
+			const open = sidebar.classList.toggle('is-open');
+			toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+			document.body.classList.toggle('nav-open', open);
+		};
+		document.addEventListener('click', (ev) => {
+			if (!document.body.classList.contains('nav-open')) return;
+			const t = ev.target as Node;
+			if (sidebar.contains(t) || toggle.contains(t)) return;
+			sidebar.classList.remove('is-open');
+			toggle.setAttribute('aria-expanded', 'false');
+			document.body.classList.remove('nav-open');
+		});
+	}
+	bindMenu();
+	document.addEventListener('astro:page-load', bindMenu);
+</script>
+
+<style>
+	.header {
+		position: sticky;
+		top: 0;
+		z-index: 40;
+		height: var(--header-h);
+		border-bottom: 1px solid var(--border);
+		background: rgba(7, 7, 8, 0.85);
+		backdrop-filter: blur(12px);
+	}
+
+	.header__inner {
+		height: 100%;
+		max-width: 1400px;
+		margin: 0 auto;
+		padding: 0 1.25rem;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.brand {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 0.45rem;
+		text-decoration: none;
+		color: var(--text);
+	}
+
+	.brand:hover {
+		text-decoration: none;
+	}
+
+	.brand__mark {
+		color: var(--yellow);
+		font-size: 0.85rem;
+	}
+
+	.brand__name {
+		font-family: var(--font-display);
+		font-weight: 800;
+		letter-spacing: 0.12em;
+		font-size: 1rem;
+	}
+
+	.brand__docs {
+		font-size: 0.75rem;
+		color: var(--text-dim);
+		font-family: var(--font-mono);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.header__search {
+		flex: 1;
+		display: flex;
+		justify-content: center;
+		max-width: 280px;
+		margin: 0 auto;
+	}
+
+	.header__links {
+		display: none;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.header__links a:not(.mcp-btn) {
+		color: var(--text-muted);
+		font-size: 0.88rem;
+		text-decoration: none;
+	}
+
+	.header__links a:not(.mcp-btn):hover {
+		color: var(--yellow);
+	}
+
+	.menu-toggle {
+		display: inline-flex;
+		flex-direction: column;
+		justify-content: center;
+		gap: 4px;
+		width: 40px;
+		height: 40px;
+		background: transparent;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		cursor: pointer;
+		padding: 0.55rem;
+	}
+
+	.menu-toggle span {
+		display: block;
+		height: 2px;
+		background: var(--text);
+		border-radius: 2px;
+	}
+
+	@media (min-width: 960px) {
+		.header__links {
+			display: flex;
+		}
+		.menu-toggle {
+			display: none;
+		}
+	}
+</style>

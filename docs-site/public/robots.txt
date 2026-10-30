@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kuyfi.vercel.app/docs/sitemap-index.xml

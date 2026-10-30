@@ -1,0 +1,29 @@
+:root {
+	--bg: #070708;
+	--bg-elevated: #0c0c10;
+	--bg-panel: #101018;
+	--bg-code: #0a0a0e;
+	--border: rgba(255, 255, 255, 0.08);
+	--border-strong: rgba(255, 255, 255, 0.16);
+	--text: #f4f4f5;
+	--text-muted: #9ca3af;
+	--text-dim: #6b7280;
+	--yellow: #f5c518;
+	--yellow-soft: rgba(245, 197, 24, 0.14);
+	--yellow-glow: rgba(245, 197, 24, 0.35);
+	--pink: #f472b6;
+	--pink-soft: rgba(244, 114, 182, 0.12);
+	--magenta: #c026d3;
+	--nebula: #3b1d5c;
+	--success: #34d399;
+	--danger: #f87171;
+	--info: #60a5fa;
+	--radius: 6px;
+	--radius-lg: 12px;
+	--sidebar-w: 268px;
+	--header-h: 64px;
+	--font-display: 'Syne', 'Segoe UI', sans-serif;
+	--font-body: 'Outfit', 'Segoe UI', sans-serif;
+	--font-mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, monospace;
+	--shadow-glow: 0 0 40px var(--yellow-glow);
+}

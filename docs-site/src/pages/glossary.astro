@@ -1,0 +1,168 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Toc from '../components/Toc.astro';
+
+const toc = [
+	{id: 'product', label: 'Product'},
+	{id: 'stellar', label: 'Stellar / Soroban'},
+	{id: 'engine', label: 'Kuyfi engine'},
+	{id: 'signals', label: 'Signals'},
+];
+---
+
+<DocsLayout
+	title="Glossary"
+	eyebrow="[ LEXICON ]"
+	description="Shared vocabulary for humans, auditors, and agents reading Kuyfi docs."
+>
+	<Toc items={toc} />
+
+	<h2 id="product">Product</h2>
+	<dl class="defs">
+		<div>
+			<dt>Kuyfi</dt>
+			<dd>
+				Open-source black-box security terminal for Soroban. Tagline: <em>Before the Breach.</em>
+			</dd>
+		</div>
+		<div>
+			<dt>Black-box</dt>
+			<dd>
+				Testing without source: only WASM, <code>contractspecv0</code>, and observable runtime
+				behavior.
+			</dd>
+		</div>
+		<div>
+			<dt>SecurityReport</dt>
+			<dd>
+				Canonical JSON document (<code>schemaVersion 1.0.0</code>) also rendered as PDF. One
+				object per audit run.
+			</dd>
+		</div>
+		<div>
+			<dt>Finding</dt>
+			<dd>
+				A classified signal that passed noise filters. A lead for humans — not a CVE or formal
+				audit claim.
+			</dd>
+		</div>
+	</dl>
+
+	<h2 id="stellar">Stellar / Soroban</h2>
+	<dl class="defs">
+		<div>
+			<dt>Contract ID</dt>
+			<dd>
+				Deployed contract address: <code>C</code> + 55 base32 chars. Validated by
+				<code>{'/^C[A-Z0-9]{55}$/'}</code>.
+			</dd>
+		</div>
+		<div>
+			<dt>WASM</dt>
+			<dd>WebAssembly bytecode published on-chain for the contract.</dd>
+		</div>
+		<div>
+			<dt>contractspecv0</dt>
+			<dd>
+				Custom WASM section listing exported functions, parameter types, and UDTs (Soroban SDK
+				contracts).
+			</dd>
+		</div>
+		<div>
+			<dt>UDT</dt>
+			<dd>User-defined type: struct, enum, or union recovered from the spec.</dd>
+		</div>
+		<div>
+			<dt>ScVal</dt>
+			<dd>Soroban XDR value used as a function argument.</dd>
+		</div>
+		<div>
+			<dt>DiagnosticEvent</dt>
+			<dd>
+				Structured host/contract trace events returned by RPC for simulations and transactions —
+				primary evidence for Kuyfi’s classifier.
+			</dd>
+		</div>
+		<div>
+			<dt>Friendbot</dt>
+			<dd>Testnet faucet that funds ephemeral accounts Kuyfi creates in memory.</dd>
+		</div>
+		<div>
+			<dt>Testnet</dt>
+			<dd>
+				Only network Kuyfi talks to (<code>https://soroban-testnet.stellar.org</code>). Mainnet
+				is out of scope in v0.1.0.
+			</dd>
+		</div>
+	</dl>
+
+	<h2 id="engine">Kuyfi engine</h2>
+	<dl class="defs">
+		<div>
+			<dt>OSINT Scanner</dt>
+			<dd>Read-only phase: fetch WASM, parse spec, emit attack surface.</dd>
+		</div>
+		<div>
+			<dt>Chaos Monkey</dt>
+			<dd>Type-aware fuzzing campaign across five vector families.</dd>
+		</div>
+		<div>
+			<dt>Vector</dt>
+			<dd>
+				One attack attempt (named, e.g. <code>amount::MAX_I128</code> or
+				<code>UNAUTHORIZED_CALL</code>).
+			</dd>
+		</div>
+		<div>
+			<dt>Baseline value</dt>
+			<dd>Neutral type-correct ScVal held constant while one parameter is mutated.</dd>
+		</div>
+		<div>
+			<dt>Preflight / simulate</dt>
+			<dd>
+				Dry-run before broadcast. Failed simulations are classified without sending a
+				transaction.
+			</dd>
+		</div>
+		<div>
+			<dt>x402 / Local402</dt>
+			<dd>
+				Payment protocol stack used by optional <code>kuyfi-server</code> to charge per OSINT
+				scan (e.g. priced in CLP → USDC).
+			</dd>
+		</div>
+	</dl>
+
+	<h2 id="signals">Signals (short)</h2>
+	<ul>
+		<li><code>SECURE</code> — expected / benign outcome (filtered from findings list)</li>
+		<li><code>PRECONDITION_FAIL</code> — missing setup / structural auth (filtered)</li>
+		<li><code>UNEXPECTED_ERROR</code> — inconclusive failure</li>
+		<li><code>POTENTIAL_VULN</code> — security signal needing review</li>
+		<li><code>UNCONTROLLED_PANIC</code> — robustness trap</li>
+		<li><code>TIMEOUT</code> — poll window miss</li>
+	</ul>
+</DocsLayout>
+
+<style>
+	.defs {
+		margin: 0 0 1.5rem;
+	}
+	.defs > div {
+		padding: 0.75rem 0;
+		border-bottom: 1px solid var(--border);
+	}
+	.defs > div:last-child {
+		border-bottom: none;
+	}
+	dt {
+		font-family: var(--font-display);
+		font-weight: 700;
+		color: var(--text);
+		margin-bottom: 0.25rem;
+	}
+	dd {
+		margin: 0;
+		color: var(--text-muted);
+	}
+</style>

@@ -1,0 +1,269 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import McpButton from '../components/McpButton.astro';
+import CopyButton from '../components/CopyButton.astro';
+import Toc from '../components/Toc.astro';
+import {withBase} from '../lib/paths';
+import {
+	MCP_CONFIG_CURSOR,
+	MCP_CONFIG_HTTP,
+	MCP_PACKAGE,
+	MCP_STATUS,
+	MCP_TOOLS,
+} from '../content/mcp';
+
+const toc = [
+	{id: 'connect', label: 'Conectar (rápido)'},
+	{id: 'cursor', label: 'Cursor'},
+	{id: 'claude', label: 'Claude Desktop'},
+	{id: 'http', label: 'Server remoto'},
+	{id: 'tools', label: 'Tools'},
+	{id: 'verify', label: 'Verificar'},
+	{id: 'fallback', label: 'Sin MCP aún'},
+];
+
+const statusLabel =
+	MCP_STATUS === 'available' ? 'available · package live' : 'coming soon · config ready';
+---
+
+<DocsLayout
+	title="Conectar el MCP al server de Kuyfi"
+	eyebrow="[ MCP · CONNECT ]"
+	description="Camino fijo desde el botón MCP Connect hasta el config del server — Cursor, Claude y HTTP."
+>
+	<div class="hero-row" id="top">
+		<McpButton variant="hero" href="#connect" />
+		<span class:list={['status', MCP_STATUS === 'available' && 'status--live']}>
+			{statusLabel}
+		</span>
+	</div>
+
+	<Toc items={toc} />
+
+	<Callout type="tip" title="Para qué es este botón">
+		<p>
+			El botón <strong>MCP Connect</strong> (header y CTAs) siempre aterriza aquí:
+			<code>{withBase('/mcp')}#connect</code>. Cuando <code>{MCP_PACKAGE}</code> esté
+			publicado, solo copias el JSON y reinicias el cliente — sin cambiar la URL del botón.
+		</p>
+	</Callout>
+
+	<h2 id="connect">1 · Conectar (rápido)</h2>
+	<ol class="steps">
+		<li>
+			Pulsa <strong>MCP Connect</strong> en docs (o abre esta página).
+		</li>
+		<li>
+			Copia el config de <a href="#cursor">Cursor</a> (stdio) o el de
+			<a href="#http">server remoto</a> si usas el host HTTP.
+		</li>
+		<li>Pégalo en la config MCP de tu cliente y reinicia / reload MCP.</li>
+		<li>
+			Pide al agente: <em>“Usa Kuyfi para escanear este Contract ID en Testnet”</em>.
+		</li>
+	</ol>
+
+	<div class="connect-card" id="connect-card">
+		<p class="connect-card__label">[ QUICK · CURSOR ]</p>
+		<p class="connect-card__title">Config listo para pegar</p>
+		<pre><code>{MCP_CONFIG_CURSOR}</code></pre>
+		<div class="connect-card__actions">
+			<CopyButton text={MCP_CONFIG_CURSOR} label="COPY MCP CONFIG" />
+		</div>
+		<p class="connect-card__hint">
+			Package: <code>{MCP_PACKAGE}</code> · Network env: <code>stellar:testnet</code>
+			{
+				MCP_STATUS !== 'available' && (
+					<>
+						{' '}
+						· <span class="soon">aún no publicado — deja el camino listo</span>
+					</>
+				)
+			}
+		</p>
+	</div>
+
+	<h2 id="cursor">2 · Cursor</h2>
+	<ol>
+		<li>
+			Abre <strong>Cursor Settings → MCP</strong> (o edita
+			<code>~/.cursor/mcp.json</code> / project <code>.cursor/mcp.json</code>).
+		</li>
+		<li>Fusiona el bloque <code>mcpServers.kuyfi</code> de arriba.</li>
+		<li>Reload MCP / reinicia Cursor.</li>
+		<li>
+			En el chat, confirma que aparecen tools <code>kuyfi_*</code>.
+		</li>
+	</ol>
+	<pre><code>{`# Project-level (recomendado para el repo)
+# .cursor/mcp.json
+${MCP_CONFIG_CURSOR}`}</code></pre>
+	<div class="inline-copy">
+		<CopyButton text={MCP_CONFIG_CURSOR} label="COPY" />
+	</div>
+
+	<h2 id="claude">3 · Claude Desktop</h2>
+	<p>
+		Misma forma stdio. En macOS suele vivir en
+		<code>~/Library/Application Support/Claude/claude_desktop_config.json</code>:
+	</p>
+	<pre><code>{MCP_CONFIG_CURSOR}</code></pre>
+	<div class="inline-copy">
+		<CopyButton text={MCP_CONFIG_CURSOR} label="COPY" />
+	</div>
+	<p>Reinicia Claude Desktop después de guardar.</p>
+
+	<h2 id="http">4 · Server remoto (cuando exista)</h2>
+	<p>
+		Camino alternativo: apuntar el cliente al <strong>MCP server HTTP de Kuyfi</strong> (host
+		separado del CLI). URL provisional documentada — cámbiala solo cuando el status pase a
+		<em>available</em>:
+	</p>
+	<pre><code>{MCP_CONFIG_HTTP}</code></pre>
+	<div class="inline-copy">
+		<CopyButton text={MCP_CONFIG_HTTP} label="COPY HTTP CONFIG" />
+	</div>
+	<Callout type="warn" title="stdio vs HTTP">
+		<p>
+			<strong>stdio</strong> (<code>npx {MCP_PACKAGE}</code>) = local, bueno para Chaos Monkey
+			opt-in. <strong>HTTP</strong> = server remoto; pensado sobre todo para scan read-only /
+			schema. No expongas Chaos Monkey en un endpoint público sin confirmación.
+		</p>
+	</Callout>
+
+	<h2 id="tools">5 · Tools esperados</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Tool</th>
+				<th>Qué hace</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				MCP_TOOLS.map((t) => (
+					<tr>
+						<td>
+							<code>{t.name}</code>
+						</td>
+						<td>{t.desc}</td>
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+
+	<h2 id="verify">6 · Verificar la conexión</h2>
+	<ul>
+		<li>El cliente lista el server <code>kuyfi</code> sin error de spawn.</li>
+		<li>Tools <code>kuyfi_scan</code> / <code>kuyfi_signals</code> visibles.</li>
+		<li>
+			Una llamada de prueba a scan con un Contract ID de Testnet autorizado responde con
+			superficie de ataque (no inventa Mainnet).
+		</li>
+	</ul>
+
+	<h2 id="fallback">7 · Mientras el package no esté live</h2>
+	<p>
+		El botón y esta página ya son el <strong>camino estable</strong>. Mientras tanto usa CLI +
+		Markdown for Agents:
+	</p>
+	<pre><code>{`npm install -g @kuyfi/kuyfi
+kuyfi <CONTRACT_ID> --json
+
+# Agent docs (no MDX):
+# ${withBase('/agent-setup')}
+# ${withBase('/llms.txt')}`}</code></pre>
+	<p>
+		<a href={withBase('/agent-setup')}>Agent setup</a>
+		{' · '}
+		<a href={withBase('/for-llms')}>For LLMs</a>
+	</p>
+
+	<h2>Contrato del botón</h2>
+	<ul>
+		<li>Href canónico: <code>{withBase('/mcp')}#connect</code></li>
+		<li>Atributo <code>data-mcp-entry</code> para futuros deeplinks / modales</li>
+		<li>Al publicar <code>{MCP_PACKAGE}</code>: flip <code>MCP_STATUS</code> → <code>available</code> en <code>src/content/mcp.ts</code></li>
+	</ul>
+</DocsLayout>
+
+<style>
+	.hero-row {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 1rem;
+		margin-bottom: 1.25rem;
+	}
+
+	.status {
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: var(--text-dim);
+	}
+
+	.status--live {
+		color: var(--success);
+	}
+
+	.steps {
+		padding-left: 1.25rem;
+	}
+
+	.steps li {
+		margin-bottom: 0.55rem;
+	}
+
+	.connect-card {
+		margin: 1.5rem 0 2rem;
+		padding: 1.15rem 1.2rem 1rem;
+		border: 1px solid rgba(245, 197, 24, 0.35);
+		border-radius: var(--radius-lg);
+		background:
+			linear-gradient(180deg, rgba(245, 197, 24, 0.08), transparent 55%),
+			var(--bg-elevated);
+		box-shadow: 0 0 28px var(--yellow-glow);
+	}
+
+	.connect-card__label {
+		margin: 0 0 0.35rem;
+		font-family: var(--font-mono);
+		font-size: 0.7rem;
+		color: var(--pink);
+		letter-spacing: 0.06em;
+	}
+
+	.connect-card__title {
+		margin: 0 0 0.85rem;
+		font-family: var(--font-display);
+		font-weight: 700;
+		color: var(--text);
+	}
+
+	.connect-card pre {
+		margin-bottom: 0.65rem;
+	}
+
+	.connect-card__actions {
+		display: flex;
+		justify-content: flex-end;
+	}
+
+	.connect-card__hint {
+		margin: 0.75rem 0 0;
+		font-size: 0.8rem;
+		color: var(--text-dim);
+	}
+
+	.soon {
+		color: var(--yellow);
+	}
+
+	.inline-copy {
+		display: flex;
+		justify-content: flex-end;
+		margin: -0.35rem 0 1.25rem;
+	}
+</style>

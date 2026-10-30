@@ -1,0 +1,71 @@
+---
+import '../styles/global.css';
+import { SITE } from '../content/nav';
+import { withBase } from '../lib/paths';
+
+interface Props {
+	title: string;
+	description?: string;
+	ogType?: string;
+	/** Alternate Markdown-for-Agents URL for this page */
+	markdownHref?: string;
+}
+
+const {
+	title,
+	description = SITE.description,
+	ogType = 'website',
+	markdownHref,
+} = Astro.props;
+
+const fullTitle = title === 'Overview' ? `${SITE.name} Docs` : `${title} · ${SITE.name} Docs`;
+const canonical = new URL(Astro.url.pathname, SITE.url).toString();
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{fullTitle}</title>
+		<meta name="description" content={description} />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="theme-color" content="#070708" />
+		<link rel="canonical" href={canonical} />
+		<meta property="og:type" content={ogType} />
+		<meta property="og:title" content={fullTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:site_name" content="Kuyfi Docs" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={fullTitle} />
+		<meta name="twitter:description" content={description} />
+		<link rel="icon" type="image/svg+xml" href={withBase('/favicon.svg')} />
+		<link rel="alternate" type="text/plain" title="LLM summary (llms.txt)" href={withBase('/llms.txt')} />
+		<link
+			rel="alternate"
+			type="text/plain"
+			title="LLM full documentation"
+			href={withBase('/llms-full.txt')}
+		/>
+		{
+			markdownHref && (
+				<link
+					rel="alternate"
+					type="text/markdown"
+					title="Markdown for Agents (not MDX)"
+					href={markdownHref}
+				/>
+			)
+		}
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+	</head>
+	<body>
+		<slot />
+	</body>
+</html>

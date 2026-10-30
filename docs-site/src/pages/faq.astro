@@ -1,0 +1,80 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import {withBase} from '../lib/paths';
+---
+
+<DocsLayout
+	title="FAQ"
+	eyebrow="[ FAQ ]"
+	description="Short answers to the questions humans and agents ask most."
+>
+	<h2>Is Kuyfi an auditor / certification?</h2>
+	<p>
+		No. Automated black-box / pre-audit tooling. Formal audits (Ottersec, Veridise, CoinFabrik,
+		…) still matter.
+	</p>
+
+	<h2>Do I need Rust source?</h2>
+	<p>No. Kuyfi works from deployed WASM and <code>contractspecv0</code>.</p>
+
+	<h2>Does it work on Mainnet?</h2>
+	<p>No. RPC is hardcoded to Stellar Testnet in v0.1.0. Mainnet is explicitly out of roadmap scope.</p>
+
+	<h2>Will Chaos Monkey drain my wallet?</h2>
+	<p>
+		It uses ephemeral Friendbot-funded <strong>Testnet</strong> accounts. Fees are tiny Testnet
+		XLM. Still only hit contracts you are allowed to test.
+	</p>
+
+	<h2>Why so many PRECONDITION / SECURE results?</h2>
+	<p>
+		Type-correct inputs are often not semantically valid (unauthorized signer, missing setup).
+		Those outcomes are filtered from the findings list on purpose. See
+		<a href={withBase('/findings')}>Findings</a> and
+		<a href={withBase('/troubleshooting')}>Troubleshooting</a>.
+	</p>
+
+	<h2>What does POTENTIAL_VULN mean?</h2>
+	<p>
+		A security <em>signal</em> that needs contextual review — for example an access-control
+		vector that was not rejected. It is <strong>not</strong> a confirmed exploit or CVE.
+	</p>
+
+	<h2>Can I expose Chaos Monkey on the paid API?</h2>
+	<p>By design, no. Only the read-only scanner is HTTP-exposed.</p>
+
+	<h2>JSON vs PDF — which is source of truth?</h2>
+	<p>
+		Neither “wins”: both are renders of the same <code>SecurityReport</code>. Prefer JSON for CI;
+		see <a href={withBase('/report-schema')}>schema</a>.
+	</p>
+
+	<h2>My contract has no contractspec — can I scan?</h2>
+	<p>
+		OSINT depends on <code>contractspecv0</code>. Exotic/non-SDK builds may hit
+		<code>XDR_ALIGN_FAILURE</code>. Rebuild with the Soroban SDK so the spec section is present.
+	</p>
+
+	<h2>How do agents / LLMs read the docs?</h2>
+	<p>
+		Use <strong>Markdown for Agents</strong> (plain Markdown) — not MDX.
+		Start at <a href={withBase('/agent-setup')}>Agent setup</a>:
+		<a href={withBase('/llms.txt')}>llms.txt</a> →
+		<a href={withBase('/llms-full.txt')}>llms-full.txt</a> →
+		<code>/docs/md/&lt;slug&gt;.md</code> or Page options → Copy as Markdown.
+		Search: <kbd>⌘K</kbd>.
+	</p>
+
+	<h2>Is MCP ready?</h2>
+	<p>
+		Button + config stub exist; <code>@kuyfi/mcp</code> is not published yet. Use CLI until then —
+		<a href={`${withBase('/mcp')}#connect`}>Conectar el MCP al server de Kuyfi</a>.
+	</p>
+
+	<h2>Where is the website / repo?</h2>
+	<p>
+		<a href="https://kuyfi.vercel.app">kuyfi.vercel.app</a> · Docs under <code>/docs</code> ·
+		GitHub <a href="https://github.com/alex0tico/kuyfi">alex0tico/kuyfi</a> · npm
+		<code>@kuyfi/kuyfi</code>.
+	</p>
+</DocsLayout>

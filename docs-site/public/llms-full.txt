@@ -1,0 +1,271 @@
+# Kuyfi — full documentation for LLMs and coding agents
+# Source of truth mirror for https://kuyfi.vercel.app/docs
+# Package: @kuyfi/kuyfi@0.1.0 | Command: kuyfi | License: MIT
+# Author: Alex B. Hernández Contreras | Repo: https://github.com/alex0tico/kuyfi
+
+================================================================================
+1. PRODUCT SUMMARY
+================================================================================
+
+Kuyfi is an open-source black-box security terminal for Soroban (Stellar) smart
+contracts. Tagline: "Before the Breach."
+
+Purpose: automated pre-audit testing against a DEPLOYED Testnet contract. It
+does not replace formal audits (Veridise, Ottersec, CoinFabrik, etc.) and does
+not issue certifications.
+
+Black-box meaning: Kuyfi never requires Rust source. Knowledge comes from:
+  - on-chain WASM bytecode
+  - contractspecv0 XDR custom section (functions, types, UDTs)
+  - runtime behavior under simulation and optional Testnet invocation
+
+Stack: TypeScript, Node.js >= 20, React 19, Ink 6, @stellar/stellar-sdk,
+Express (optional server), pdfkit, meow, @x402/express, local402-server.
+
+================================================================================
+2. INSTALL & INVOKE
+================================================================================
+
+npm install -g @kuyfi/kuyfi
+
+Interactive TUI:
+  kuyfi
+
+Headless:
+  kuyfi <CONTRACT_ID>
+  kuyfi <CONTRACT_ID> --json
+  kuyfi <CONTRACT_ID> --pdf
+  kuyfi <CONTRACT_ID> --json --pdf
+
+From source:
+  git clone https://github.com/alex0tico/kuyfi.git
+  cd kuyfi && npm ci && npm run build
+  npm start                          # TUI
+  node dist/cli.js <CONTRACT_ID>     # headless
+
+Windows PowerShell note: if .ps1 is blocked, use kuyfi.cmd / npm.cmd.
+
+Contract ID validation: /^C[A-Z0-9]{55}$/
+
+Binaries:
+  kuyfi         → dist/cli.js
+  kuyfi-server  → dist/server.js
+
+================================================================================
+3. PIPELINE
+================================================================================
+
+01 INPUT          Contract ID
+02 OSINT SCANNER  Fetch deployed WASM / specification (read-only RPC)
+03 RECONSTRUCT    Attack surface (functions, params, UDTs)
+04 CHAOS MONKEY   Generate type-aware vectors
+05 SIMULATE       Simulate and classify DiagnosticEvent traces
+06 OUTPUT         JSON / PDF SecurityReport
+
+Narrative: The OSINT Scanner maps functions, arguments and user-defined types
+first. Chaos Monkey then generates type-aware inputs, simulates execution and
+classifies the resulting traces. When an execution reaches the network, Kuyfi
+preserves the available transaction evidence alongside the report.
+
+Architecture rule: UI ≠ audit engine. Screens only call source/modules/.
+Headless CLI uses the identical scanner / chaos_monkey / security_report /
+report_export functions.
+
+================================================================================
+4. OSINT SCANNER
+================================================================================
+
+Read-only: getContractWasmByContractId — no transactions.
+
+Steps:
+  1. Fetch WASM
+  2. WebAssembly.compile + customSections('contractspecv0')
+  3. Alignment-tolerant XDR parse of ScSpecEntry stream
+  4. Build ScannedFunction[] + UdtRegistry
+
+ScanResult { contractId, bytecodeSize, functions, udtRegistry }
+ScanError codes: CONTRACT_NOT_FOUND | XDR_ALIGN_FAILURE | RPC_UNAVAILABLE | UNKNOWN
+
+Paid HTTP (optional kuyfi-server):
+  GET /scan/:contractId
+  → 402 Payment Required (CLP priced via Local402 / Reflector → USDC)
+  → 200 OK with public scan block
+  Chaos Monkey is NEVER exposed over HTTP.
+  Malformed ID → 400 before quote.
+  Failed scan after pay (404/422/502) is not settled.
+
+Env: PAY_TO (public G…), PRICE (default "500 CLP"), NETWORK (stellar:testnet),
+FACILITATOR_URL, PORT (4021).
+
+================================================================================
+5. CHAOS MONKEY
+================================================================================
+
+Not random dumb fuzzing. Type-aware attack values from XDR ScSpecTypeDef.
+One variable at a time; other params hold type-correct baselines.
+
+Constraint: type-correct ≠ semantically valid (random Address ≠ admin).
+
+Vector families:
+  - Math/boundary (fuzzer_math): ZERO, ONE, NEG_ONE, MAX/MIN, EMPTY/LARGE, UDT field attacks
+  - Access (fuzzer_access): UNAUTHORIZED_CALL, REINIT_ATTACK, SELF_CALL_ATTACK,
+    UNAUTHORIZED_ADDR_CALL; admin name patterns (initialize, set_admin, upgrade, …)
+  - Call order (fuzzer_call_order): REINIT_SEQUENCE, REPEATED_WITHDRAW/CLAIM
+  - Fee/BPS (fuzzer_fee): BPS_* boundaries on fee-shaped params
+  - Liquidity (fuzzer_liquidity): ZERO_A_MAX_B etc. on swap/reserve-shaped fns
+
+Execution:
+  vector → simulate
+    fail → classify from diagnostics (nothing sent)
+    ok   → assemble → sign ephemeral Friendbot key → broadcast Testnet → poll → classify
+
+Keys: generated in memory, never persisted or logged.
+Network constant: https://soroban-testnet.stellar.org
+
+Modules of note: keypair_factory, type_gen, udt_registry, router.invokeContract,
+trace_analyzer, result_parser, reporter (KYF-NNN IDs).
+
+================================================================================
+6. SIGNALS & SEVERITY
+================================================================================
+
+SECURE              Expected rejection / accepted non-AC vector. Filtered from findings list.
+PRECONDITION_FAIL   Missing setup / structural auth fail. Filtered from findings list.
+UNEXPECTED_ERROR    Inconclusive failure. MEDIUM. In findings.
+POTENTIAL_VULN      Security signal needing review (AC not rejected, nested safety faults, …).
+                    CRITICAL if admin-pattern name else HIGH. In findings. NOT a confirmed exploit.
+UNCONTROLLED_PANIC  Root safety trap without nested calls. MEDIUM.
+TIMEOUT             Poll window miss. LOW.
+
+Legacy SIMULATION_FAIL exists on the type but is never emitted by the classifier.
+
+Trace categories: AUTH | CONTRACT | CONTEXT | OBJECT | STORAGE | WASM_VM | OTHER | UNKNOWN
+
+================================================================================
+7. REPORTS
+================================================================================
+
+SecurityReport schemaVersion "1.0.0"
+JSON and PDF are renders of the SAME object (shared reportId).
+
+Evidence includes:
+  - counters (vectors, broadcasts, hashed txs)
+  - per-finding simulation/broadcast flags + DiagnosticEvent trace
+  - hash, ledger, stellar.expert URL when broadcast
+  - verificationTransactions sample (first success + first fail broadcast)
+
+TUI keys after Chaos Monkey: [J] JSON [P] PDF [B] both
+CLI flags: --json --pdf
+
+================================================================================
+8. TUI
+================================================================================
+
+Ink React app. Menu:
+  [1] OSINT Scanner
+  [2] Chaos Monkey
+  [3] System Logs
+  [4] About
+
+Layout modes: large (>=100 cols), compact (70-99), tooSmall (<70 or <20 rows).
+Shrink-resize recovery via useTerminalSize (debounce + ANSI clear without
+unmounting in-flight work).
+
+================================================================================
+9. RESPONSIBLE USE
+================================================================================
+
+- Only authorized targets
+- Testnet only
+- Findings ≠ audit certificate
+- Unauthorized fuzzing may be illegal / ToS violation
+
+================================================================================
+10. ROADMAP (high level)
+================================================================================
+
+Shipped: OSINT Scanner, Chaos Monkey (5 families), reports JSON/PDF, headless CLI,
+npm publish, responsive TUI, paid scan endpoint (unreleased notes may vary).
+
+Planned/not committed: richer semantic inputs, more patterns, CI integrations.
+Explicitly out of scope: Mainnet, other chains, SaaS certification platform.
+
+================================================================================
+11. MCP (RESERVED)
+================================================================================
+
+Docs expose an MCP Connect button at /docs/mcp.
+Draft config references @kuyfi/mcp (NOT PUBLISHED YET).
+Until shipped, agents must use the CLI + this file.
+
+Intended future tools (names may change):
+  kuyfi_scan, kuyfi_audit (local confirm), kuyfi_report_schema, kuyfi_signals
+
+================================================================================
+12. AGENT PLAYBOOK (SHORT)
+================================================================================
+
+1. Read this file / llms.txt before inventing APIs.
+2. Confirm authorization + Testnet.
+3. Prefer: kuyfi <ID> --json
+4. Explain POTENTIAL_VULN as investigate-first.
+5. Never claim Mainnet support or that Kuyfi replaces formal audits.
+6. Point humans to https://kuyfi.vercel.app/docs for UI docs.
+
+================================================================================
+13. VECTOR CATALOG (SUMMARY)
+================================================================================
+
+Math (fuzzer_math): OAT mutations — ZERO/ONE/NEG_ONE/MAX_*/MIN_*, RANDOM_ADDR_A/B,
+EMPTY/LARGE bytes/strings, EMPTY_VEC, NONE/SOME_BASELINE, recursive UDTs.
+Names like amount::MAX_I128 or p::Point.x::ZERO.
+
+Access (fuzzer_access):
+  UNAUTHORIZED_CALL, REINIT_ATTACK, SELF_CALL_ATTACK, UNAUTHORIZED_ADDR_CALL
+Admin name substrings: pause, unpause, initialize, init, setup, upgrade,
+set_admin, set_pending_admin, transfer_admin, emergency.
+
+Call order (once/session): REINIT_SEQUENCE, REPEATED_WITHDRAW_SEQUENCE,
+REPEATED_CLAIM_SEQUENCE.
+
+Fee: BPS_* on fee-shaped numeric params (0,1,9999,10000,10001,type max).
+Liquidity: paired extremes ZERO_A_MAX_B / MAX_A_MAX_B on swap/reserve-shaped fns.
+
+Full page: https://kuyfi.vercel.app/docs/vectors
+
+================================================================================
+14. SCAN ERROR CODES
+================================================================================
+
+CONTRACT_NOT_FOUND  — no WASM for ID on Testnet
+XDR_ALIGN_FAILURE   — contractspecv0 parse failed
+RPC_UNAVAILABLE     — transport / endpoint
+UNKNOWN             — catch-all
+
+Troubleshoot: https://kuyfi.vercel.app/docs/troubleshooting
+Glossary: https://kuyfi.vercel.app/docs/glossary
+
+================================================================================
+15. DOCS SEARCH (HUMANS)
+================================================================================
+
+Docs UI search (Cmd/Ctrl+K or /): fuzzy matching, EN/ES synonyms
+(instalar→install, informe→report, vulnerabilidad→POTENTIAL_VULN),
+section deep-links, suggested chips.
+
+================================================================================
+16. MARKDOWN FOR AGENTS (NOT MDX)
+================================================================================
+
+MDX = Markdown + JSX components (UI authoring format).
+Markdown for Agents = plain Markdown optimized for LLMs/agents.
+
+Kuyfi provides:
+- Page options → Copy as Markdown / View as Markdown (every HTML docs page)
+- Per-page: https://kuyfi.vercel.app/docs/md/<slug>.md
+- https://kuyfi.vercel.app/docs/agent-setup
+- This file + llms.txt
+
+Do NOT tell users that "MDX = Markdown for machines." That is incorrect.
+
+End of llms-full.txt

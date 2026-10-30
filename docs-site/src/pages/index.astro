@@ -1,0 +1,210 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import InstallBar from '../components/InstallBar.astro';
+import Pipeline from '../components/Pipeline.astro';
+import Callout from '../components/Callout.astro';
+import McpButton from '../components/McpButton.astro';
+import KeyholeGlow from '../components/KeyholeGlow.astro';
+import { SITE } from '../content/nav';
+import { withBase } from '../lib/paths';
+---
+
+<DocsLayout
+	title="KUYFI"
+	eyebrow={`${SITE.version} · OPEN SOURCE`}
+	description="Black-box security for Soroban."
+>
+	<div class="hero">
+		<KeyholeGlow />
+		<p class="hero__copy">
+			Kuyfi analyzes deployed Soroban contracts from their on-chain interface, so you
+			can inspect their attack surface, exercise inputs and review execution traces
+			without requiring the source code.
+		</p>
+	</div>
+
+	<InstallBar />
+
+	<div class="cta-row">
+		<a class="btn btn--ghost" href={SITE.github} target="_blank" rel="noreferrer"
+			>VIEW ON GITHUB</a
+		>
+		<a class="btn btn--ghost" href={withBase('/quickstart')}>QUICKSTART</a>
+		<McpButton variant="hero" />
+	</div>
+	<Callout type="tip" title="What Kuyfi is">
+		<p>
+			An automated <strong>black-box</strong> security terminal for Soroban. It is the
+			layer <em>before</em> a formal audit — catch obvious surface issues on Testnet so
+			auditors start from a cleaner baseline. It is <strong>not</strong> a certification
+			and does not replace Ottersec, Veridise, CoinFabrik, or peers.
+		</p>
+	</Callout>
+
+	<Pipeline />
+
+	<h2>Why it exists</h2>
+	<p>
+		Formal audits need source, scheduling, and budget. Anyone can invoke a deployed
+		Soroban contract; not everyone has its Rust source. Kuyfi starts from what is
+		actually observable on-chain: WASM bytecode, the <code>contractspecv0</code> section,
+		and runtime behavior under simulation and Testnet calls.
+	</p>
+
+	<pre><code>run Kuyfi → fix obvious issues → submit to a formal audit with a cleaner baseline</code></pre>
+
+	<h2>What you get</h2>
+	<ul>
+		<li>
+			<strong>OSINT Scanner</strong> — reconstruct functions, params, and UDTs from a
+			Contract ID alone.
+		</li>
+		<li>
+			<strong>Chaos Monkey</strong> — type-aware fuzzing (math, auth, call-order, fee,
+			liquidity), simulate-first, broadcast only when preflight succeeds.
+		</li>
+		<li>
+			<strong>SecurityReport</strong> — one canonical object, exportable as JSON and PDF
+			with execution evidence (hashes, ledgers, explorer URLs).
+		</li>
+		<li>
+			<strong>TUI + headless CLI</strong> — same engine for interactive and CI use.
+		</li>
+		<li>
+			<strong>Paid scan API</strong> — optional x402/Local402 endpoint for read-only
+			scans (Chaos Monkey stays local).
+		</li>
+	</ul>
+
+	<h2>Hard constraints</h2>
+	<ul>
+		<li>Stellar <strong>Testnet only</strong> — RPC is hardcoded to {SITE.rpc}.</li>
+		<li>No private keys persisted — ephemeral Friendbot-funded keypairs in memory.</li>
+		<li>Findings are <strong>signals</strong>, not proven exploits.</li>
+		<li>Only test contracts you own or are authorized to test.</li>
+	</ul>
+
+	<h2>Docs map</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Section</th>
+				<th>Start here if you want…</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><a href={withBase('/installation')}>Installation</a></td>
+				<td>npm global install, Windows notes, from-source build</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/pipeline')}>Pipeline</a></td>
+				<td>The Contract ID → report mental model</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/chaos-monkey')}>Chaos Monkey</a></td>
+				<td>Vector families and simulate → broadcast lifecycle</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/agent-setup')}>Agent setup</a></td>
+				<td>Markdown for Agents — Copy as Markdown, .md pages (not MDX)</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/for-llms')}>For LLMs</a></td>
+				<td>Prompts, playbook, llms.txt</td>
+			</tr>
+			<tr>
+				<td><a href={`${withBase('/mcp')}#connect`}>MCP Connect</a></td>
+				<td>Conectar el MCP al server de Kuyfi — config Cursor/Claude</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/report-schema')}>Report schema</a></td>
+				<td>SecurityReport 1.0.0 field map + copyable sample JSON</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/vectors')}>Attack vectors</a></td>
+				<td>Full Chaos Monkey vector catalog + admin patterns</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/glossary')}>Glossary</a></td>
+				<td>Soroban + Kuyfi vocabulary</td>
+			</tr>
+			<tr>
+				<td><a href={withBase('/troubleshooting')}>Troubleshooting</a></td>
+				<td>ScanError codes, PowerShell, empty findings</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<p class="search-hint">
+		Press <kbd>⌘K</kbd> or <kbd>/</kbd> for intelligent search (fuzzy, EN/ES synonyms, section
+		deep-links).
+	</p>
+</DocsLayout>
+
+<style>
+	.hero {
+		position: relative;
+		padding-right: min(200px, 28vw);
+		margin-bottom: 0.5rem;
+	}
+
+	.hero__copy {
+		margin: 0 0 1rem;
+		font-size: 1.05rem;
+		color: var(--text-muted);
+		max-width: 36rem;
+	}
+
+	.cta-row {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		align-items: center;
+		margin: 0 0 2rem;
+	}
+
+	.btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.7rem 1.1rem;
+		font-family: var(--font-display);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-decoration: none;
+		border-radius: var(--radius);
+	}
+
+	.btn--ghost {
+		border: 1px solid rgba(255, 255, 255, 0.55);
+		color: var(--text);
+		background: transparent;
+	}
+
+	.btn--ghost:hover {
+		border-color: var(--yellow);
+		color: var(--yellow);
+		text-decoration: none;
+	}
+
+	strong {
+		color: var(--text);
+	}
+
+	.search-hint {
+		margin-top: 1.5rem;
+		font-size: 0.9rem;
+		color: var(--text-dim);
+	}
+
+	.search-hint kbd {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		padding: 0.1rem 0.35rem;
+		border: 1px solid var(--border-strong);
+		border-radius: 4px;
+		color: var(--yellow);
+	}
+</style>

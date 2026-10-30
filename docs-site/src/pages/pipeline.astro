@@ -1,0 +1,76 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Pipeline from '../components/Pipeline.astro';
+import Callout from '../components/Callout.astro';
+---
+
+<DocsLayout
+	title="Pipeline"
+	eyebrow="[ 03 · PIPELINE ]"
+	description="From Contract ID to execution evidence — the end-to-end Kuyfi flow."
+>
+	<Pipeline />
+
+	<h2>Step by step</h2>
+
+	<h3>01 · INPUT — Contract ID</h3>
+	<p>
+		You provide a Soroban Contract ID (<code>C</code> + 55 characters). Validation is shared
+		between TUI and CLI via <code>isValidContractId()</code>. A malformed ID fails before any
+		RPC work (and before any paid quote on the HTTP API).
+	</p>
+
+	<h3>02 · OSINT SCANNER — Fetch WASM / specification</h3>
+	<p>
+		Read-only RPC: <code>getContractWasmByContractId</code>. No transactions are broadcast.
+		The scanner compiles the bytecode, reads the <code>contractspecv0</code> custom section,
+		and parses XDR entries with an alignment-tolerant loop.
+	</p>
+
+	<h3>03 · RECONSTRUCT — Attack surface</h3>
+	<p>
+		Output: function names, typed parameters, return presence, and a UDT registry
+		(structs / unions / enums). This is everything Chaos Monkey needs to generate
+		type-correct values — still without Rust source.
+	</p>
+
+	<h3>04 · CHAOS MONKEY — Type-aware vectors</h3>
+	<p>
+		Five vector families (math, access-control, call-order, fee/BPS, liquidity). Values are
+		<strong>type-correct, not semantically valid</strong>: a random Address is not a funded
+		admin. Attacks vary <em>one variable at a time</em> so failures can be attributed.
+	</p>
+
+	<h3>05 · SIMULATE — Simulate and classify</h3>
+	<p>
+		Every vector is simulated (preflight) first. If simulation fails, Kuyfi classifies from
+		<code>DiagnosticEvent</code> traces and sends nothing. If it succeeds, assemble → sign
+		with an ephemeral Friendbot key → broadcast to Testnet → poll → classify.
+	</p>
+
+	<h3>06 · OUTPUT — JSON / PDF report</h3>
+	<p>
+		One <code>SecurityReport</code> (<code>schemaVersion: "1.0.0"</code>). JSON and PDF are
+		renders of the same object — same <code>reportId</code>, findings, and evidence.
+	</p>
+
+	<Callout type="info" title="UI ≠ engine">
+		<p>
+			TUI screens only call into <code>source/modules/</code>. The headless CLI uses the
+			identical scanner / chaos_monkey / security_report / report_export path — zero
+			duplication of audit logic.
+		</p>
+	</Callout>
+
+	<pre><code>Contract ID
+    ↓
+OSINT Scanner            fetch + decode WASM
+    ↓
+Attack Surface           functions, params, UDTs
+    ↓
+Chaos Monkey             type-aware fuzzing
+    ↓
+Trace Classification     DiagnosticEvent taxonomy
+    ↓
+SecurityReport           JSON / PDF</code></pre>
+</DocsLayout>

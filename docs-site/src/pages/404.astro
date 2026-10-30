@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import {withBase} from '../lib/paths';
+---
+
+<BaseLayout title="Not found" description="This docs page does not exist.">
+	<Header />
+	<main class="missing">
+		<p class="eyebrow">[ 404 · VOID ]</p>
+		<h1>No contract behind this door.</h1>
+		<p>
+			That path is not in the Kuyfi docs map. Head back to the overview or search with
+			<code>/</code>.
+		</p>
+		<div class="actions">
+			<a class="btn" href={withBase('/')}>Docs home</a>
+			<a class="btn btn--ghost" href={withBase('/llms.txt')}>llms.txt</a>
+		</div>
+	</main>
+</BaseLayout>
+
+<style>
+	.missing {
+		position: relative;
+		z-index: 1;
+		max-width: 560px;
+		margin: 0 auto;
+		padding: 4rem 1.25rem 5rem;
+	}
+
+	.eyebrow {
+		font-family: var(--font-mono);
+		color: var(--pink);
+		font-size: 0.75rem;
+		margin: 0 0 0.75rem;
+	}
+
+	h1 {
+		margin-bottom: 0.75rem;
+	}
+
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-top: 1.5rem;
+	}
+
+	.btn {
+		display: inline-flex;
+		padding: 0.7rem 1.1rem;
+		border-radius: var(--radius);
+		background: var(--yellow);
+		color: #111;
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.8rem;
+		letter-spacing: 0.06em;
+		text-decoration: none;
+	}
+
+	.btn--ghost {
+		background: transparent;
+		border: 1px solid var(--border-strong);
+		color: var(--text);
+	}
+
+	.btn:hover {
+		text-decoration: none;
+		filter: brightness(1.05);
+	}
+</style>

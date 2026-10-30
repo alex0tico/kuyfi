@@ -1,0 +1,168 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import McpButton from '../components/McpButton.astro';
+import Toc from '../components/Toc.astro';
+import {SITE} from '../content/nav';
+import {withBase} from '../lib/paths';
+import {listDocMarkdown} from '../lib/doc-markdown';
+
+const toc = [
+	{id: 'terms', label: 'Terminology'},
+	{id: 'ways', label: 'Get Markdown'},
+	{id: 'bootstrap', label: 'Bootstrap prompt'},
+	{id: 'index', label: 'Page index'},
+	{id: 'mcp', label: 'MCP'},
+];
+
+const pages = listDocMarkdown();
+---
+
+<DocsLayout
+	title="Agent setup"
+	eyebrow="[ MARKDOWN FOR AGENTS ]"
+	description="Plain Markdown for LLMs — Copy as Markdown, per-page .md, llms.txt. Not MDX."
+>
+	<Toc items={toc} />
+
+	<div class="actions">
+		<a class="pill" href={withBase('/llms.txt')}>llms.txt</a>
+		<a class="pill" href={withBase('/llms-full.txt')}>llms-full.txt</a>
+		<a class="pill" href={withBase('/md/index.md')}>index.md</a>
+		<McpButton />
+	</div>
+
+	<Callout type="warn" title="MDX ≠ Markdown for Agents">
+		<p>
+			<strong>MDX</strong> means Markdown <em>plus JSX components</em> — an authoring format for
+			interactive docs UIs. It is <strong>not</strong> “Markdown for machines.”
+		</p>
+		<p>
+			What agents need is <strong>Markdown for Agents</strong>: plain Markdown (and
+			<code>llms.txt</code>) that is token-efficient and unambiguous. That is what Kuyfi ships —
+			same idea as Cloudflare Docs’ “Copy as Markdown” / agent feeds.
+		</p>
+	</Callout>
+
+	<h2 id="terms">Terminology</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Term</th>
+				<th>Meaning here</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><strong>Markdown for Agents</strong></td>
+				<td>Plain <code>.md</code> / copied Markdown optimized for LLMs</td>
+			</tr>
+			<tr>
+				<td><strong>MDX</strong></td>
+				<td>Markdown + JSX — UI authoring. <strong>Not</strong> our agent feed</td>
+			</tr>
+			<tr>
+				<td><strong>llms.txt</strong></td>
+				<td>Site-wide agent index (<a href="https://llmstxt.org">llmstxt.org</a>)</td>
+			</tr>
+			<tr>
+				<td><strong>Copy as Markdown</strong></td>
+				<td>Page option on every docs article — clipboard-ready MD</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="ways">Ways to get Markdown</h2>
+	<ol>
+		<li>
+			<strong>Copy as Markdown</strong> — open <em>Page options</em> on any article → copy the
+			canonical agent Markdown for that page.
+		</li>
+		<li>
+			<strong>View as Markdown</strong> — same menu, or open
+			<code>{SITE.url}/docs/md/&lt;slug&gt;.md</code> directly.
+		</li>
+		<li>
+			<strong>Site feeds</strong> —
+			<a href={withBase('/llms.txt')}>llms.txt</a> (index) and
+			<a href={withBase('/llms-full.txt')}>llms-full.txt</a> (full manual).
+		</li>
+		<li>
+			<strong>HTML last</strong> — human UI under <code>/docs/…</code> when you need layout, not
+			for bulk model context.
+		</li>
+	</ol>
+
+	<pre><code>{`curl -sL ${SITE.url}/docs/md/chaos-monkey.md
+curl -sL ${SITE.url}/docs/llms.txt`}</code></pre>
+
+	<h2 id="bootstrap">Recommended bootstrap prompt</h2>
+	<pre><code>{`You are helping with Kuyfi (@kuyfi/kuyfi), a Testnet-only black-box Soroban security CLI.
+1. Fetch ${SITE.url}/docs/llms.txt then ${SITE.url}/docs/llms-full.txt
+2. For deep topics fetch ${SITE.url}/docs/md/<slug>.md (vectors, findings, report-schema, …)
+3. Prefer: kuyfi <CONTRACT_ID> --json
+4. Findings are signals, not formal audit results or CVEs
+5. Do not invent Mainnet support or a live MCP server
+6. Plain Markdown feeds ≠ MDX`}</code></pre>
+
+	<h2 id="index">Markdown page index</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Page</th>
+				<th>Markdown</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				pages.map((p) => (
+					<tr>
+						<td>
+							<a href={withBase(p.slug === 'index' ? '/' : `/${p.slug}`)}>{p.title}</a>
+						</td>
+						<td>
+							<a href={withBase(`/md/${p.slug}.md`)}>
+								<code>/md/{p.slug}.md</code>
+							</a>
+						</td>
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+
+	<h2 id="mcp">MCP</h2>
+	<p>
+		<strong>Conectar el MCP al server de Kuyfi:</strong> el botón{' '}
+		<strong>MCP Connect</strong> siempre lleva a{' '}
+		<a href={`${withBase('/mcp')}#connect`}>/docs/mcp#connect</a> — config listo para Cursor /
+		Claude / HTTP. Cuando <code>@kuyfi/mcp</code> esté live, no cambia la URL del botón.
+	</p>
+</DocsLayout>
+
+<style>
+	.actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.65rem;
+		align-items: center;
+		margin: 0 0 1.25rem;
+	}
+	.pill {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.45rem 0.75rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius);
+		font-family: var(--font-mono);
+		font-size: 0.78rem;
+		color: var(--text);
+		text-decoration: none;
+		background: rgba(255, 255, 255, 0.03);
+	}
+	.pill:hover {
+		border-color: var(--yellow);
+		color: var(--yellow);
+		text-decoration: none;
+	}
+</style>

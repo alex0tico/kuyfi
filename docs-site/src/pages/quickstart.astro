@@ -1,0 +1,84 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import InstallBar from '../components/InstallBar.astro';
+import Callout from '../components/Callout.astro';
+import { withBase } from '../lib/paths';
+---
+
+<DocsLayout
+	title="Quickstart"
+	eyebrow="[ 02 · FIRST RUN ]"
+	description="From zero to a SecurityReport against a Testnet Contract ID."
+>
+	<ol class="steps">
+		<li>
+			<strong>Install</strong>
+			<InstallBar />
+		</li>
+		<li>
+			<strong>Grab a Testnet Contract ID</strong>
+			<p>
+				Must match <code>C</code> + 55 base32 characters, e.g.
+				<code>C…</code> from your own deploy or a fixture you are authorized to test.
+			</p>
+		</li>
+		<li>
+			<strong>Interactive TUI</strong>
+			<pre><code>kuyfi</code></pre>
+			<p>
+				Menu: <code>[1] OSINT Scanner</code> → paste Contract ID → review attack surface
+				→ <code>[2] Chaos Monkey</code> → export with <code>[J]</code> / <code>[P]</code> /
+				<code>[B]</code>.
+			</p>
+		</li>
+		<li>
+			<strong>Headless (CI / scripting)</strong>
+			<pre><code>kuyfi CXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX --json --pdf</code></pre>
+		</li>
+	</ol>
+
+	<Callout type="danger" title="Authorization required">
+		<p>
+			Chaos Monkey can submit <strong>real Testnet transactions</strong>. Only run against
+			contracts you own or have written authorization to test. Unauthorized fuzzing may be
+			illegal or against ToS.
+		</p>
+	</Callout>
+
+	<h2>Minimal mental model</h2>
+	<pre><code>Contract ID
+  → OSINT Scanner (read-only WASM / contractspecv0)
+  → Chaos Monkey (type-aware vectors, simulate first)
+  → classify DiagnosticEvent traces
+  → SecurityReport → JSON / PDF</code></pre>
+
+	<h2>What “success” looks like</h2>
+	<ul>
+		<li>Scanner lists functions + UDTs without needing source.</li>
+		<li>Chaos Monkey prints progress, then a findings summary (SECURE / PRECONDITION noise filtered).</li>
+		<li>JSON/PDF share the same <code>reportId</code> and <code>schemaVersion: "1.0.0"</code>.</li>
+		<li>Broadcast findings include stellar.expert Testnet links when a tx was sent.</li>
+	</ul>
+
+	<h2>Next</h2>
+	<ul>
+		<li>Understand the <a href={withBase('/pipeline')}>pipeline</a></li>
+		<li>Read <a href={withBase('/findings')}>finding semantics</a></li>
+		<li>Wire agents via <a href={withBase('/for-llms')}>For LLMs</a></li>
+	</ul>
+</DocsLayout>
+
+<style>
+	.steps {
+		padding-left: 1.25rem;
+	}
+	.steps > li {
+		margin-bottom: 1.5rem;
+	}
+	.steps strong {
+		color: var(--text);
+		display: block;
+		margin-bottom: 0.35rem;
+		font-family: var(--font-display);
+	}
+</style>

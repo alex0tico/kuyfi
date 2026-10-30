@@ -1,0 +1,96 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import InstallBar from '../components/InstallBar.astro';
+import Callout from '../components/Callout.astro';
+import { SITE } from '../content/nav';
+---
+
+<DocsLayout
+	title="Installation"
+	eyebrow="[ 01 · SETUP ]"
+	description="Install the kuyfi CLI globally, or run from a source checkout."
+>
+	<h2>Requirements</h2>
+	<ul>
+		<li>Node.js <strong>≥ 20</strong> (docs-site local preview may ask for newer Node)</li>
+		<li>npm</li>
+		<li>Internet access to Stellar Testnet ({SITE.rpc})</li>
+	</ul>
+
+	<h2>Global install (recommended)</h2>
+	<p>
+		The npm package is <code>@kuyfi/kuyfi</code>; the command it installs is
+		<code>kuyfi</code>.
+	</p>
+	<InstallBar hint="Then run kuyfi · Before the Breach." />
+
+	<pre><code>kuyfi
+kuyfi --help
+kuyfi &lt;CONTRACT_ID&gt;
+kuyfi &lt;CONTRACT_ID&gt; --json --pdf</code></pre>
+
+	<h2>Platform status (v0.1.0)</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Platform</th>
+				<th>Status</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>macOS</td>
+				<td>Validated manually</td>
+			</tr>
+			<tr>
+				<td>Windows 11 (Windows Terminal / PowerShell)</td>
+				<td>Validated manually</td>
+			</tr>
+			<tr>
+				<td>Linux</td>
+				<td>Expected to work with Node ≥ 20; not yet manually validated in v0.1.0</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2>Windows / PowerShell</h2>
+	<p>
+		Some PowerShell environments block <code>.ps1</code> wrappers via execution
+		policy. If <code>kuyfi.ps1</code> cannot be loaded, call the <code>.cmd</code> wrapper:
+	</p>
+	<pre><code>kuyfi.cmd
+kuyfi.cmd --help
+npm.cmd install -g @kuyfi/kuyfi</code></pre>
+
+	<p>Optional, CurrentUser scope only:</p>
+	<pre><code>Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned</code></pre>
+
+	<h2>Run from source</h2>
+	<pre><code>git clone https://github.com/alex0tico/kuyfi.git
+cd kuyfi
+npm ci
+npm run build
+npm start</code></pre>
+
+	<p>
+		From a source checkout, use <code>npm start</code> for the TUI and
+		<code>node dist/cli.js</code> for the headless CLI.
+	</p>
+
+	<h2>Paid scan server (optional)</h2>
+	<pre><code>cp .env.example .env   # set PAY_TO to a public G… address
+npm run build
+node --env-file=.env dist/server.js</code></pre>
+
+	<Callout type="warn" title="Never put a secret key in PAY_TO">
+		<p>
+			<code>PAY_TO</code> is a public Stellar address that receives USDC. The server holds
+			no signing keys for Chaos Monkey — only the read-only scanner is exposed over HTTP.
+		</p>
+	</Callout>
+
+	<h2>Verify</h2>
+	<pre><code>kuyfi --help
+# or
+node dist/cli.js --help</code></pre>
+</DocsLayout>

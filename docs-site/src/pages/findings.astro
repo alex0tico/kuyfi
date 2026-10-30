@@ -1,0 +1,165 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import { withBase } from '../lib/paths';
+
+const toc = [
+	{id: 'taxonomy', label: 'Signal taxonomy'},
+	{id: 'severity', label: 'Severity'},
+	{id: 'examples', label: 'Worked examples'},
+	{id: 'ids', label: 'IDs'},
+	{id: 'traces', label: 'Trace categories'},
+];
+---
+
+<DocsLayout
+	title="Findings & signals"
+	eyebrow="[ 06 · SIGNALS ]"
+	description="How Kuyfi turns DiagnosticEvent traces into a six-signal taxonomy — and what it refuses to claim."
+>
+	<Toc items={toc} />
+
+	<Callout type="danger" title="Findings are leads, not verdicts">		<p>
+			Zero findings does not prove safety. A finding is a signal to investigate.
+			<code>POTENTIAL_VULN</code> is the one to review first;
+			<code>UNEXPECTED_ERROR</code> is inconclusive by design. Kuyfi does not certify
+			contracts.
+		</p>
+	</Callout>
+
+	<h2 id="taxonomy">Signal taxonomy</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Signal</th>
+				<th>Meaning</th>
+				<th>In findings list?</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>SECURE</code></td>
+				<td>
+					Expected rejection (contract error, reserved boundary, host object error) or
+					accepted non-access-control vector.
+				</td>
+				<td>No — summary counters only</td>
+			</tr>
+			<tr>
+				<td><code>PRECONDITION_FAIL</code></td>
+				<td>
+					Confident rejection from missing setup — often structural auth because the
+					ephemeral account is not an authorized signer.
+				</td>
+				<td>No — summary counters only</td>
+			</tr>
+			<tr>
+				<td><code>UNEXPECTED_ERROR</code></td>
+				<td>
+					Failed, but the trace does not explain why (e.g. generic root trap). Manual
+					review; labeled inconclusive. Severity <code>MEDIUM</code>.
+				</td>
+				<td>Yes</td>
+			</tr>
+			<tr>
+				<td><code>POTENTIAL_VULN</code></td>
+				<td>
+					Access-control vector <strong>not</strong> rejected; runtime-safety fault after
+					nested calls attributed to the target; or root trap after nested calls without a
+					fabricated Address excuse. Needs contextual review — not a confirmed exploit.
+				</td>
+				<td>Yes</td>
+			</tr>
+			<tr>
+				<td><code>UNCONTROLLED_PANIC</code></td>
+				<td>
+					Target traps on arithmetic/index-bounds with no nested-call activity —
+					robustness signal. Severity <code>MEDIUM</code>.
+				</td>
+				<td>Yes</td>
+			</tr>
+			<tr>
+				<td><code>TIMEOUT</code></td>
+				<td>Not confirmed within polling window. Severity <code>LOW</code>.</td>
+				<td>Yes</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<p>
+		The <code>VulnerabilitySignal</code> type also keeps a legacy <code>SIMULATION_FAIL</code>
+		member that the classifier never emits.
+	</p>
+
+	<h2 id="severity">Severity</h2>
+	<ul>
+		<li>
+			<code>POTENTIAL_VULN</code> → <code>CRITICAL</code> if function name matches admin
+			patterns (<code>initialize</code>, <code>set_admin</code>, <code>upgrade</code>,
+			<code>pause</code>, …); otherwise <code>HIGH</code>.
+		</li>
+		<li><code>UNEXPECTED_ERROR</code> / <code>UNCONTROLLED_PANIC</code> → <code>MEDIUM</code></li>
+		<li><code>TIMEOUT</code> → <code>LOW</code></li>
+	</ul>
+
+	<h2 id="examples">Worked examples</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Situation</th>
+				<th>Likely signal</th>
+				<th>Why</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>
+					<code>UNAUTHORIZED_CALL</code> on <code>set_admin</code> succeeds (no
+					<code>require_auth</code>)
+				</td>
+				<td><code>POTENTIAL_VULN</code> · CRITICAL</td>
+				<td>Access-control hypothesis not rejected on an admin-pattern name</td>
+			</tr>
+			<tr>
+				<td>Same call fails with structural auth / sceAuth</td>
+				<td><code>PRECONDITION_FAIL</code></td>
+				<td>Ephemeral account is not an authorized signer — expected black-box noise</td>
+			</tr>
+			<tr>
+				<td><code>MAX_I128</code> triggers contract <code>Error(Contract)</code></td>
+				<td><code>SECURE</code></td>
+				<td>Confident, expected rejection</td>
+			</tr>
+			<tr>
+				<td>Root trap, no nested frames, no auth clue</td>
+				<td><code>UNEXPECTED_ERROR</code></td>
+				<td>Inconclusive — could be panic-as-check or real fault</td>
+			</tr>
+			<tr>
+				<td>Arithmetic domain fault with no nested calls</td>
+				<td><code>UNCONTROLLED_PANIC</code></td>
+				<td>Robustness / error-handling signal</td>
+			</tr>
+		</tbody>
+	</table>
+	<p>
+		Fixture walkthrough: repo <code>test-fixtures/intentionally-vulnerable-contract</code>
+		(broken vs secure <code>set_admin_value</code>). Schema details →{' '}
+		<a href={withBase('/report-schema')}>Report schema</a>.
+	</p>
+
+	<h2 id="ids">IDs</h2>
+	<p>
+		Findings get <code>KYF-NNN</code> IDs in execution order and are listed by severity in the
+		report. Counters cover every vector; the findings list is filtered.
+	</p>
+
+	<h2 id="traces">Trace categories</h2>
+	<p>
+		<code>trace_analyzer.ts</code> maps DiagnosticEvents into structured categories:
+		<code>AUTH</code>, <code>CONTRACT</code>, <code>CONTEXT</code>, <code>OBJECT</code>,
+		<code>STORAGE</code>, <code>WASM_VM</code>, <code>OTHER</code>, <code>UNKNOWN</code>.
+		Text matching in error messages is only a fallback when events are missing.
+	</p>
+</DocsLayout>

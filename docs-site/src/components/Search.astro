@@ -1,0 +1,396 @@
+---
+import {SEARCH_INDEX, SUGGESTIONS} from '../content/search';
+import {withBase} from '../lib/paths';
+
+const entries = SEARCH_INDEX;
+const suggestions = SUGGESTIONS;
+const base = import.meta.env.BASE_URL;
+---
+
+<div class="search" data-search data-base={base}>
+	<button
+		type="button"
+		class="search__trigger"
+		data-search-open
+		aria-haspopup="dialog"
+		aria-label="Search documentation"
+	>
+		<svg class="search__ico" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+			<circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>
+			<path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+		</svg>
+		<span class="search__placeholder">Search docs…</span>
+		<span class="search__keys"><kbd>⌘</kbd><kbd>K</kbd></span>
+	</button>
+
+	<dialog class="search__dialog" data-search-dialog aria-label="Search documentation">
+		<div class="search__panel">
+			<div class="search__input-row">
+				<svg class="search__ico" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+					<circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle>
+					<path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+				</svg>
+				<input
+					type="search"
+					class="search__input"
+					placeholder="Try: POTENTIAL_VULN, install, x402, fuzz…"
+					data-search-input
+					autocomplete="off"
+					spellcheck="false"
+				/>
+			</div>
+			<div class="search__suggest" data-search-suggest></div>
+			<ul class="search__results" data-search-results role="listbox"></ul>
+			<p class="search__hint">
+				<span>Fuzzy + synonyms (EN/ES)</span>
+				<span>↑↓</span>
+				<span>↵</span>
+				<span>esc</span>
+			</p>
+		</div>
+	</dialog>
+</div>
+
+<script define:vars={{entries, suggestions}}>
+	import {searchDocs, highlight} from '../lib/smart-search.ts';
+
+	function joinBase(base, path) {
+		const b = (base || '/').replace(/\/$/, '');
+		if (!path || path === '/') return b || '/';
+		return `${b}${path.startsWith('/') ? path : `/${path}`}`;
+	}
+
+	function bindSearch() {
+		const root = document.querySelector('[data-search]');
+		if (!root || root.dataset.bound === '1') return;
+		root.dataset.bound = '1';
+
+		const base = root.dataset.base || '/docs/';
+		const dialog = root.querySelector('[data-search-dialog]');
+		const openBtn = root.querySelector('[data-search-open]');
+		const input = root.querySelector('[data-search-input]');
+		const list = root.querySelector('[data-search-results]');
+		const suggest = root.querySelector('[data-search-suggest]');
+		if (!dialog || !openBtn || !input || !list || !suggest) return;
+
+		let active = 0;
+		let hits = [];
+
+		function hrefFor(entry) {
+			const path = joinBase(base, entry.href);
+			return entry.hash ? `${path}#${entry.hash}` : path;
+		}
+
+		function renderSuggest(show) {
+			if (!show) {
+				suggest.innerHTML = '';
+				suggest.hidden = true;
+				return;
+			}
+			suggest.hidden = false;
+			suggest.innerHTML = `<p class="suggest__label">Suggested</p><div class="suggest__chips">${suggestions
+				.map((s) => `<button type="button" class="chip" data-q="${s.q}">${s.label}</button>`)
+				.join('')}</div>`;
+		}
+
+		function render() {
+			const q = input.value.trim();
+			renderSuggest(!q);
+			hits = searchDocs(entries, q, 12);
+			active = 0;
+
+			if (!hits.length) {
+				list.innerHTML = `<li class="empty">No matches for “${q.replace(/[<>]/g, '')}”. Try a signal name, CLI flag, or Spanish synonym (ej. <em>instalar</em>, <em>informe</em>).</li>`;
+				return;
+			}
+
+			list.innerHTML = hits
+				.map((h, i) => {
+					const title = highlight(h.entry.title, h.matched);
+					const snip = highlight(h.snippet, h.matched);
+					const badge = h.entry.hash ? 'section' : h.entry.group;
+					return `<li>
+						<a href="${hrefFor(h.entry)}" class="hit${i === 0 ? ' is-active' : ''}" data-i="${i}">
+							<span class="hit__title">${title}</span>
+							<span class="hit__meta">${badge}</span>
+							<span class="hit__blurb">${snip}</span>
+						</a>
+					</li>`;
+				})
+				.join('');
+		}
+
+		function open() {
+			if (!dialog.open) dialog.showModal();
+			input.value = '';
+			render();
+			requestAnimationFrame(() => input.focus());
+		}
+
+		function close() {
+			if (dialog.open) dialog.close();
+		}
+
+		openBtn.addEventListener('click', open);
+		dialog.addEventListener('click', (ev) => {
+			if (ev.target === dialog) close();
+		});
+		input.addEventListener('input', render);
+
+		suggest.addEventListener('click', (ev) => {
+			const chip = ev.target.closest('[data-q]');
+			if (!chip) return;
+			input.value = chip.dataset.q || '';
+			render();
+			input.focus();
+		});
+
+		list.addEventListener('mousemove', (ev) => {
+			const a = ev.target.closest('a[data-i]');
+			if (!a) return;
+			active = Number(a.dataset.i);
+			list.querySelectorAll('.hit').forEach((el, i) => el.classList.toggle('is-active', i === active));
+		});
+
+		input.addEventListener('keydown', (ev) => {
+			if (ev.key === 'ArrowDown') {
+				ev.preventDefault();
+				active = Math.min(active + 1, hits.length - 1);
+				list.querySelectorAll('.hit').forEach((el, i) => el.classList.toggle('is-active', i === active));
+			} else if (ev.key === 'ArrowUp') {
+				ev.preventDefault();
+				active = Math.max(active - 1, 0);
+				list.querySelectorAll('.hit').forEach((el, i) => el.classList.toggle('is-active', i === active));
+			} else if (ev.key === 'Enter' && hits[active]) {
+				ev.preventDefault();
+				window.location.href = hrefFor(hits[active].entry);
+			}
+		});
+
+		window.addEventListener('keydown', (ev) => {
+			const tag = (ev.target && ev.target.tagName) || '';
+			const typing = tag === 'INPUT' || tag === 'TEXTAREA' || ev.target?.isContentEditable;
+			if ((ev.key === 'k' || ev.key === 'K') && (ev.metaKey || ev.ctrlKey)) {
+				ev.preventDefault();
+				open();
+				return;
+			}
+			if (ev.key === '/' && !typing && !ev.metaKey && !ev.ctrlKey) {
+				ev.preventDefault();
+				open();
+			}
+		});
+	}
+
+	bindSearch();
+	document.addEventListener('astro:page-load', bindSearch);
+</script>
+
+<style>
+	.search__trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.55rem;
+		min-width: min(260px, 46vw);
+		padding: 0.45rem 0.65rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: rgba(255, 255, 255, 0.03);
+		color: var(--text-dim);
+		cursor: pointer;
+		font-family: var(--font-body);
+		font-size: 0.85rem;
+	}
+
+	.search__trigger:hover {
+		border-color: rgba(245, 197, 24, 0.35);
+		color: var(--text-muted);
+	}
+
+	.search__ico {
+		flex-shrink: 0;
+		opacity: 0.7;
+	}
+
+	.search__placeholder {
+		flex: 1;
+		text-align: left;
+	}
+
+	.search__keys {
+		display: inline-flex;
+		gap: 0.2rem;
+	}
+
+	kbd {
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		padding: 0.1rem 0.3rem;
+		border: 1px solid var(--border-strong);
+		border-radius: 4px;
+		color: var(--text-dim);
+	}
+
+	.search__dialog {
+		border: none;
+		padding: 0;
+		background: transparent;
+		max-width: 640px;
+		width: calc(100vw - 2rem);
+	}
+
+	.search__dialog::backdrop {
+		background: rgba(0, 0, 0, 0.72);
+		backdrop-filter: blur(4px);
+	}
+
+	.search__panel {
+		background: var(--bg-elevated);
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-lg);
+		box-shadow:
+			0 24px 80px rgba(0, 0, 0, 0.55),
+			0 0 40px var(--yellow-glow);
+		overflow: hidden;
+	}
+
+	.search__input-row {
+		display: flex;
+		align-items: center;
+		gap: 0.65rem;
+		padding: 0.85rem 1rem 0.65rem;
+		border-bottom: 1px solid var(--border);
+		color: var(--text-dim);
+	}
+
+	.search__input {
+		width: 100%;
+		border: none;
+		background: transparent;
+		color: var(--text);
+		padding: 0.25rem 0;
+		font-size: 1rem;
+		font-family: var(--font-body);
+		outline: none;
+	}
+
+	.search__suggest {
+		padding: 0.65rem 1rem 0.25rem;
+	}
+
+	.search__suggest[hidden] {
+		display: none;
+	}
+
+	.search__suggest :global(.suggest__label) {
+		margin: 0 0 0.45rem;
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--pink);
+	}
+
+	.search__suggest :global(.suggest__chips) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.search__suggest :global(.chip) {
+		appearance: none;
+		border: 1px solid var(--border);
+		background: rgba(255, 255, 255, 0.03);
+		color: var(--text-muted);
+		border-radius: 999px;
+		padding: 0.28rem 0.65rem;
+		font-size: 0.75rem;
+		cursor: pointer;
+		font-family: var(--font-body);
+	}
+
+	.search__suggest :global(.chip:hover) {
+		border-color: rgba(245, 197, 24, 0.45);
+		color: var(--yellow);
+		background: var(--yellow-soft);
+	}
+
+	.search__results {
+		list-style: none;
+		margin: 0;
+		padding: 0.4rem;
+		max-height: 400px;
+		overflow-y: auto;
+	}
+
+	.search__results :global(.hit) {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.15rem 0.75rem;
+		padding: 0.65rem 0.75rem;
+		border-radius: var(--radius);
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.search__results :global(.hit.is-active),
+	.search__results :global(.hit:hover) {
+		background: var(--yellow-soft);
+	}
+
+	.search__results :global(.hit__title) {
+		font-family: var(--font-display);
+		font-weight: 650;
+		color: var(--text);
+	}
+
+	.search__results :global(.hit__meta) {
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		color: var(--pink);
+		align-self: center;
+		text-transform: lowercase;
+	}
+
+	.search__results :global(.hit__blurb) {
+		grid-column: 1 / -1;
+		font-size: 0.8rem;
+		color: var(--text-dim);
+		line-height: 1.4;
+	}
+
+	.search__results :global(mark) {
+		background: rgba(245, 197, 24, 0.35);
+		color: var(--yellow);
+		padding: 0 0.1em;
+		border-radius: 2px;
+	}
+
+	.search__results :global(.empty) {
+		padding: 1rem;
+		color: var(--text-dim);
+		font-size: 0.9rem;
+	}
+
+	.search__hint {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.85rem;
+		margin: 0;
+		padding: 0.55rem 1rem 0.75rem;
+		border-top: 1px solid var(--border);
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		color: var(--text-dim);
+	}
+
+	@media (max-width: 700px) {
+		.search__trigger {
+			min-width: 0;
+		}
+		.search__placeholder,
+		.search__keys {
+			display: none;
+		}
+	}
+</style>

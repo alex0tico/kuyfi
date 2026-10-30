@@ -1,0 +1,64 @@
+---
+/** Atmospheric keyhole mark — brand signal from the landing, docs-safe (no photo). */
+---
+
+<div class="glow" aria-hidden="true">
+	<svg class="glow__svg" viewBox="0 0 200 240" fill="none">
+		<defs>
+			<radialGradient id="kuyfi-key-glow" cx="50%" cy="40%" r="55%">
+				<stop offset="0%" stop-color="#F5C518" stop-opacity="0.55" />
+				<stop offset="55%" stop-color="#F5C518" stop-opacity="0.12" />
+				<stop offset="100%" stop-color="#F5C518" stop-opacity="0" />
+			</radialGradient>
+		</defs>
+		<ellipse cx="100" cy="96" rx="70" ry="78" fill="url(#kuyfi-key-glow)" />
+		<path
+			d="M100 38c-28 0-50 22-50 50 0 20 11 37 28 45v39c0 4 3 8 8 9l14 3 14-3c5-1 8-5 8-9v-39c17-8 28-25 28-45 0-28-22-50-50-50z"
+			stroke="#F5C518"
+			stroke-width="3"
+			fill="rgba(245,197,24,0.06)"
+		/>
+		<circle cx="100" cy="88" r="16" fill="#070708" stroke="#F5C518" stroke-width="3" />
+		<path d="M100 104v42" stroke="#F5C518" stroke-width="8" stroke-linecap="round" />
+	</svg>
+</div>
+
+<style>
+	.glow {
+		pointer-events: none;
+		position: absolute;
+		top: -2rem;
+		right: -1rem;
+		width: min(280px, 42vw);
+		opacity: 0.9;
+		filter: drop-shadow(0 0 28px rgba(245, 197, 24, 0.25));
+		animation: pulse 5.5s ease-in-out infinite;
+	}
+
+	.glow__svg {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
+
+	@keyframes pulse {
+		0%,
+		100% {
+			opacity: 0.75;
+			transform: translateY(0);
+		}
+		50% {
+			opacity: 1;
+			transform: translateY(-6px);
+		}
+	}
+
+	@media (max-width: 720px) {
+		.glow {
+			opacity: 0.45;
+			width: 140px;
+			top: -1rem;
+			right: -0.5rem;
+		}
+	}
+</style>

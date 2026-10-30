@@ -1,0 +1,169 @@
+---
+const steps = [
+	{ n: '01', label: 'INPUT', desc: 'Contract ID', accent: true },
+	{ n: '02', label: 'OSINT SCANNER', desc: 'Fetch deployed WASM / specification' },
+	{ n: '03', label: 'RECONSTRUCT', desc: 'Reconstruct attack surface' },
+	{ n: '04', label: 'CHAOS MONKEY', desc: 'Generate type-aware vectors' },
+	{ n: '05', label: 'SIMULATE', desc: 'Simulate and classify' },
+	{ n: '06', label: 'OUTPUT', desc: 'JSON / PDF report', accent: true, solid: true },
+];
+---
+
+<section class="pipeline" aria-label="Kuyfi pipeline">
+	<header class="pipeline__head">
+		<p class="eyebrow">[ 03 · PIPELINE ]</p>
+		<div class="pipeline__titles">
+			<h2 class="pipeline__title">From Contract ID to execution evidence.</h2>
+			<p class="pipeline__lede">
+				The OSINT Scanner maps functions, arguments and user-defined types first.
+				Chaos Monkey then generates type-aware inputs, simulates execution and
+				classifies the resulting traces. When an execution reaches the network,
+				Kuyfi preserves the available transaction evidence alongside the report.
+			</p>
+		</div>
+	</header>
+
+	<ol class="pipeline__track">
+		{
+			steps.map((step) => (
+				<li class:list={['step', { 'step--accent': step.accent, 'step--solid': step.solid }]}>
+					<span class="step__icon" aria-hidden="true" />
+					<span class="step__n">{step.n}</span>
+					<span class="step__label">{step.label}</span>
+					<span class="step__desc">{step.desc}</span>
+				</li>
+			))
+		}
+	</ol>
+</section>
+
+<style>
+	.pipeline {
+		margin: 2rem 0 2.5rem;
+		padding: 1.5rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-lg);
+		background:
+			linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 40%),
+			var(--bg-elevated);
+	}
+
+	.eyebrow {
+		margin: 0 0 0.75rem;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--pink);
+		letter-spacing: 0.04em;
+	}
+
+	.pipeline__titles {
+		display: grid;
+		gap: 1rem;
+	}
+
+	@media (min-width: 900px) {
+		.pipeline__titles {
+			grid-template-columns: 1.1fr 1fr;
+			align-items: end;
+		}
+	}
+
+	.pipeline__title {
+		margin: 0;
+		border: none;
+		padding: 0;
+		font-size: clamp(1.4rem, 3vw, 1.9rem);
+	}
+
+	.pipeline__lede {
+		margin: 0;
+		font-size: 0.95rem;
+	}
+
+	.pipeline__track {
+		list-style: none;
+		margin: 2rem 0 0;
+		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1.25rem 1rem;
+		position: relative;
+	}
+
+	@media (min-width: 960px) {
+		.pipeline__track {
+			grid-template-columns: repeat(6, minmax(0, 1fr));
+		}
+
+		.pipeline__track::before {
+			content: '';
+			position: absolute;
+			top: 10px;
+			left: 4%;
+			right: 4%;
+			height: 1px;
+			background: linear-gradient(
+				90deg,
+				var(--yellow),
+				rgba(255, 255, 255, 0.18),
+				var(--yellow)
+			);
+			z-index: 0;
+		}
+	}
+
+	.step {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+
+	.step__icon {
+		width: 18px;
+		height: 18px;
+		border: 2px solid rgba(255, 255, 255, 0.35);
+		background: transparent;
+		margin-bottom: 0.25rem;
+	}
+
+	.step--accent .step__icon {
+		border-color: var(--yellow);
+	}
+
+	.step--solid .step__icon {
+		background: var(--yellow);
+		border-color: var(--yellow);
+		box-shadow: 0 0 14px var(--yellow-glow);
+	}
+
+	.step__n {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		color: var(--text-dim);
+	}
+
+	.step__label {
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		letter-spacing: 0.04em;
+		color: var(--pink);
+		text-transform: uppercase;
+	}
+
+	.step--accent .step__label {
+		color: var(--yellow);
+	}
+
+	.step__desc {
+		font-size: 0.88rem;
+		color: var(--text);
+		line-height: 1.35;
+	}
+
+	.step--solid .step__desc {
+		color: var(--yellow);
+		font-weight: 600;
+	}
+</style>

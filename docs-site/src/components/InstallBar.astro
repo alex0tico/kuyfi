@@ -1,0 +1,64 @@
+---
+import CopyButton from './CopyButton.astro';
+import { SITE } from '../content/nav';
+
+interface Props {
+	command?: string;
+	hint?: string;
+}
+
+const command = Astro.props.command ?? SITE.install;
+const hint = Astro.props.hint ?? 'Then run kuyfi · Before the Breach.';
+---
+
+<div class="install">
+	<div class="install__bar">
+		<code class="install__cmd"
+			><span class="prompt">$</span> {command}</code
+		>
+		<CopyButton text={command} />
+	</div>
+	{hint && <p class="install__hint">{hint}</p>}
+</div>
+
+<style>
+	.install {
+		margin: 1.25rem 0 1.75rem;
+	}
+
+	.install__bar {
+		display: flex;
+		align-items: stretch;
+		overflow: hidden;
+		border: 1px solid var(--border-strong);
+		background: rgba(0, 0, 0, 0.45);
+		border-radius: var(--radius);
+		box-shadow: 0 0 0 1px rgba(245, 197, 24, 0.05), var(--shadow-glow);
+	}
+
+	.install__cmd {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.85rem 1rem;
+		font-family: var(--font-mono);
+		font-size: 0.9rem;
+		color: var(--text);
+		background: transparent;
+		border: none;
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+
+	.prompt {
+		color: var(--yellow);
+		font-weight: 600;
+	}
+
+	.install__hint {
+		margin: 0.65rem 0 0;
+		font-size: 0.85rem;
+		color: var(--yellow);
+	}
+</style>

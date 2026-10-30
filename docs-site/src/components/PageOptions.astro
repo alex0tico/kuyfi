@@ -1,0 +1,151 @@
+---
+import {withBase} from '../lib/paths';
+
+interface Props {
+	/** Canonical Markdown for Agents body (plain MD — not MDX). */
+	markdown: string;
+	/** Absolute path under base, e.g. /md/installation.md */
+	mdHref: string;
+}
+
+const {markdown, mdHref} = Astro.props;
+const agentHref = withBase('/agent-setup');
+---
+
+<div class="page-opts" data-page-options>
+	<details class="page-opts__menu">
+		<summary class="page-opts__trigger">
+			<span>Page options</span>
+			<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+				<path d="M3 4.5L6 7.5L9 4.5" fill="none" stroke="currentColor" stroke-width="1.5"></path>
+			</svg>
+		</summary>
+		<div class="page-opts__panel" role="menu">
+			<button type="button" class="page-opts__item" data-copy-md role="menuitem">
+				Copy as Markdown
+			</button>
+			<a class="page-opts__item" href={mdHref} role="menuitem" target="_blank" rel="noreferrer">
+				View as Markdown
+			</a>
+			<a class="page-opts__item" href={agentHref} role="menuitem"> Agent setup </a>
+		</div>
+	</details>
+	<textarea class="sr-only" data-md-source aria-hidden="true" readonly tabindex="-1"
+		>{markdown}</textarea
+	>
+</div>
+
+<script>
+	function bindPageOptions() {
+		document.querySelectorAll<HTMLElement>('[data-page-options]').forEach((root) => {
+			if (root.dataset.bound === '1') return;
+			root.dataset.bound = '1';
+			const btn = root.querySelector<HTMLButtonElement>('[data-copy-md]');
+			const source = root.querySelector<HTMLTextAreaElement>('[data-md-source]');
+			if (!btn || !source) return;
+
+			btn.addEventListener('click', async () => {
+				const text = source.value;
+				try {
+					await navigator.clipboard.writeText(text);
+					const prev = btn.textContent;
+					btn.textContent = 'Copied';
+					btn.classList.add('is-ok');
+					setTimeout(() => {
+						btn.textContent = prev;
+						btn.classList.remove('is-ok');
+					}, 1600);
+				} catch {
+					btn.textContent = 'Copy failed';
+					setTimeout(() => {
+						btn.textContent = 'Copy as Markdown';
+					}, 1600);
+				}
+			});
+		});
+	}
+
+	bindPageOptions();
+	document.addEventListener('astro:page-load', bindPageOptions);
+</script>
+
+<style>
+	.page-opts {
+		position: relative;
+		display: flex;
+		justify-content: flex-end;
+		margin: 0;
+		flex-shrink: 0;
+		padding-top: 0.15rem;
+	}
+
+	.page-opts__menu {
+		position: relative;
+	}
+
+	.page-opts__trigger {
+		list-style: none;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.4rem 0.7rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: rgba(255, 255, 255, 0.03);
+		color: var(--text-muted);
+		font-family: var(--font-display);
+		font-size: 0.75rem;
+		font-weight: 650;
+		letter-spacing: 0.04em;
+		user-select: none;
+	}
+
+	.page-opts__trigger::-webkit-details-marker {
+		display: none;
+	}
+
+	.page-opts__menu[open] .page-opts__trigger,
+	.page-opts__trigger:hover {
+		border-color: rgba(245, 197, 24, 0.45);
+		color: var(--yellow);
+		background: var(--yellow-soft);
+	}
+
+	.page-opts__panel {
+		position: absolute;
+		right: 0;
+		top: calc(100% + 0.35rem);
+		min-width: 200px;
+		padding: 0.35rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius);
+		background: var(--bg-elevated);
+		box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 24px var(--yellow-glow);
+		z-index: 20;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+
+	.page-opts__item {
+		appearance: none;
+		border: none;
+		background: transparent;
+		text-align: left;
+		padding: 0.55rem 0.7rem;
+		border-radius: 4px;
+		color: var(--text);
+		font-family: var(--font-body);
+		font-size: 0.85rem;
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.page-opts__item:hover,
+	.page-opts__item.is-ok {
+		background: var(--yellow-soft);
+		color: var(--yellow);
+		text-decoration: none;
+	}
+</style>

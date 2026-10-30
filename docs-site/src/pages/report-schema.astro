@@ -1,0 +1,227 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import CopyButton from '../components/CopyButton.astro';
+
+const sample = `{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20260920T120000Z-a1b2c3d4",
+  "generatedAt": "2026-09-20T12:00:00.000Z",
+  "tool": { "name": "kuyfi", "version": "0.1.0" },
+  "target": {
+    "contractId": "C…",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 18432
+  },
+  "scan": {
+    "totalFunctions": 3,
+    "functions": [
+      {
+        "name": "set_admin_value",
+        "parameters": [
+          { "name": "admin", "type": "Address" },
+          { "name": "value", "type": "i128" }
+        ],
+        "hasReturn": false
+      }
+    ],
+    "udts": []
+  },
+  "execution": {
+    "vectorsExecuted": 42,
+    "broadcastTransactions": 5,
+    "transactionsWithHash": 5,
+    "verificationTransactions": [
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "UNAUTHORIZED_CALL",
+        "broadcasted": true,
+        "hash": "…",
+        "ledger": 123456,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/…"
+      }
+    ]
+  },
+  "summary": {
+    "totalFindings": 1,
+    "bySeverity": {
+      "critical": 1,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 12
+    },
+    "findingsBySignal": { "POTENTIAL_VULN": 1 }
+  },
+  "findings": [
+    {
+      "id": "KYF-001",
+      "functionName": "set_admin_value",
+      "vectorName": "UNAUTHORIZED_CALL",
+      "signal": "POTENTIAL_VULN",
+      "severity": "CRITICAL",
+      "details": "Access-control vector was not rejected…",
+      "evidence": {
+        "simulationFailed": false,
+        "transaction": {
+          "broadcasted": true,
+          "hash": "…",
+          "ledger": 123456,
+          "explorerUrl": "https://stellar.expert/explorer/testnet/tx/…"
+        },
+        "trace": {
+          "rootCall": null,
+          "nestedCallCount": 0,
+          "involvedContractIds": [],
+          "errors": [],
+          "hasAuthError": false,
+          "failureLocation": "UNKNOWN",
+          "malformed": false
+        }
+      }
+    }
+  ]
+}`;
+
+const toc = [
+	{id: 'versioning', label: 'Versioning'},
+	{id: 'top-level', label: 'Top-level fields'},
+	{id: 'findings', label: 'Findings & evidence'},
+	{id: 'sample', label: 'Sample JSON'},
+	{id: 'consumers', label: 'Consumer tips'},
+];
+---
+
+<DocsLayout
+	title="Report schema"
+	eyebrow="[ SCHEMA · 1.0.0 ]"
+	description="Annotated SecurityReport JSON — the stable contract between Kuyfi and CI / agents / humans."
+>
+	<Toc items={toc} />
+
+	<Callout type="info" title="Single source of truth">
+		<p>
+			Defined in <code>source/modules/security_report.ts</code> as
+			<code>SCHEMA_VERSION = "1.0.0"</code>. PDF and JSON are projections of the same object —
+			they never reclassify findings.
+		</p>
+	</Callout>
+
+	<h2 id="versioning">Versioning</h2>
+	<ul>
+		<li><code>schemaVersion</code> is independent of <code>tool.version</code> (npm package).</li>
+		<li>Breaking shape changes bump the major; additive fields bump the minor.</li>
+		<li>Consumers should gate parsers on <code>schemaVersion</code>, not package version.</li>
+	</ul>
+
+	<h2 id="top-level">Top-level fields</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Field</th>
+				<th>Type</th>
+				<th>Notes</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>schemaVersion</code></td>
+				<td>string</td>
+				<td>Currently <code>"1.0.0"</code></td>
+			</tr>
+			<tr>
+				<td><code>reportId</code></td>
+				<td>string</td>
+				<td><code>kyf-&lt;stamp&gt;-&lt;uuid8&gt;</code> — unique per run</td>
+			</tr>
+			<tr>
+				<td><code>generatedAt</code></td>
+				<td>ISO-8601</td>
+				<td>UTC</td>
+			</tr>
+			<tr>
+				<td><code>tool</code></td>
+				<td>object</td>
+				<td><code>name</code> + npm <code>version</code></td>
+			</tr>
+			<tr>
+				<td><code>target</code></td>
+				<td>object</td>
+				<td>contractId, network, rpcUrl, bytecodeSize</td>
+			</tr>
+			<tr>
+				<td><code>scan</code></td>
+				<td>object</td>
+				<td>functions (typed names), udts</td>
+			</tr>
+			<tr>
+				<td><code>execution</code></td>
+				<td>object</td>
+				<td>counters + verificationTransactions sample</td>
+			</tr>
+			<tr>
+				<td><code>summary</code></td>
+				<td>object</td>
+				<td>bySeverity + findingsBySignal</td>
+			</tr>
+			<tr>
+				<td><code>findings</code></td>
+				<td>array</td>
+				<td>Excludes SECURE / PRECONDITION_FAIL</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="findings">Findings & evidence</h2>
+	<p>Each finding carries:</p>
+	<ul>
+		<li><code>id</code> — <code>KYF-NNN</code></li>
+		<li><code>functionName</code>, <code>vectorName</code> (stable attack label, e.g. <code>amount::ZERO</code>)</li>
+		<li><code>signal</code>, <code>severity</code>, <code>details</code></li>
+		<li>
+			<code>evidence</code> — <code>simulationFailed</code>, optional broadcast
+			<code>transaction</code>, and a <code>trace</code> summary (errors, auth flag, failure
+			location). Full callFrames are omitted from the public JSON for stability.
+		</li>
+	</ul>
+
+	<h2 id="sample">Sample JSON</h2>
+	<p>Illustrative shape (truncated hashes). Copy for fixtures / agent mocks:</p>
+	<div class="sample">
+		<pre><code>{sample}</code></pre>
+		<div class="sample__actions">
+			<CopyButton text={sample} label="COPY JSON" />
+		</div>
+	</div>
+
+	<h2 id="consumers">Consumer tips</h2>
+	<ol>
+		<li>Assert <code>schemaVersion === "1.0.0"</code> before deep parsing.</li>
+		<li>Treat <code>POTENTIAL_VULN</code> as investigate-first, never auto-fail CI as “CVE confirmed”.</li>
+		<li>
+			Use <code>verificationTransactions</code> + per-finding explorer URLs to independently
+			check on-chain evidence.
+		</li>
+		<li>
+			Empty <code>findings</code> with high <code>preconditionFail</code> usually means the
+			ephemeral account lacked setup — not “secure.”
+		</li>
+	</ol>
+</DocsLayout>
+
+<style>
+	.sample {
+		margin: 1rem 0 1.5rem;
+	}
+	.sample__actions {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: 0.5rem;
+	}
+	pre {
+		max-height: 420px;
+	}
+</style>

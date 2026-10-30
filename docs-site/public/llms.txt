@@ -1,0 +1,90 @@
+# Kuyfi
+
+> Black-box security terminal for Soroban smart contracts on Stellar Testnet.
+> Tagline: Before the Breach.
+> Site: https://kuyfi.vercel.app
+> Docs: https://kuyfi.vercel.app/docs
+> npm: @kuyfi/kuyfi (CLI command: kuyfi)
+> GitHub: https://github.com/alex0tico/kuyfi
+> Version: 0.1.0 · License: MIT · Network: Stellar Testnet only
+
+Kuyfi analyzes deployed Soroban contracts from their on-chain interface (WASM + contractspecv0). No Rust source required. It reconstructs the attack surface, runs type-aware Chaos Monkey fuzzing (simulate first; broadcast to Testnet only when preflight succeeds), classifies DiagnosticEvent traces into six signals, and exports a SecurityReport as JSON/PDF.
+
+## Markdown for Agents (NOT MDX)
+
+MDX = Markdown + JSX components (UI authoring). That is NOT the agent format.
+
+Kuyfi ships plain Markdown for LLMs — same idea as Cloudflare Docs:
+
+- Copy as Markdown / View as Markdown on every HTML docs page (Page options)
+- Per-page Markdown: https://kuyfi.vercel.app/docs/md/<slug>.md
+- This file (llms.txt) + https://kuyfi.vercel.app/docs/llms-full.txt
+- Setup guide: https://kuyfi.vercel.app/docs/agent-setup
+
+```bash
+curl -sL https://kuyfi.vercel.app/docs/md/index.md
+curl -sL https://kuyfi.vercel.app/docs/md/chaos-monkey.md
+```
+
+## Critical constraints for agents
+
+- Testnet only (RPC https://soroban-testnet.stellar.org). No Mainnet support in v0.1.0.
+- Findings are signals to investigate, not confirmed exploits or certifications.
+- Only fuzz contracts the user owns or is authorized to test.
+- Paid HTTP API exposes OSINT scan only — never Chaos Monkey.
+- Ephemeral Friendbot keypairs; secrets are not persisted.
+- MCP: connect path is https://kuyfi.vercel.app/docs/mcp#connect (“Conectar el MCP al server de Kuyfi”). Package @kuyfi/mcp may still be coming soon — JSON config on that page is the stable contract.
+
+## Install
+
+```bash
+npm install -g @kuyfi/kuyfi
+kuyfi
+kuyfi <CONTRACT_ID> --json --pdf
+```
+
+Contract ID shape: /^C[A-Z0-9]{55}$/
+
+## Pipeline
+
+Contract ID → OSINT Scanner (fetch WASM) → Reconstruct attack surface → Chaos Monkey (type-aware vectors) → Simulate & classify → JSON/PDF SecurityReport (schemaVersion 1.0.0)
+
+## Docs index (HTML)
+
+- https://kuyfi.vercel.app/docs/ — Overview
+- https://kuyfi.vercel.app/docs/installation — Install
+- https://kuyfi.vercel.app/docs/quickstart — First run
+- https://kuyfi.vercel.app/docs/pipeline — Pipeline
+- https://kuyfi.vercel.app/docs/osint-scanner — Scanner
+- https://kuyfi.vercel.app/docs/chaos-monkey — Fuzzing
+- https://kuyfi.vercel.app/docs/vectors — Attack vector catalog
+- https://kuyfi.vercel.app/docs/findings — Signals
+- https://kuyfi.vercel.app/docs/reports — Reports
+- https://kuyfi.vercel.app/docs/report-schema — SecurityReport JSON schema + sample
+- https://kuyfi.vercel.app/docs/cli — CLI
+- https://kuyfi.vercel.app/docs/tui — TUI
+- https://kuyfi.vercel.app/docs/paid-api — x402 scan API
+- https://kuyfi.vercel.app/docs/architecture — Architecture
+- https://kuyfi.vercel.app/docs/glossary — Glossary
+- https://kuyfi.vercel.app/docs/troubleshooting — Troubleshooting
+- https://kuyfi.vercel.app/docs/changelog — Releases
+- https://kuyfi.vercel.app/docs/agent-setup — Agent setup (Markdown for Agents)
+- https://kuyfi.vercel.app/docs/for-llms — For LLMs
+- https://kuyfi.vercel.app/docs/mcp — MCP stub
+- https://kuyfi.vercel.app/docs/responsible-use — Policy
+- https://kuyfi.vercel.app/docs/faq — FAQ
+- https://kuyfi.vercel.app/docs/llms-full.txt — Full machine-readable manual
+
+## Markdown twins (prefer these for model context)
+
+Replace `<slug>` with: index, installation, quickstart, pipeline, osint-scanner, chaos-monkey, vectors, findings, reports, report-schema, cli, tui, paid-api, architecture, glossary, troubleshooting, changelog, agent-setup, for-llms, mcp, responsible-use, faq
+
+https://kuyfi.vercel.app/docs/md/<slug>.md
+
+## Optional paid scan server
+
+```bash
+# PAY_TO=G... public address only
+kuyfi-server
+# GET /scan/:contractId → 402 then 200 with scan surface
+```

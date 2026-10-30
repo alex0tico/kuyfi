@@ -1,0 +1,177 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import { withBase } from '../lib/paths';
+
+const toc = [
+	{id: 'flow', label: 'Request flow'},
+	{id: 'run', label: 'Run the server'},
+	{id: 'env', label: 'Environment'},
+	{id: 'responses', label: 'HTTP responses'},
+	{id: 'settlement', label: 'Settlement'},
+	{id: 'client', label: 'Client'},
+];
+---
+
+<DocsLayout
+	title="Paid scan API"
+	eyebrow="[ 10 · x402 ]"
+	description="HTTP OSINT Scanner with per-scan payment via x402 on Stellar (Local402), priced in Chilean pesos."
+>
+	<Toc items={toc} />
+
+	<h2 id="flow">Request flow</h2>
+	<pre><code>GET /scan/&lt;CONTRACT_ID&gt;
+  → 400  INVALID_CONTRACT_ID   (before paywall — no quote)
+  → 402  Payment Required      price in CLP → USDC via Reflector
+  → 200  OK                    paid: functions, params, UDTs
+  → 404 / 422 / 502 / 500      scan failed after auth — not settled</code></pre>
+
+	<Callout type="warn" title="Scanner only">
+		<p>
+			Chaos Monkey broadcasts transactions — it stays a local, explicit action and is
+			<strong>never</strong> exposed over HTTP. The Local402 route description is:
+			<em>“Kuyfi OSINT scan: functions, parameters and types of a Soroban Testnet contract.”</em>
+		</p>
+	</Callout>
+
+	<h2 id="run">Run the server</h2>
+	<pre><code>cp .env.example .env   # set PAY_TO at minimum
+npm run build
+node --env-file=.env dist/server.js
+# or: npm run serve / kuyfi-server
+
+# Startup log:
+# kuyfi-server: GET http://localhost:4021/scan/&lt;CONTRACT_ID&gt;</code></pre>
+	<p>
+		Missing <code>PAY_TO</code> → process prints an error and <code>process.exit(1)</code>.
+	</p>
+
+	<h2 id="env">Environment</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Variable</th>
+				<th>Default</th>
+				<th>Notes</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>PAY_TO</code></td>
+				<td>required</td>
+				<td>Public <code>G…</code> address. Never a secret key.</td>
+			</tr>
+			<tr>
+				<td><code>PRICE</code></td>
+				<td><code>500 CLP</code></td>
+				<td>Any Reflector currency, e.g. <code>0.50 USD</code>, <code>0.02 UF</code></td>
+			</tr>
+			<tr>
+				<td><code>NETWORK</code></td>
+				<td><code>stellar:testnet</code></td>
+				<td>
+					Payment settlement network (<code>stellar:testnet</code> |
+					<code>stellar:pubnet</code>). Scans always read Soroban Testnet.
+				</td>
+			</tr>
+			<tr>
+				<td><code>FACILITATOR_URL</code></td>
+				<td>derived from NETWORK</td>
+				<td>
+					Testnet: <code>https://local402.vercel.app/facilitator</code><br />
+					Pubnet: <code>https://local402-mainnet.vercel.app/facilitator</code>
+					(mainnet facilitator allowlists <code>PAY_TO</code>)
+				</td>
+			</tr>
+			<tr>
+				<td><code>PORT</code></td>
+				<td><code>4021</code></td>
+				<td></td>
+			</tr>
+			<tr>
+				<td><code>LOCAL402_QUOTE_SECRET</code></td>
+				<td>unset</td>
+				<td>
+					Only for multi-instance deploys: same random value on every instance so a
+					quote from one node is honored by another.
+				</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="responses">HTTP responses</h2>
+
+	<h3>400 — before paywall</h3>
+	<pre><code>&#123;
+  "error": "INVALID_CONTRACT_ID",
+  "message": "Expected 56 characters starting with C (A-Z, 0-9)."
+&#125;</code></pre>
+
+	<h3>200 — paid success</h3>
+	<p>
+		Body shape from <code>scan_server.ts</code> + <code>toPublicScan()</code>:
+	</p>
+	<pre><code>&#123;
+  "contractId": "C…",
+  "network": "testnet",
+  "bytecodeSize": 12345,
+  // …toPublicScan(scan): functions, udts, etc.
+  // Same public scan block shape as SecurityReport.scan
+&#125;</code></pre>
+
+	<h3>Scan failures (after payment auth)</h3>
+	<table>
+		<thead>
+			<tr>
+				<th>ScanError</th>
+				<th>Status</th>
+				<th>Body</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>CONTRACT_NOT_FOUND</code></td>
+				<td><code>404</code></td>
+				<td><code>&#123; "error": "CONTRACT_NOT_FOUND" &#125;</code></td>
+			</tr>
+			<tr>
+				<td><code>XDR_ALIGN_FAILURE</code></td>
+				<td><code>422</code></td>
+				<td><code>&#123; "error": "XDR_ALIGN_FAILURE" &#125;</code></td>
+			</tr>
+			<tr>
+				<td><code>RPC_UNAVAILABLE</code></td>
+				<td><code>502</code></td>
+				<td><code>&#123; "error": "RPC_UNAVAILABLE" &#125;</code></td>
+			</tr>
+			<tr>
+				<td><code>UNKNOWN</code> / other</td>
+				<td><code>500</code></td>
+				<td><code>&#123; "error": "UNKNOWN" &#125;</code></td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="settlement">Settlement rules</h2>
+	<ul>
+		<li>Malformed Contract ID → <code>400</code> before any price is quoted.</li>
+		<li>
+			x402 settles only when the handler answers with status &lt; 400. Failed scans
+			(<code>404</code>, <code>422</code>, <code>502</code>, <code>500</code>) are
+			<strong>not</strong> charged.
+		</li>
+		<li>
+			Payment network (<code>NETWORK</code>) is independent of scan network — OSINT
+			always hits Testnet RPC.
+		</li>
+	</ul>
+
+	<h2 id="client">Client example</h2>
+	<pre><code>npx -y local402-client quote http://localhost:4021/scan/&lt;CONTRACT_ID&gt;</code></pre>
+	<p>
+		For Troubleshoot common 402 / env mistakes →
+		<a href={withBase('/troubleshooting')}>Troubleshooting</a>.
+	</p>
+</DocsLayout>

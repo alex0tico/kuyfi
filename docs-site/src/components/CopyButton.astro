@@ -1,0 +1,77 @@
+---
+interface Props {
+	text: string;
+	label?: string;
+}
+
+const { text, label = 'COPY' } = Astro.props;
+---
+
+<button
+	type="button"
+	class="copy-btn"
+	data-copy={text}
+	aria-label={`Copy ${text}`}
+>
+	{label}
+</button>
+
+<script>
+	function bindCopyButtons() {
+		document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((btn) => {
+			if (btn.dataset.bound === '1') return;
+			btn.dataset.bound = '1';
+			btn.addEventListener('click', async () => {
+				const value = btn.dataset.copy ?? '';
+				try {
+					await navigator.clipboard.writeText(value);
+					const prev = btn.textContent;
+					btn.textContent = 'COPIED';
+					btn.classList.add('is-copied');
+					setTimeout(() => {
+						btn.textContent = prev;
+						btn.classList.remove('is-copied');
+					}, 1400);
+				} catch {
+					btn.textContent = 'FAILED';
+					setTimeout(() => {
+						btn.textContent = 'COPY';
+					}, 1400);
+				}
+			});
+		});
+	}
+
+	bindCopyButtons();
+	document.addEventListener('astro:page-load', bindCopyButtons);
+</script>
+
+<style>
+	.copy-btn {
+		appearance: none;
+		border: none;
+		cursor: pointer;
+		background: var(--yellow);
+		color: #111;
+		font-family: var(--font-display);
+		font-weight: 700;
+		font-size: 0.72rem;
+		letter-spacing: 0.08em;
+		padding: 0.7rem 1rem;
+		min-width: 4.5rem;
+		transition: background 0.15s ease, transform 0.15s ease;
+	}
+
+	.copy-btn:hover {
+		background: #ffd84a;
+	}
+
+	.copy-btn:active {
+		transform: translateY(1px);
+	}
+
+	.copy-btn.is-copied {
+		background: var(--success);
+		color: #052e1a;
+	}
+</style>

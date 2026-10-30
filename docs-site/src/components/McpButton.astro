@@ -1,0 +1,83 @@
+---
+import { withBase } from '../lib/paths';
+
+interface Props {
+	/** Defaults to the stable connect path: /mcp#connect */
+	href?: string;
+	variant?: 'header' | 'hero' | 'inline';
+}
+
+const { href = `${withBase('/mcp')}#connect`, variant = 'header' } = Astro.props;
+---
+
+<a
+	class:list={['mcp-btn', `mcp-btn--${variant}`]}
+	href={href}
+	data-mcp-entry
+	data-mcp-connect
+	title="Conectar el MCP al server de Kuyfi"
+	aria-label="Conectar el MCP al server de Kuyfi"
+>
+	<span class="mcp-btn__dot" aria-hidden="true"></span>
+	<span class="mcp-btn__label">MCP</span>
+	<span class="mcp-btn__meta">Connect</span>
+</a>
+
+<style>
+	.mcp-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.45rem 0.75rem;
+		border: 1px solid rgba(245, 197, 24, 0.45);
+		background: var(--yellow-soft);
+		color: var(--yellow);
+		border-radius: var(--radius);
+		font-family: var(--font-display);
+		font-size: 0.78rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-decoration: none;
+		transition:
+			background 0.15s ease,
+			border-color 0.15s ease,
+			box-shadow 0.15s ease;
+	}
+
+	.mcp-btn:hover {
+		text-decoration: none;
+		background: rgba(245, 197, 24, 0.22);
+		border-color: var(--yellow);
+		box-shadow: 0 0 18px var(--yellow-glow);
+	}
+
+	.mcp-btn__dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: var(--yellow);
+		box-shadow: 0 0 8px var(--yellow);
+	}
+
+	.mcp-btn__meta {
+		color: var(--text-dim);
+		font-weight: 500;
+		font-family: var(--font-body);
+		letter-spacing: 0;
+		text-transform: none;
+		font-size: 0.72rem;
+	}
+
+	.mcp-btn--hero {
+		padding: 0.75rem 1.1rem;
+		font-size: 0.85rem;
+	}
+
+	.mcp-btn--hero .mcp-btn__meta {
+		font-size: 0.8rem;
+	}
+
+	.mcp-btn--inline {
+		margin: 0.25rem 0;
+	}
+</style>

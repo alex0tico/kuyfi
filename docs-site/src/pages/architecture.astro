@@ -1,0 +1,135 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import {withBase} from '../lib/paths';
+
+const toc = [
+	{id: 'overview', label: 'Overview'},
+	{id: 'layers', label: 'Layers'},
+	{id: 'engine', label: 'Audit engine'},
+	{id: 'data', label: 'Data flow'},
+	{id: 'security', label: 'Security properties'},
+	{id: 'stack', label: 'Stack'},
+];
+---
+
+<DocsLayout
+	title="Architecture"
+	eyebrow="[ 11 · SYSTEM ]"
+	description="Single-process CLI/TUI (plus optional paid scan server). UI never owns the audit engine."
+>
+	<Toc items={toc} />
+
+	<h2 id="overview">Overview</h2>
+	<p>
+		Kuyfi is a Node.js application with <strong>no backend daemon</strong> for the core product.
+		One process either renders the Ink TUI or runs a headless audit and exits. Both paths call
+		the same engine under <code>source/modules/</code>.
+	</p>
+	<p>
+		Exception: optional <code>kuyfi-server</code> (<code>source/server.ts</code> →
+		<code>scan_server.ts</code>) exposes read-only OSINT over HTTP with x402 — never Chaos Monkey.
+	</p>
+
+	<pre><code>CLI ENTRY  source/cli.tsx
+   ├── TUI     app.tsx → screens/ components/ hooks/ ui/
+   └── headless cli_runtime.ts
+              │
+              ▼
+        AUDIT ENGINE  source/modules/
+        scanner → chaos_monkey → security_report → report_export</code></pre>
+
+	<Callout type="tip" title="UI ≠ engine">
+		<p>
+			Nothing under <code>screens/</code>, <code>components/</code>, <code>hooks/</code>, or
+			<code>ui/</code> performs a scan or fuzz. A bug fixed in the engine is fixed for TUI and
+			CLI simultaneously.
+		</p>
+	</Callout>
+
+	<h2 id="layers">Layers</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Layer</th>
+				<th>Path</th>
+				<th>Responsibility</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td>Entry</td>
+				<td><code>cli.tsx</code></td>
+				<td>meow args → <code>tui</code> | <code>headless</code> | <code>invalid</code></td>
+			</tr>
+			<tr>
+				<td>Navigation</td>
+				<td><code>app.tsx</code></td>
+				<td>view state, menu keys, layout mode</td>
+			</tr>
+			<tr>
+				<td>Screens</td>
+				<td><code>screens/*</code></td>
+				<td>Scanner, Chaos Monkey, Logs, About, Home</td>
+			</tr>
+			<tr>
+				<td>Chrome</td>
+				<td><code>components/*</code></td>
+				<td>Header, ViewShell, size notices</td>
+			</tr>
+			<tr>
+				<td>Pure UI</td>
+				<td><code>ui/*</code></td>
+				<td>layout tiers, formatters, ASCII cats/logo</td>
+			</tr>
+			<tr>
+				<td>Engine</td>
+				<td><code>modules/*</code></td>
+				<td>scan, fuzz, classify, report, optional HTTP</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<h2 id="engine">Audit engine modules</h2>
+	<ul>
+		<li><code>scanner.ts</code> — WASM fetch + contractspec parse</li>
+		<li>
+			<code>chaos_monkey/</code> — keypair_factory, type_gen, fuzzers, router, trace_analyzer,
+			result_parser, reporter
+		</li>
+		<li><code>audit.ts</code> — ScanResult + ChaosReport → AuditRun</li>
+		<li><code>security_report.ts</code> — canonical SecurityReport 1.0.0</li>
+		<li><code>report_export.ts</code> / <code>pdf_report.ts</code> — JSON + PDF</li>
+		<li><code>scan_server.ts</code> — Express + x402 paid scanner</li>
+		<li><code>network.ts</code> — Testnet RPC constant (single source of truth)</li>
+		<li><code>cli_runtime.ts</code> — headless orchestration + error formatting</li>
+	</ul>
+
+	<h2 id="data">Data flow</h2>
+	<pre><code>Contract ID
+  → scanner.ts          ScanResult (functions + UdtRegistry)
+  → runChaosMonkey()    ChaosReport (findings, counters, verification txs)
+  → audit.ts            AuditRun
+  → security_report.ts  SecurityReport
+  → report_export.ts    JSON and/or PDF</code></pre>
+
+	<h2 id="security">Security properties</h2>
+	<ul>
+		<li>No private key storage — ephemeral keys in memory only</li>
+		<li>Testnet only — RPC hardcoded</li>
+		<li>Paid endpoint is scan-only and keyless (<code>PAY_TO</code> is public)</li>
+		<li>Read-only OSINT first</li>
+		<li>Simulate-before-broadcast for every fuzz vector</li>
+	</ul>
+
+	<h2 id="stack">Stack</h2>
+	<p>
+		TypeScript · Node ≥ 20 · React 19 · Ink 6 · <code>@stellar/stellar-sdk</code> · Express ·
+		pdfkit · meow · <code>@x402/express</code> · <code>local402-server</code>
+	</p>
+	<p>
+		Repo deep-dives: <code>ARCHITECTURE.md</code>, <code>docs/technical-writeup.md</code>. Vector
+		catalog: <a href={withBase('/vectors')}>Attack vectors</a>.
+	</p>
+</DocsLayout>

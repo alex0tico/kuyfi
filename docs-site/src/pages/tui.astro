@@ -1,0 +1,114 @@
+---
+import DocsLayout from '../layouts/DocsLayout.astro';
+import Callout from '../components/Callout.astro';
+import Toc from '../components/Toc.astro';
+import { withBase } from '../lib/paths';
+
+const toc = [
+	{id: 'menu', label: 'Menu modules'},
+	{id: 'gates', label: 'Scan gate'},
+	{id: 'layout', label: 'Layout tiers'},
+	{id: 'logs', label: 'System Logs'},
+	{id: 'export', label: 'Exports'},
+	{id: 'files', label: 'File map'},
+];
+---
+
+<DocsLayout
+	title="Interactive TUI"
+	eyebrow="[ 09 · TERMINAL ]"
+	description="Ink + React terminal UI — chrome only; all scanning and fuzzing live in source/modules/."
+>
+	<Toc items={toc} />
+
+	<h2 id="menu">Menu modules</h2>
+	<table>
+		<thead>
+			<tr>
+				<th>Key</th>
+				<th>Module</th>
+				<th>Role</th>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td><code>[1]</code></td>
+				<td>OSINT Scanner</td>
+				<td>Map attack surface → stores <code>lastScanResult</code></td>
+			</tr>
+			<tr>
+				<td><code>[2]</code></td>
+				<td>Chaos Monkey</td>
+				<td>Fuzz &amp; stress test (requires prior scan)</td>
+			</tr>
+			<tr>
+				<td><code>[3]</code></td>
+				<td>System Logs</td>
+				<td>Static session status (not a live log stream)</td>
+			</tr>
+			<tr>
+				<td><code>[4]</code></td>
+				<td>About</td>
+				<td>Project info</td>
+			</tr>
+		</tbody>
+	</table>
+
+	<p>
+		Navigate with arrows or number keys; Enter to open; Esc to go back
+		(<code>ViewShell</code>). Quit from the app → <code>process.exit(0)</code>.
+	</p>
+
+	<h2 id="gates">Scan gate for Chaos Monkey</h2>
+	<p>
+		<code>app.tsx</code> keeps <code>lastScanResult</code> / <code>contractId</code> in
+		state. Opening Chaos Monkey when <code>lastScanResult === null</code> shows a notice
+		(<em>Run OSINT Scanner first…</em>) instead of crashing — Chaos Monkey needs the
+		reconstructed attack surface from a completed scan in this session.
+	</p>
+
+	<Callout type="tip" title="Headless vs TUI">
+		<p>
+			Headless <code>kuyfi &lt;CONTRACT_ID&gt;</code> always runs scan → Chaos Monkey in
+			one shot. The TUI separates them so you can inspect the surface before fuzzing.
+		</p>
+	</Callout>
+
+	<h2 id="layout">Layout tiers</h2>
+	<ul>
+		<li><code>large</code> — ≥ 100 columns</li>
+		<li><code>compact</code> — 70–99 columns</li>
+		<li><code>tooSmall</code> — &lt; 70 cols or &lt; 20 rows → <code>TooSmallNotice</code></li>
+	</ul>
+
+	<p>
+		<code>useTerminalSize</code> mitigates Ink shrink-resize artifacts (stale frames) with a
+		debounced full-screen clear / <code>ResizingNotice</code> — without unmounting an
+		in-flight scan or Chaos Monkey run.
+	</p>
+
+	<h2 id="logs">System Logs (static)</h2>
+	<p>
+		<code>LogsScreen</code> is a <strong>static</strong> status panel: hardcoded Testnet
+		RPC URL and session readiness strings. It is <strong>not</strong> a live RPC log
+		stream and does not diagnose live connectivity failures. For per-contract pulls, use
+		OSINT Scanner.
+	</p>
+
+	<h2 id="export">Chaos Monkey exports</h2>
+	<p>
+		After a campaign: <code>[J]</code> JSON · <code>[P]</code> PDF · <code>[B]</code> both
+		→ <code>exportSecurityReport()</code> with the same <code>wx</code> anti-overwrite
+		policy as the CLI. Formats are attempted independently. Details →
+		<a href={withBase('/reports')}>Reports</a>.
+	</p>
+
+	<h2 id="files">File map</h2>
+	<pre><code>source/cli.tsx          entry / mode select
+source/app.tsx          navigation orchestrator + scan gate
+source/screens/         one file per screen (incl. LogsScreen)
+source/components/      header, shell, TooSmallNotice, notices
+source/hooks/           terminal size
+source/ui/              layout, format, ASCII cats/logo
+source/modules/         all security logic (not in React)</code></pre>
+</DocsLayout>

@@ -1,0 +1,249 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Sidebar from '../components/Sidebar.astro';
+import PageOptions from '../components/PageOptions.astro';
+import { NAV } from '../content/nav';
+import { withBase } from '../lib/paths';
+import {
+	getDocMarkdown,
+	renderDocMarkdownFile,
+	slugFromPathname,
+} from '../lib/doc-markdown';
+
+interface Props {
+	title: string;
+	description?: string;
+	eyebrow?: string;
+	/** Override slug for Markdown twin; defaults from URL. */
+	slug?: string;
+}
+
+const { title, description, eyebrow, slug: slugProp } = Astro.props;
+const pathname = Astro.url.pathname;
+const base = import.meta.env.BASE_URL || '/docs/';
+const slug = slugProp ?? slugFromPathname(pathname, base);
+const docMd = getDocMarkdown(slug);
+const markdown = docMd
+	? renderDocMarkdownFile(docMd)
+	: [
+			'---',
+			`title: ${JSON.stringify(title)}`,
+			description ? `description: ${JSON.stringify(description)}` : '',
+			'format: markdown-for-agents',
+			'note: "Plain Markdown for LLMs/agents — NOT MDX."',
+			'---',
+			'',
+			`# ${title}`,
+			'',
+			description ?? '',
+			'',
+			`HTML: ${pathname}`,
+			`Agent setup: ${withBase('/agent-setup')}`,
+			'',
+		]
+			.filter(Boolean)
+			.join('\n');
+const mdHref = withBase(`/md/${slug}.md`);
+
+const flat = NAV.flatMap((g) => g.items);
+const currentIndex = flat.findIndex((item) => {
+	const href = withBase(item.href);
+	const a = pathname.replace(/\/$/, '') || '/';
+	const b = href.replace(/\/$/, '') || '/';
+	return a === b;
+});
+
+const prev = currentIndex > 0 ? flat[currentIndex - 1] : null;
+const next = currentIndex >= 0 && currentIndex < flat.length - 1 ? flat[currentIndex + 1] : null;
+---
+
+<BaseLayout title={title} description={description} markdownHref={mdHref}>
+	<Header />
+	<div class="shell">
+		<Sidebar currentPath={pathname} />
+		<main class="main">
+			<article class="article">
+				<div class="article__top">
+					<div class="article__titles">
+						{eyebrow && <p class="eyebrow">{eyebrow}</p>}
+						<h1>{title}</h1>
+					</div>
+					<PageOptions markdown={markdown} mdHref={mdHref} />
+				</div>
+				{description && <p class="lede">{description}</p>}
+				<div class="content">
+					<slot />
+				</div>
+
+				<nav class="pager" aria-label="Pagination">
+					{
+						prev ? (
+							<a class="pager__link" href={withBase(prev.href)}>
+								<span class="pager__dir">Previous</span>
+								<span class="pager__label">{prev.label}</span>
+							</a>
+						) : (
+							<span />
+						)
+					}
+					{
+						next ? (
+							<a class="pager__link pager__link--next" href={withBase(next.href)}>
+								<span class="pager__dir">Next</span>
+								<span class="pager__label">{next.label}</span>
+							</a>
+						) : (
+							<span />
+						)
+					}
+				</nav>
+
+				<footer class="doc-foot">
+					<p>
+						Kuyfi Docs · Markdown for Agents (not MDX) ·{' '}
+						<a href={withBase('/agent-setup')}>Agent setup</a>
+						{' · '}
+						<a href={mdHref}>This page .md</a>
+						{' · '}
+						<a href={withBase('/llms.txt')}>llms.txt</a>
+					</p>
+				</footer>
+			</article>
+		</main>
+	</div>
+</BaseLayout>
+
+<style>
+	.shell {
+		position: relative;
+		z-index: 1;
+		max-width: 1400px;
+		margin: 0 auto;
+		display: grid;
+		grid-template-columns: 1fr;
+		min-height: calc(100vh - var(--header-h));
+	}
+
+	@media (min-width: 960px) {
+		.shell {
+			grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+		}
+	}
+
+	.main {
+		padding: 1.75rem 1.25rem 3.5rem;
+	}
+
+	@media (min-width: 960px) {
+		.main {
+			padding: 2.25rem 2.5rem 4rem;
+		}
+	}
+
+	.article {
+		max-width: 780px;
+	}
+
+	.article__top {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 0.35rem;
+	}
+
+	.article__titles {
+		min-width: 0;
+		flex: 1;
+	}
+
+	.article__titles h1 {
+		margin-bottom: 0.35rem;
+	}
+
+	.eyebrow {
+		margin: 0 0 0.65rem;
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--pink);
+		letter-spacing: 0.05em;
+	}
+
+	.lede {
+		font-size: 1.05rem;
+		color: var(--text-muted);
+		margin: 0 0 1.5rem;
+	}
+
+	.pager {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1rem;
+		margin-top: 3rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--border);
+	}
+
+	.pager__link {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		padding: 0.9rem 1rem;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		text-decoration: none;
+		background: rgba(255, 255, 255, 0.02);
+		transition: border-color 0.15s ease, background 0.15s ease;
+	}
+
+	.pager__link:hover {
+		border-color: rgba(245, 197, 24, 0.4);
+		background: var(--yellow-soft);
+		text-decoration: none;
+	}
+
+	.pager__link--next {
+		text-align: right;
+		justify-self: end;
+	}
+
+	.pager__dir {
+		font-family: var(--font-mono);
+		font-size: 0.68rem;
+		color: var(--text-dim);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.pager__label {
+		color: var(--text);
+		font-family: var(--font-display);
+		font-weight: 600;
+	}
+
+	:global(body.nav-open) {
+		overflow: hidden;
+	}
+
+	:global(body.nav-open)::after {
+		content: '';
+		position: fixed;
+		inset: var(--header-h) 0 0 0;
+		background: rgba(0, 0, 0, 0.55);
+		z-index: 25;
+	}
+
+	.doc-foot {
+		margin-top: 2.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--border);
+	}
+
+	.doc-foot p {
+		margin: 0;
+		font-family: var(--font-mono);
+		font-size: 0.72rem;
+		color: var(--text-dim);
+	}
+</style>
