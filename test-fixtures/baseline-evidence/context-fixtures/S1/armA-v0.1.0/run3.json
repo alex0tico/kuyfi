@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20261021T143048Z-21335c0c",
+  "generatedAt": "2026-10-21T14:30:48.490Z",
+  "tool": {
+    "name": "kuyfi",
+    "version": "0.1.0"
+  },
+  "target": {
+    "contractId": "<CONTRACT_ID_S1>",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 2333
+  },
+  "scan": {
+    "totalFunctions": 4,
+    "functions": [
+      {
+        "name": "init",
+        "parameters": [
+          {
+            "name": "operator",
+            "type": "Address"
+          }
+        ],
+        "hasReturn": true
+      },
+      {
+        "name": "get_value",
+        "parameters": [],
+        "hasReturn": true
+      },
+      {
+        "name": "get_operator",
+        "parameters": [],
+        "hasReturn": true
+      },
+      {
+        "name": "privileged_set",
+        "parameters": [
+          {
+            "name": "caller",
+            "type": "Address"
+          },
+          {
+            "name": "value",
+            "type": "I128"
+          }
+        ],
+        "hasReturn": true
+      }
+    ],
+    "udts": [
+      {
+        "kind": "union",
+        "name": "Key",
+        "cases": [
+          {
+            "name": "Operator",
+            "valueTypes": []
+          },
+          {
+            "name": "Value",
+            "valueTypes": []
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "vectorsExecuted": 14,
+    "broadcastTransactions": 0,
+    "transactionsWithHash": 0,
+    "verificationTransactions": []
+  },
+  "summary": {
+    "totalFindings": 0,
+    "bySeverity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 0
+    },
+    "findingsBySignal": {}
+  },
+  "findings": []
+}

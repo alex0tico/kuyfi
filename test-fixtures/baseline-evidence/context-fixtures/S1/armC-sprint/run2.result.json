@@ -1,0 +1,64 @@
+{
+  "arm": "C",
+  "scenario": "S1",
+  "kind": "formal",
+  "run": 2,
+  "startedAt": "2026-10-21T14:41:17.881Z",
+  "exitCode": 0,
+  "code": {
+    "commit": "b87692a7d8266756b2851f294d1f6d992244814e",
+    "branch": "instawards-2/week-1",
+    "dirty": false
+  },
+  "target": "<CONTRACT_ID_S1>",
+  "wasmHash": "635a2c100c269709375663bd3442aa5d4cfd3ce950c3e6c9e7fd70bf3fd43700",
+  "preconditions": {
+    "operatorStored": "<ACCOUNT_1>",
+    "operatorExpected": "<ACCOUNT_1>",
+    "ok": true,
+    "valueBefore": "0"
+  },
+  "ledgerWindow": {
+    "startLedger": 5314017,
+    "endLedger": 5314030
+  },
+  "observable": "role_ok",
+  "observableEvents": 6,
+  "observableTxHashes": [
+    "95ebd331ad32e71c862ab3b6479ea7186773a9b20a2c2ed271e5f2952f8e3509",
+    "7172f7b7e7cc8d4d054964c0c0dbafe69a7c5266b8de3ae34b4b8df517d1a0c3",
+    "2cc7053df388d8c4c2afe93ace7541135d642b6afc793d120ddd8a3ceb7db8ac",
+    "2ddb30352b8f5c3c2cda1764d253e73cf5ac32153d44fa94612a3a2017a99329",
+    "5905cc9f56f18c6457e7a3eb57d5ca5311be35e2eb8495da6eaf2426a6a61ab8",
+    "6ff86cf4eb0d5ba336d8587126f4e9b3e3b2fcd4eb170b4ec506075affbc5c35"
+  ],
+  "report": {
+    "reportId": "kyf-20261021T144218Z-342a512f",
+    "tool": {
+      "name": "kuyfi",
+      "version": "0.1.0"
+    },
+    "vectors": 14,
+    "broadcast": 6,
+    "summary": {
+      "totalFindings": 1,
+      "bySeverity": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findingsBySignal": {
+        "POTENTIAL_VULN": 1
+      }
+    },
+    "findings": [
+      "privileged_set::UNAUTHORIZED_ADDR_CALL:POTENTIAL_VULN:HIGH"
+    ]
+  },
+  "observableEventsFirstPass": 6,
+  "recount": "getEvents.endLedger is exclusive (first pass missed the last ledger) and consecutive windows shared the boundary ledger (counted from startLedger + 1)",
+  "recountVersion": 2
+}

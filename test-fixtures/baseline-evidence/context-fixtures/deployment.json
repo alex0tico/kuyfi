@@ -1,0 +1,19 @@
+{
+  "network": "testnet",
+  "deployedAt": "2026-10-21T14:25:07.532Z",
+  "relay": "<ACCOUNT_2>",
+  "operator": "<ACCOUNT_1>",
+  "roleGate": {
+    "contractId": "<CONTRACT_ID_S1>",
+    "wasmHash": "635a2c100c269709375663bd3442aa5d4cfd3ce950c3e6c9e7fd70bf3fd43700",
+    "initTx": "c09a4e9d2414158847cdf10817d5aa864c1a9e2b988bf32b942633fa5990a23b"
+  },
+  "pingTarget": {
+    "contractId": "<CONTRACT_ID_S2_PING_TARGET>",
+    "wasmHash": "637f2adb91323cc32466b6704ae498224f116b3f7bd7d44f979c53ff2f321342"
+  },
+  "hookCaller": {
+    "contractId": "<CONTRACT_ID_S2_HOOK_CALLER>",
+    "wasmHash": "6e88e869944b0e2f5ee39db612a120b645b54f2d8bb974cfc2265ab09b22644d"
+  }
+}

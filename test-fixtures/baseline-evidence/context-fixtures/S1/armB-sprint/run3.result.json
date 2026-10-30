@@ -1,0 +1,53 @@
+{
+  "arm": "B",
+  "scenario": "S1",
+  "kind": "formal",
+  "run": 3,
+  "startedAt": "2026-10-21T14:39:19.814Z",
+  "exitCode": 0,
+  "code": {
+    "commit": "b87692a7d8266756b2851f294d1f6d992244814e",
+    "branch": "instawards-2/week-1",
+    "dirty": false
+  },
+  "target": "<CONTRACT_ID_S1>",
+  "wasmHash": "635a2c100c269709375663bd3442aa5d4cfd3ce950c3e6c9e7fd70bf3fd43700",
+  "preconditions": {
+    "operatorStored": "<ACCOUNT_1>",
+    "operatorExpected": "<ACCOUNT_1>",
+    "ok": true,
+    "valueBefore": "0"
+  },
+  "ledgerWindow": {
+    "startLedger": 5313994,
+    "endLedger": 5314001
+  },
+  "observable": "role_ok",
+  "observableEvents": 0,
+  "observableTxHashes": [],
+  "report": {
+    "reportId": "kyf-20261021T143952Z-119705cf",
+    "tool": {
+      "name": "kuyfi",
+      "version": "0.1.0"
+    },
+    "vectors": 14,
+    "broadcast": 0,
+    "summary": {
+      "totalFindings": 0,
+      "bySeverity": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findingsBySignal": {}
+    },
+    "findings": []
+  },
+  "observableEventsFirstPass": 0,
+  "recount": "getEvents.endLedger is exclusive (first pass missed the last ledger) and consecutive windows shared the boundary ledger (counted from startLedger + 1)",
+  "recountVersion": 2
+}

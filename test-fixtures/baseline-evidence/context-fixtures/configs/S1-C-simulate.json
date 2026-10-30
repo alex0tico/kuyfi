@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "target": "<CONTRACT_ID_S1>",
+  "context": {
+    "roles": {
+      "caller": "<ACCOUNT_1>"
+    }
+  },
+  "limits": {
+    "mode": "simulate-only"
+  }
+}

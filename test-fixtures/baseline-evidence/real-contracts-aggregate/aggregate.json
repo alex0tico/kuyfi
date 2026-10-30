@@ -1,0 +1,82 @@
+{
+  "schema": "kuyfi.real-contracts.aggregate/1",
+  "note": "Aggregates only. No Contract IDs, WASM hashes, function names, transactions or explorer links. Full reports are kept locally by the author.",
+  "tool": "kuyfi (rerun build 8e6851c; first run kept locally)",
+  "network": "testnet",
+  "campaigns": [
+    {
+      "id": "A-1",
+      "executedAt": {
+        "firstRun": "2026-10-22T14:36:38.192Z",
+        "rerun": "2026-10-22T21:40:26.772Z"
+      },
+      "mode": "simulate-only",
+      "vectorsGenerated": 64,
+      "vectorsExecuted": 64,
+      "broadcastTransactions": 0,
+      "blockedSends": 0,
+      "provenancePercent": 100,
+      "outcomePerVector": {
+        "accepted": 40,
+        "rejected:WASM_VM": 24
+      },
+      "notEvaluated": 6,
+      "operationalErrors": 0,
+      "findingsByStatus": {
+        "supported": 0,
+        "hypothesis": 0,
+        "inconclusive": 24
+      },
+      "totalFindings": 24
+    },
+    {
+      "id": "B-1",
+      "executedAt": {
+        "firstRun": "2026-10-22T15:45:20.355Z",
+        "rerun": "2026-10-22T21:40:50.775Z"
+      },
+      "mode": "simulate-only",
+      "vectorsGenerated": 32,
+      "vectorsExecuted": 32,
+      "broadcastTransactions": 0,
+      "blockedSends": 0,
+      "provenancePercent": 100,
+      "outcomePerVector": {
+        "rejected:CONTRACT": 32
+      },
+      "notEvaluated": 0,
+      "operationalErrors": 0,
+      "findingsByStatus": {
+        "supported": 0,
+        "hypothesis": 0,
+        "inconclusive": 0
+      },
+      "totalFindings": 0
+    },
+    {
+      "id": "C-1",
+      "executedAt": {
+        "firstRun": "2026-10-22T21:38:24.714Z",
+        "rerun": "2026-10-22T21:41:32.602Z"
+      },
+      "mode": "simulate-only",
+      "vectorsGenerated": 69,
+      "vectorsExecuted": 69,
+      "broadcastTransactions": 0,
+      "blockedSends": 0,
+      "provenancePercent": 100,
+      "outcomePerVector": {
+        "accepted": 14,
+        "rejected:CONTRACT": 55
+      },
+      "notEvaluated": 2,
+      "operationalErrors": 0,
+      "findingsByStatus": {
+        "supported": 0,
+        "hypothesis": 0,
+        "inconclusive": 0
+      },
+      "totalFindings": 0
+    }
+  ]
+}

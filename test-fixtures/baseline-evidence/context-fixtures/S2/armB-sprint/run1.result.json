@@ -1,0 +1,51 @@
+{
+  "arm": "B",
+  "scenario": "S2",
+  "kind": "formal",
+  "run": 1,
+  "startedAt": "2026-10-21T14:44:05.493Z",
+  "exitCode": 0,
+  "code": {
+    "commit": "b87692a7d8266756b2851f294d1f6d992244814e",
+    "branch": "instawards-2/week-1",
+    "dirty": false
+  },
+  "target": "<CONTRACT_ID_S2_HOOK_CALLER>",
+  "wasmHash": "6e88e869944b0e2f5ee39db612a120b645b54f2d8bb974cfc2265ab09b22644d",
+  "preconditions": {
+    "pingTargetAnswer": 42,
+    "ok": true
+  },
+  "ledgerWindow": {
+    "startLedger": 5314051,
+    "endLedger": 5314053
+  },
+  "observable": "hook_ok",
+  "observableEvents": 0,
+  "observableTxHashes": [],
+  "report": {
+    "reportId": "kyf-20261021T144413Z-fabafa87",
+    "tool": {
+      "name": "kuyfi",
+      "version": "0.1.0"
+    },
+    "vectors": 3,
+    "broadcast": 0,
+    "summary": {
+      "totalFindings": 0,
+      "bySeverity": {
+        "critical": 0,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findingsBySignal": {}
+    },
+    "findings": []
+  },
+  "observableEventsFirstPass": 0,
+  "recount": "getEvents.endLedger is exclusive (first pass missed the last ledger) and consecutive windows shared the boundary ledger (counted from startLedger + 1)",
+  "recountVersion": 2
+}

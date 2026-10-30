@@ -1,0 +1,79 @@
+{
+  "arm": "A",
+  "package": "@kuyfi/kuyfi@0.1.0",
+  "gitHead": "e8019b20597c50ed520f87163252095060d57cde",
+  "target": "<CONTRACT_ID_1>",
+  "wasmHash": "a57dffb8f6614aa63f5dc74286c7e11befc0fd454153587216309534d60ce901",
+  "runs": [
+    {
+      "run": 1,
+      "reportId": "kyf-20261021T135947Z-36b4d904",
+      "generatedAt": "2026-10-21T13:59:47.931Z",
+      "tool": {
+        "name": "kuyfi",
+        "version": "0.1.0"
+      },
+      "vectors": 16,
+      "broadcast": 16,
+      "total": 1,
+      "bySev": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findings": [
+        "set_admin_value::UNAUTHORIZED_CALL:POTENTIAL_VULN:CRITICAL"
+      ]
+    },
+    {
+      "run": 2,
+      "reportId": "kyf-20261021T140217Z-f594c140",
+      "generatedAt": "2026-10-21T14:02:17.374Z",
+      "tool": {
+        "name": "kuyfi",
+        "version": "0.1.0"
+      },
+      "vectors": 16,
+      "broadcast": 16,
+      "total": 1,
+      "bySev": {
+        "critical": 1,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findings": [
+        "set_admin_value::UNAUTHORIZED_CALL:POTENTIAL_VULN:CRITICAL"
+      ]
+    },
+    {
+      "run": 3,
+      "reportId": "kyf-20261021T140433Z-94a4dcf2",
+      "generatedAt": "2026-10-21T14:04:33.947Z",
+      "tool": {
+        "name": "kuyfi",
+        "version": "0.1.0"
+      },
+      "vectors": 16,
+      "broadcast": 15,
+      "total": 2,
+      "bySev": {
+        "critical": 1,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findings": [
+        "set_admin_value::UNAUTHORIZED_CALL:POTENTIAL_VULN:CRITICAL",
+        "set_admin_value::admin::RANDOM_ADDR_B:UNEXPECTED_ERROR:MEDIUM"
+      ]
+    }
+  ]
+}
