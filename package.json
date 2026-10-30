@@ -86,7 +86,8 @@
 	},
 	"xo": {
 		"ignores": [
-			"test-fixtures/**"
+			"test-fixtures/**",
+			"docs-site/**"
 		],
 		"extends": "xo-react",
 		"prettier": true,

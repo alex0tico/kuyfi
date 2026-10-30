@@ -10,3 +10,6 @@ test-fixtures
 # Auto-generated Soroban CLI bindings (see ARCHITECTURE.md) — not hand-authored,
 # regenerating it would not preserve manual formatting anyway.
 src/kuyfi_client
+
+# Separate Astro site with its own toolchain; not part of the CLI lint gate.
+docs-site
