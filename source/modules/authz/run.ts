@@ -22,6 +22,7 @@ import {
 	buildInvocation,
 	summarizeTree,
 } from './entries.js';
+import {resolveCommit} from './build_info.js';
 import {evaluateCase} from './evaluate.js';
 import type {
 	AuthzMatrix,
@@ -103,7 +104,7 @@ export interface AuthzReport {
 	/** File name and SHA-256 of the matrix as read, so evidence is tied to the exact input. */
 	matrix?: {file: string; sha256: string};
 	generatedAt: string;
-	tool: {name: 'kuyfi'; version: string};
+	tool: {name: 'kuyfi'; version: string; commit?: string};
 	environment: {
 		network: 'testnet';
 		rpcUrl: string;
@@ -220,6 +221,7 @@ export async function runAuthzMatrix(
 		}
 	}
 
+	const commit = resolveCommit();
 	const byState: Record<string, number> = {};
 	for (const r of reports)
 		byState[r.evaluation.state] = (byState[r.evaluation.state] ?? 0) + 1;
@@ -228,7 +230,11 @@ export async function runAuthzMatrix(
 		kind: 'authz-matrix',
 		matrixId: matrix.id,
 		generatedAt: now().toISOString(),
-		tool: {name: 'kuyfi', version: pkg.version},
+		tool: {
+			name: 'kuyfi',
+			version: pkg.version,
+			...(commit ? {commit} : {}),
+		},
 		environment: {
 			network: 'testnet',
 			rpcUrl: TESTNET_RPC_URL,

@@ -5,6 +5,7 @@ import {AuthzConfigError, loadAuthzMatrix} from './config.js';
 import {AuthzRunError, runAuthzMatrix} from './run.js';
 import type {AuthzReport} from './run.js';
 import {getToolVersion} from '../security_report.js';
+import {resolveCommit} from './build_info.js';
 
 export interface AuthzCliResult {
 	exitCode: 0 | 1;
@@ -86,6 +87,7 @@ export async function runAuthzCli(
 		// A failed attempt leaves a record too (no secrets: only the redacted
 		// message, the matrix identity and the phase). Best effort: the failure
 		// itself is still reported if the record cannot be written.
+		const failureCommit = resolveCommit();
 		const failedAt = (options.now ?? (() => new Date()))().toISOString();
 		const failurePath = path.join(
 			options.outDir ?? '.',
@@ -100,7 +102,11 @@ export async function runAuthzCli(
 						kind: 'authz-run-failure',
 						failedAt,
 						phase,
-						tool: {name: 'kuyfi', version: getToolVersion()},
+						tool: {
+							name: 'kuyfi',
+							version: getToolVersion(),
+							...(failureCommit ? {commit: failureCommit} : {}),
+						},
 						matrix: {
 							file: path.basename(file),
 							...(matrixId ? {id: matrixId} : {}),
