@@ -148,7 +148,7 @@ GET /scan/<CONTRACT_ID>
 Only the read-only scanner is exposed. Chaos Monkey broadcasts transactions against its target, so it stays a local, explicit action and is never offered over HTTP. A malformed Contract ID gets `400` before any price is quoted, and a scan that fails after payment (`404`, `422`, `502`) is not settled, so the payer is not charged.
 
 ```bash
-cp .env.example .env              # set PAY_TO to your public G... address
+cp .env.example .env              # set PAY_TO and LOCAL402_QUOTE_SECRET (openssl rand -hex 32)
 npm run build
 node --env-file=.env dist/server.js
 ```
@@ -160,12 +160,24 @@ node --env-file=.env dist/server.js
 | `NETWORK` | `stellar:testnet` | Where the payment settles. Scans always read Testnet. |
 | `FACILITATOR_URL` | public Local402 facilitator for `NETWORK` | The mainnet facilitator only settles for allowlisted `PAY_TO` addresses. |
 | `PORT` | `4021` | |
+| `LOCAL402_QUOTE_SECRET` | — (required) | Signs each quote, so the paid retry is checked against the price that was offered. At least 32 characters; the same value on every instance. |
 
 Any x402 client on Stellar can pay it, for example:
 
 ```bash
 npx -y local402-client quote http://localhost:4021/scan/<CONTRACT_ID>
 ```
+
+### Moving payments to mainnet
+
+The scan still reads Testnet; only the payment moves. Four changes:
+
+1. `PAY_TO` is a mainnet account with a trustline to Circle's USDC (`USDC:GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN`).
+2. `NETWORK=stellar:pubnet`.
+3. A facilitator that will settle for that `PAY_TO`: the public mainnet one only settles for allowlisted addresses (ask in [#2](https://github.com/alex0tico/kuyfi/issues/2)), or run your own with `npx local402-facilitator` and point `FACILITATOR_URL` at it.
+4. The price stays at or above 0.01 USDC, the facilitator's default minimum. `500 CLP` is well above it.
+
+Payers need nothing new: a USDC payer pays as on Testnet, and an XLM payer goes through the same FxPay contract and Soroswap on mainnet.
 
 ## Chaos Monkey
 

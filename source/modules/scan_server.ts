@@ -19,6 +19,8 @@ export interface ScanServerOptions {
 	/** Network the payment settles on. Independent of the scan, which always reads Testnet. */
 	network: PaymentNetwork;
 	facilitatorUrl: string;
+	/** Signs each quote so the paid retry is checked against the price that was offered. At least 32 characters. */
+	quoteSecret: string;
 	/** Defaults to Reflector — override only for tests. */
 	oracle?: LocalRouteOptions['oracle'];
 }
@@ -60,6 +62,7 @@ export function createScanServer(options: ScanServerOptions): Express {
 					payTo: options.payTo,
 					network: options.network,
 					oracle: options.oracle,
+					quoteSecret: options.quoteSecret,
 					description:
 						'Kuyfi OSINT scan: functions, parameters and types of a Soroban Testnet contract',
 				}),

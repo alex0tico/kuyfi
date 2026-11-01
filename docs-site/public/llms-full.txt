@@ -94,8 +94,8 @@ Paid HTTP (optional kuyfi-server):
   Malformed ID → 400 before quote.
   Failed scan after pay (404/422/502) is not settled.
 
-Env: PAY_TO (public G…), PRICE (default "500 CLP"), NETWORK (stellar:testnet),
-FACILITATOR_URL, PORT (4021).
+Env: PAY_TO (public G…), LOCAL402_QUOTE_SECRET (required, 32+ chars),
+PRICE (default "500 CLP"), NETWORK (stellar:testnet), FACILITATOR_URL, PORT (4021).
 
 ================================================================================
 5. CHAOS MONKEY

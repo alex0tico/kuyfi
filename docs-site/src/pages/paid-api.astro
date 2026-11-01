@@ -37,7 +37,7 @@ const toc = [
 	</Callout>
 
 	<h2 id="run">Run the server</h2>
-	<pre><code>cp .env.example .env   # set PAY_TO at minimum
+	<pre><code>cp .env.example .env   # set PAY_TO and LOCAL402_QUOTE_SECRET
 npm run build
 node --env-file=.env dist/server.js
 # or: npm run serve / kuyfi-server
@@ -45,7 +45,8 @@ node --env-file=.env dist/server.js
 # Startup log:
 # kuyfi-server: GET http://localhost:4021/scan/&lt;CONTRACT_ID&gt;</code></pre>
 	<p>
-		Missing <code>PAY_TO</code> → process prints an error and <code>process.exit(1)</code>.
+		Missing <code>PAY_TO</code> or <code>LOCAL402_QUOTE_SECRET</code> → process prints an error and
+		<code>process.exit(1)</code>.
 	</p>
 
 	<h2 id="env">Environment</h2>
@@ -92,10 +93,10 @@ node --env-file=.env dist/server.js
 			</tr>
 			<tr>
 				<td><code>LOCAL402_QUOTE_SECRET</code></td>
-				<td>unset</td>
+				<td>required</td>
 				<td>
-					Only for multi-instance deploys: same random value on every instance so a
-					quote from one node is honored by another.
+					Signs each quote (at least 32 characters, e.g. <code>openssl rand -hex 32</code>).
+					Same value on every instance so a quote from one node is honored by another.
 				</td>
 			</tr>
 		</tbody>

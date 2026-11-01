@@ -67,6 +67,7 @@ async function startScanServer() {
 			network: 'stellar:testnet',
 			facilitatorUrl: stubFacilitator.url,
 			oracle: stubOracle,
+			quoteSecret: 'test-quote-secret-0123456789abcdef',
 		}),
 	);
 
@@ -125,4 +126,19 @@ test('answers an unpaid scan with 402 priced in CLP and paid in USDC to PAY_TO',
 		// 500 CLP at 0.001 USD = 0.5 USDC = 5,000,000 stroops.
 		t.is(accept.amount, '5000000');
 	}
+});
+
+test('refuses to start with a quote secret shorter than 32 characters', t => {
+	const error = t.throws(() =>
+		createScanServer({
+			payTo: PAY_TO,
+			price: '500 CLP',
+			network: 'stellar:testnet',
+			facilitatorUrl: 'http://127.0.0.1:1',
+			oracle: stubOracle,
+			quoteSecret: 'too-short',
+		}),
+	);
+
+	t.is((error as Error & {code?: string}).code, 'QUOTE_SECRET_WEAK');
 });

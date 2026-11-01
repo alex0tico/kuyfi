@@ -470,7 +470,7 @@ Failure body: \`{ "error": "<code>" }\`. x402 settles only if status < 400.
 - \`NETWORK\` \`stellar:testnet\` | \`stellar:pubnet\` (payment; scans always Testnet)
 - \`FACILITATOR_URL\` defaults: testnet \`https://local402.vercel.app/facilitator\`; pubnet \`https://local402-mainnet.vercel.app/facilitator\`
 - \`PORT\` 4021
-- \`LOCAL402_QUOTE_SECRET\` multi-instance only
+- \`LOCAL402_QUOTE_SECRET\` required, at least 32 characters (\`openssl rand -hex 32\`); same value on every instance — missing → exit 1
 
 Startup: \`kuyfi-server: GET http://localhost:<port>/scan/<CONTRACT_ID>\`
 `,

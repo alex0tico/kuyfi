@@ -53,7 +53,7 @@
 		"ink": "^6.8.0",
 		"ink-spinner": "^5.0.0",
 		"ink-text-input": "^6.0.0",
-		"local402-server": "^0.1.1",
+		"local402-server": "^1.0.0",
 		"meow": "^11.0.0",
 		"pdfkit": "^0.20.2",
 		"react": "^19.2.4"
