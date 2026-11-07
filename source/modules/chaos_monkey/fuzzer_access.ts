@@ -5,6 +5,7 @@ import {parseInvokeResult} from './result_parser.js';
 import {buildBaselineInput, injectedInput} from './input_builder.js';
 import type {TracedInput} from './provenance.js';
 import type {ContextConfig} from './context_config.js';
+import type {Rng} from '../seed.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
 
@@ -59,6 +60,7 @@ export async function fuzzAccessVectors(
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
 	context?: ContextConfig,
+	rng?: Rng,
 ): Promise<FuzzResult[]> {
 	const results: FuzzResult[] = [];
 	const fnName = target.functionName.toLowerCase();
@@ -70,7 +72,7 @@ export async function fuzzAccessVectors(
 	// these baseline-args vectors — skip them rather than substitute a
 	// fabricated value for the unresolved parameter.
 	const baselineTraced = target.params.map(p =>
-		buildBaselineInput(p, registry, context),
+		buildBaselineInput(p, registry, context, rng),
 	);
 	const canBuildBaselineCall = baselineTraced.every(a => a !== null);
 	const baselineInputs = baselineTraced as TracedInput[];
@@ -140,7 +142,7 @@ export async function fuzzAccessVectors(
 				(p.type as xdr.ScSpecTypeDef).switch().name === 'scSpecTypeAddress';
 			return isAddr
 				? injectedInput(p.name, attackerAddrVal, 'self_call:attacker_address')
-				: buildBaselineInput(p, registry, context);
+				: buildBaselineInput(p, registry, context, rng);
 		});
 		const args = traced.map(t => t?.val ?? null);
 

@@ -1,4 +1,5 @@
 import {findingStatus} from './result_parser.js';
+import type {SeedInfo} from '../seed.js';
 import type {
 	ExecutionEvidence,
 	FindingStatus,
@@ -113,6 +114,8 @@ export interface CampaignInfo {
 
 export interface ChaosReport {
 	contractId: string;
+	/** Seed that drove the generated test data; repeat the run with `--seed`. */
+	seed?: SeedInfo;
 	scannedAt: string;
 	network: 'testnet' | 'mainnet';
 	totalFunctions: number;

@@ -20,6 +20,8 @@ import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {ChaosReport} from './reporter.js';
 import type {ContextConfig} from './context_config.js';
+import {Rng, resolveSeed} from '../seed.js';
+import type {SeedInfo} from '../seed.js';
 
 export type {ChaosReport} from './reporter.js';
 export type {Finding} from './reporter.js';
@@ -64,6 +66,11 @@ export interface ChaosMonkeyOptions {
 	limits?: CampaignLimits;
 	/** Free-text reference recorded in the report (never interpreted). */
 	authorizationRecord?: string;
+	/**
+	 * Seed for every generated test datum (throwaway addresses, the ephemeral
+	 * keypair). Absent: one is generated and recorded in the report.
+	 */
+	seed?: SeedInfo;
 	/** Test seams — production callers omit both. */
 	keypair?: Keypair;
 	server?: SorobanRpc.Server;
@@ -95,8 +102,17 @@ export async function runChaosMonkey(
 ): Promise<ChaosReport> {
 	const {contractId, functions, udtRegistry, onProgress, context} = options;
 
+	const seed = options.seed ?? resolveSeed();
+	const rng = new Rng(seed.value);
+	onProgress(
+		seed.generated
+			? `Seed: ${seed.value} (generated; repeat this run with --seed ${seed.value})`
+			: `Seed: ${seed.value}`,
+	);
+
 	onProgress('Generating ephemeral keypair...');
-	const keypair = options.keypair ?? (await generateEphemeralKeypair());
+	const keypair =
+		options.keypair ?? (await generateEphemeralKeypair(rng.fork('keypair')));
 	onProgress(`Keypair funded: ${keypair.publicKey().slice(0, 10)}...`);
 
 	const server =
@@ -174,7 +190,14 @@ export async function runChaosMonkey(
 			'math',
 			`[${fn.name}]`,
 			async () =>
-				fuzzMathVectors(target, keypair, server, udtRegistry, context),
+				fuzzMathVectors(
+					target,
+					keypair,
+					server,
+					udtRegistry,
+					context,
+					rng.fork(`${fn.name}:math`),
+				),
 			r => `Math done (${r.length} invocations)`,
 		);
 
@@ -190,7 +213,14 @@ export async function runChaosMonkey(
 			'access',
 			`[${fn.name}]`,
 			async () =>
-				fuzzAccessVectors(target, keypair, server, udtRegistry, context),
+				fuzzAccessVectors(
+					target,
+					keypair,
+					server,
+					udtRegistry,
+					context,
+					rng.fork(`${fn.name}:access`),
+				),
 			r => `Access done (${r.length} invocations)`,
 		);
 
@@ -199,7 +229,15 @@ export async function runChaosMonkey(
 		await runFamily(
 			'fee',
 			`[${fn.name}]`,
-			async () => fuzzFeeVectors(target, keypair, server, udtRegistry, context),
+			async () =>
+				fuzzFeeVectors(
+					target,
+					keypair,
+					server,
+					udtRegistry,
+					context,
+					rng.fork(`${fn.name}:fee`),
+				),
 			r =>
 				r.length > 0 ? `Fee/BPS vectors: ${r.length} invocation(s)` : undefined,
 		);
@@ -208,7 +246,14 @@ export async function runChaosMonkey(
 			'liquidity',
 			`[${fn.name}]`,
 			async () =>
-				fuzzLiquidityVectors(target, keypair, server, udtRegistry, context),
+				fuzzLiquidityVectors(
+					target,
+					keypair,
+					server,
+					udtRegistry,
+					context,
+					rng.fork(`${fn.name}:liquidity`),
+				),
 			r =>
 				r.length > 0
 					? `Liquidity-ratio vectors: ${r.length} invocation(s)`
@@ -233,6 +278,7 @@ export async function runChaosMonkey(
 				server,
 				udtRegistry,
 				context,
+				rng.fork('call_order'),
 			),
 		r =>
 			r.length > 0
@@ -276,7 +322,7 @@ export async function runChaosMonkey(
 			`CRITICAL: ${report.summary.critical} HIGH: ${report.summary.high}`,
 	);
 
-	return report;
+	return {...report, seed};
 }
 
 function usedContextKeys(results: FuzzResult[]): string[] {

@@ -9,7 +9,7 @@ import {runAuthzCli} from './modules/authz/cli.js';
 const cli = meow(
 	`
 	Usage
-	  $ kuyfi [CONTRACT_ID] [--json] [--pdf] [--config <file>]
+	  $ kuyfi [CONTRACT_ID] [--json] [--pdf] [--config <file>] [--seed <number>]
 	  $ kuyfi authz <matrix.json> [--out <dir>]
 
 	Options
@@ -17,6 +17,11 @@ const cli = meow(
 	  --pdf     Also write a SecurityReport PDF file (kuyfi-report-<id>.pdf)
 	  --config  Campaign configuration (JSON): context, limits, simulate-only/broadcast.
 	            Without it the audit runs exactly as before.
+
+	  --seed    Integer 0-4294967295 that drives every generated test datum (throwaway
+	            addresses, the ephemeral account). Same seed + same contract = same
+	            cases. Without it a seed is generated, printed and saved in the
+	            report ("seed"), so the run can be repeated. Not used by authz.
 
 	  --out     (authz) Directory for the JSON evidence file (default: current directory)
 
@@ -39,6 +44,9 @@ const cli = meow(
 
 	  $ kuyfi CDV...(56 chars) --json --pdf
 	      Same, writing both files from the SAME SecurityReport (one audit run).
+
+	  $ kuyfi CDV...(56 chars) --seed 42
+	      Repeatable run: the same seed regenerates the same test data.
 `,
 	{
 		importMeta: import.meta,
@@ -47,6 +55,7 @@ const cli = meow(
 			pdf: {type: 'boolean', default: false},
 			config: {type: 'string'},
 			out: {type: 'string'},
+			seed: {type: 'number'},
 		},
 	},
 );
@@ -55,6 +64,14 @@ async function main() {
 	const mode = selectCliMode(cli.input);
 
 	if (mode.kind === 'authz') {
+		if (cli.flags.seed !== undefined) {
+			console.error(
+				'--seed does not apply to kuyfi authz: authorization nonces are deliberately never seeded (a repeated nonce is rejected on-chain).',
+			);
+			process.exitCode = 1;
+			return;
+		}
+
 		if (!mode.file) {
 			console.error('Usage: kuyfi authz <matrix.json> [--out <dir>]');
 			process.exitCode = 1;
@@ -89,6 +106,7 @@ async function main() {
 			writeJson: cli.flags.json,
 			writePdf: cli.flags.pdf,
 			configPath: cli.flags.config,
+			seedValue: cli.flags.seed,
 		});
 
 		if (result.errorOutput) {

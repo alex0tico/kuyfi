@@ -693,3 +693,24 @@ test('CASE V — findingsBySignal is derived from findings[] only: a SECURE-heav
 		report.findings.length,
 	);
 });
+
+test('the report JSON records the seed, and the same seed + input serializes identically', t => {
+	const run = buildFixtureAuditRun();
+	const seeded: AuditRun = {
+		...run,
+		chaos: {...run.chaos, seed: {value: 42, generated: false}},
+	};
+	const opts = {now: new Date('2026-01-01T00:00:00Z'), reportId: 'kyf-test'};
+	const a = buildSecurityReport(seeded, opts);
+	t.deepEqual(a.seed, {value: 42, generated: false});
+	t.is(
+		serializeSecurityReport(a),
+		serializeSecurityReport(buildSecurityReport(seeded, opts)),
+	);
+	t.is(JSON.parse(serializeSecurityReport(a)).seed.value, 42);
+});
+
+test('a report from a run without a seed has no seed field (older shape unchanged)', t => {
+	const report = buildSecurityReport(buildFixtureAuditRun());
+	t.false('seed' in report);
+});

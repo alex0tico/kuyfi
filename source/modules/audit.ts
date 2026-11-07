@@ -3,6 +3,7 @@ import {scanContract} from './scanner.js';
 import type {ScanResult} from './scanner.js';
 import {TESTNET_RPC_URL} from './network.js';
 import {runChaosMonkey} from './chaos_monkey/index.js';
+import type {SeedInfo} from './seed.js';
 import type {
 	CampaignConfig,
 	ChaosMonkeyOptions,
@@ -30,6 +31,8 @@ export interface RunAuditOptions {
 	chaos?: (options: ChaosMonkeyOptions) => Promise<ChaosReport>;
 	/** Validated campaign configuration (context + limits). Absent = v0.1.0 behaviour. */
 	campaign?: CampaignConfig;
+	/** Seed for the generated test data (absent: Chaos Monkey generates one). */
+	seed?: SeedInfo;
 }
 
 /**
@@ -58,6 +61,7 @@ export async function runAudit(
 		functions: scanResult.functions,
 		udtRegistry: scanResult.udtRegistry,
 		onProgress,
+		...(options.seed ? {seed: options.seed} : {}),
 		...(options.campaign
 			? {
 					context: options.campaign.context,
@@ -100,6 +104,12 @@ export function formatAuditSummary(
 		`  Broadcast transactions: ${chaos.summary.broadcastTransactions}`,
 	);
 	lines.push(`  Transactions with hash: ${chaos.summary.transactionsWithHash}`);
+	if (chaos.seed) {
+		lines.push('');
+		lines.push(
+			`Seed: ${chaos.seed.value}${chaos.seed.generated ? ' (generated)' : ''} - repeat this run with --seed ${chaos.seed.value}`,
+		);
+	}
 
 	return lines.join('\n');
 }

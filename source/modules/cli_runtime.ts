@@ -5,6 +5,8 @@ import {
 	loadCampaignConfig,
 } from './chaos_monkey/campaign.js';
 import type {CampaignConfig} from './chaos_monkey/campaign.js';
+import {resolveSeed} from './seed.js';
+import type {SeedInfo} from './seed.js';
 import {runAudit, formatAuditSummary} from './audit.js';
 import type {RunAuditOptions} from './audit.js';
 import {buildSecurityReport} from './security_report.js';
@@ -104,6 +106,8 @@ export async function runHeadlessAudit(
 		writePdf?: boolean;
 		writeFile?: typeof fsWriteFile;
 		renderPdf?: typeof renderSecurityReportPdf;
+		/** `--seed` value; absent: a seed is generated, shown and recorded. */
+		seedValue?: number;
 		/** Path of a campaign configuration file (`--config`). */
 		configPath?: string;
 		/** Injection seam for tests. */
@@ -136,9 +140,22 @@ export async function runHeadlessAudit(
 		}
 	}
 
+	let seed: SeedInfo;
+	try {
+		seed = resolveSeed(options.seedValue);
+	} catch (error) {
+		return {
+			exitCode: 1,
+			output: null,
+			errorOutput: error instanceof Error ? error.message : String(error),
+			reportFilePath: null,
+			pdfFilePath: null,
+		};
+	}
+
 	let auditRun;
 	try {
-		auditRun = await audit(contractId, {...options, campaign});
+		auditRun = await audit(contractId, {...options, campaign, seed});
 	} catch (error) {
 		return {
 			exitCode: 1,

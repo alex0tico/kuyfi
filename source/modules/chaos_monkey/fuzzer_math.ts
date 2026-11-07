@@ -4,6 +4,7 @@ import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
 import {buildAttackInputs, buildBaselineInput} from './input_builder.js';
 import type {ContextConfig} from './context_config.js';
+import type {Rng} from '../seed.js';
 import type {InputProvenance} from './provenance.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {ParsedResult} from './result_parser.js';
@@ -43,12 +44,13 @@ export async function fuzzMathVectors(
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
 	context?: ContextConfig,
+	rng?: Rng,
 ): Promise<FuzzResult[]> {
 	if (target.params.length === 0) return [];
 
 	const results: FuzzResult[] = [];
 	const rawBaselines = target.params.map(p =>
-		buildBaselineInput(p, registry, context),
+		buildBaselineInput(p, registry, context, rng),
 	);
 
 	// Any parameter that can't be safely resolved (unknown/unregistered UDT,
@@ -65,7 +67,7 @@ export async function fuzzMathVectors(
 
 	for (let i = 0; i < target.params.length; i++) {
 		const param = target.params[i]!;
-		const vectors = buildAttackInputs(param, registry);
+		const vectors = buildAttackInputs(param, registry, rng);
 
 		if (vectors.length === 0) continue; // direct UDT / unknown — skip param
 

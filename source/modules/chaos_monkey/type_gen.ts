@@ -7,6 +7,7 @@ import type {
 	UdtStructDef,
 	UdtUnionDef,
 } from './udt_registry.js';
+import type {Rng} from '../seed.js';
 
 export type {UdtRegistry, UdtField, UdtDef} from './udt_registry.js';
 
@@ -25,10 +26,23 @@ const MAX_UDT_DEPTH = 4;
 interface ResolveCtx {
 	depth: number;
 	stack: Set<string>;
+	/** Present: throwaway addresses come from the seeded stream, not Keypair.random(). */
+	rng?: Rng;
 }
 
-function freshCtx(): ResolveCtx {
-	return {depth: 0, stack: new Set()};
+function freshCtx(rng?: Rng): ResolveCtx {
+	return {depth: 0, stack: new Set(), ...(rng ? {rng} : {})};
+}
+
+/** Context for `baseline`/`attackVals` that draws test data from a seeded stream. */
+export function seededCtx(rng: Rng | undefined): ResolveCtx {
+	return freshCtx(rng);
+}
+
+function testAddress(ctx: ResolveCtx): xdr.ScVal {
+	return new Address(
+		(ctx.rng ? ctx.rng.keypair() : Keypair.random()).publicKey(),
+	).toScVal();
 }
 
 export function typeName(t: AnyTypeDef): string {
@@ -87,7 +101,11 @@ function resolveUdt(
 }
 
 function childCtx(udtName: string, ctx: ResolveCtx): ResolveCtx {
-	return {depth: ctx.depth + 1, stack: new Set(ctx.stack).add(udtName)};
+	return {
+		depth: ctx.depth + 1,
+		stack: new Set(ctx.stack).add(udtName),
+		...(ctx.rng ? {rng: ctx.rng} : {}),
+	};
 }
 
 /**
@@ -151,7 +169,7 @@ export function baseline(
 				}),
 			);
 		case 'scSpecTypeAddress':
-			return new Address(Keypair.random().publicKey()).toScVal();
+			return testAddress(ctx);
 		case 'scSpecTypeBool':
 			return xdr.ScVal.scvBool(false);
 		case 'scSpecTypeSymbol':
@@ -404,11 +422,11 @@ export function attackVals(
 			return [
 				{
 					name: 'RANDOM_ADDR_A',
-					val: new Address(Keypair.random().publicKey()).toScVal(),
+					val: testAddress(ctx),
 				},
 				{
 					name: 'RANDOM_ADDR_B',
-					val: new Address(Keypair.random().publicKey()).toScVal(),
+					val: testAddress(ctx),
 				},
 			];
 		case 'scSpecTypeBool':

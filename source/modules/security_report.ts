@@ -169,6 +169,11 @@ export interface PublicFinding {
 export interface SecurityReport {
 	schemaVersion: string;
 	reportId: string;
+	/**
+	 * Additive: seed that drove every generated test datum. Same seed + same
+	 * input reproduces the same cases; `generated` is true when Kuyfi picked it.
+	 */
+	seed?: {value: number; generated: boolean};
 	generatedAt: string;
 	tool: {name: string; version: string};
 	target: {
@@ -475,6 +480,7 @@ export function buildSecurityReport(
 	return {
 		schemaVersion: SCHEMA_VERSION,
 		reportId,
+		...(chaos.seed ? {seed: chaos.seed} : {}),
 		generatedAt: now.toISOString(),
 		tool: {name: 'kuyfi', version: getToolVersion()},
 		target: {

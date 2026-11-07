@@ -5,6 +5,7 @@ import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
 import {buildBaselineInput} from './input_builder.js';
 import type {ContextConfig} from './context_config.js';
+import type {Rng} from '../seed.js';
 import type {TracedInput} from './provenance.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {AttackVector} from './type_gen.js';
@@ -138,6 +139,7 @@ export async function fuzzFeeVectors(
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
 	context?: ContextConfig,
+	rng?: Rng,
 ): Promise<FuzzResult[]> {
 	const feeParamIndices = target.params
 		.map((p, i) => (isFeeShapedParam(p.name, p.type) ? i : -1))
@@ -146,7 +148,7 @@ export async function fuzzFeeVectors(
 	if (feeParamIndices.length === 0) return [];
 
 	const rawBaselines = target.params.map(p =>
-		buildBaselineInput(p, registry, context),
+		buildBaselineInput(p, registry, context, rng),
 	);
 	if (rawBaselines.some(b => b === null)) return []; // unresolved param — can't build any valid call
 

@@ -1,9 +1,10 @@
 import type {xdr} from '@stellar/stellar-sdk';
 import {resolveContextValue} from './context_config.js';
 import type {ContextConfig} from './context_config.js';
-import {attackVals, baseline} from './type_gen.js';
+import {attackVals, baseline, seededCtx} from './type_gen.js';
 import type {UdtRegistry} from './type_gen.js';
 import type {InputSource, TracedInput} from './provenance.js';
+import type {Rng} from '../seed.js';
 
 type AnyTypeDef = any;
 
@@ -102,6 +103,7 @@ export function buildBaselineInput(
 	param: {name: string; type: AnyTypeDef},
 	registry: UdtRegistry,
 	context?: ContextConfig,
+	rng?: Rng,
 ): TracedInput | null {
 	const hit = resolveContextValue(context, param.name, specName(param.type));
 	if (hit) {
@@ -117,7 +119,7 @@ export function buildBaselineInput(
 		};
 	}
 
-	const val = baseline(param.type, registry);
+	const val = baseline(param.type, registry, seededCtx(rng));
 	if (val === null) return null;
 	return {
 		val,
@@ -125,7 +127,7 @@ export function buildBaselineInput(
 			param: param.name,
 			rule: 'baseline',
 			...classify(param.type, registry, 'spec'),
-			seeded: false,
+			seeded: rng !== undefined,
 		},
 	};
 }
@@ -138,16 +140,17 @@ export interface TracedAttackVector extends TracedInput {
 export function buildAttackInputs(
 	param: {name: string; type: AnyTypeDef},
 	registry: UdtRegistry,
+	rng?: Rng,
 ): TracedAttackVector[] {
 	const cls = classify(param.type, registry, 'type_boundary');
-	return attackVals(param.type, registry).map(v => ({
+	return attackVals(param.type, registry, seededCtx(rng)).map(v => ({
 		name: v.name,
 		val: v.val,
 		provenance: {
 			param: param.name,
 			rule: `attack:${v.name}`,
 			...cls,
-			seeded: false,
+			seeded: rng !== undefined,
 		},
 	}));
 }
