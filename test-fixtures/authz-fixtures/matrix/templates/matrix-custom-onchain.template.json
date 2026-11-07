@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "id": "custom-onchain-{{RUN_ID}}",
+  "mode": "broadcast",
+  "authorizationRecord": "project-owned fixture (authz-fixtures); execution authorized by Alex, 2026-10-22",
+  "actors": {
+    "OWNER": {
+      "source": "env",
+      "secretEnv": "KUYFI_AUTHZ_OWNER_SECRET"
+    }
+  },
+  "cases": [
+    {
+      "id": "CA-1-onchain",
+      "description": "valid custom-account signature, included on-chain",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "valid",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success",
+        "evidence": "on-chain"
+      },
+      "submit": true,
+      "stateRead": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "get",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CA-3-onchain",
+      "description": "policy-allowed context at the limit, on-chain, policy event",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 100
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "valid",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success",
+        "evidence": "on-chain",
+        "eventTopic": "policy_ok"
+      },
+      "submit": true,
+      "stateRead": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "get",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          }
+        ]
+      }
+    }
+  ]
+}

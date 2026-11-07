@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "id": "ed25519-onchain-{{RUN_ID}}",
+  "mode": "broadcast",
+  "authorizationRecord": "project-owned fixture (authz-fixtures); execution authorized by Alex, 2026-10-22",
+  "actors": {
+    "A": {
+      "source": "ephemeral"
+    }
+  },
+  "cases": [
+    {
+      "id": "ED-1-onchain",
+      "description": "valid authorization, included on-chain, state read",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid"
+        }
+      ],
+      "submit": true,
+      "stateRead": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "get",
+        "args": [
+          {
+            "actor": "A"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "evidence": "on-chain"
+      }
+    }
+  ]
+}

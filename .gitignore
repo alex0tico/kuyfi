@@ -45,5 +45,5 @@ general.cursorrules
 
 
 
-# Local-only experiment data (contains third-party identifiers); never publish
-test-fixtures/authz-fixtures/
+# authz fixture: sources and {{MARKER}} templates are tracked; run output
+# (evidence/, with real ids) is ignored by test-fixtures/authz-fixtures/.gitignore

@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "id": "nested-onchain-{{RUN_ID}}",
+  "mode": "broadcast",
+  "authorizationRecord": "project-owned fixture (authz-fixtures); execution authorized by Alex, 2026-10-22",
+  "actors": {
+    "A": {
+      "source": "ephemeral"
+    }
+  },
+  "cases": [
+    {
+      "id": "NA-1-onchain",
+      "description": "correct tree, included on-chain, Executor state read",
+      "call": {
+        "contractId": "{{ROUTER_ID}}",
+        "function": "forward",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 5
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid",
+          "tree": {
+            "contractId": "{{ROUTER_ID}}",
+            "function": "forward",
+            "args": [
+              {
+                "actor": "A"
+              },
+              {
+                "type": "u32",
+                "value": 5
+              }
+            ],
+            "children": [
+              {
+                "contractId": "{{EXECUTOR_ID}}",
+                "function": "execute",
+                "args": [
+                  {
+                    "actor": "A"
+                  },
+                  {
+                    "type": "u32",
+                    "value": 5
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success",
+        "evidence": "on-chain"
+      },
+      "submit": true,
+      "stateRead": {
+        "contractId": "{{EXECUTOR_ID}}",
+        "function": "get",
+        "args": [
+          {
+            "actor": "A"
+          }
+        ]
+      }
+    }
+  ]
+}

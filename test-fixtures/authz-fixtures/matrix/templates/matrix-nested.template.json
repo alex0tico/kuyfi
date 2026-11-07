@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "id": "nested-{{RUN_ID}}",
+  "mode": "simulate-only",
+  "actors": {
+    "A": {
+      "source": "ephemeral"
+    }
+  },
+  "cases": [
+    {
+      "id": "NA-1",
+      "description": "correct tree forward(5) -> execute(5)",
+      "call": {
+        "contractId": "{{ROUTER_ID}}",
+        "function": "forward",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 5
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid",
+          "tree": {
+            "contractId": "{{ROUTER_ID}}",
+            "function": "forward",
+            "args": [
+              {
+                "actor": "A"
+              },
+              {
+                "type": "u32",
+                "value": 5
+              }
+            ],
+            "children": [
+              {
+                "contractId": "{{EXECUTOR_ID}}",
+                "function": "execute",
+                "args": [
+                  {
+                    "actor": "A"
+                  },
+                  {
+                    "type": "u32",
+                    "value": 5
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "NA-2",
+      "description": "inner authorization omitted (root only)",
+      "call": {
+        "contractId": "{{ROUTER_ID}}",
+        "function": "forward",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 5
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid",
+          "tree": {
+            "contractId": "{{ROUTER_ID}}",
+            "function": "forward",
+            "args": [
+              {
+                "actor": "A"
+              },
+              {
+                "type": "u32",
+                "value": 5
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "authorization_missing"
+      },
+      "control": "NA-1"
+    },
+    {
+      "id": "NA-3",
+      "description": "inner node signed for 6, call uses 5",
+      "call": {
+        "contractId": "{{ROUTER_ID}}",
+        "function": "forward",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 5
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid",
+          "tree": {
+            "contractId": "{{ROUTER_ID}}",
+            "function": "forward",
+            "args": [
+              {
+                "actor": "A"
+              },
+              {
+                "type": "u32",
+                "value": 5
+              }
+            ],
+            "children": [
+              {
+                "contractId": "{{EXECUTOR_ID}}",
+                "function": "execute",
+                "args": [
+                  {
+                    "actor": "A"
+                  },
+                  {
+                    "type": "u32",
+                    "value": 6
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "authorization_missing"
+      },
+      "control": "NA-1"
+    },
+    {
+      "id": "C-NA3",
+      "description": "control for NA-3: inner node signed for 6 and the call uses 6",
+      "call": {
+        "contractId": "{{ROUTER_ID}}",
+        "function": "forward",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 6
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid",
+          "tree": {
+            "contractId": "{{ROUTER_ID}}",
+            "function": "forward",
+            "args": [
+              {
+                "actor": "A"
+              },
+              {
+                "type": "u32",
+                "value": 6
+              }
+            ],
+            "children": [
+              {
+                "contractId": "{{EXECUTOR_ID}}",
+                "function": "execute",
+                "args": [
+                  {
+                    "actor": "A"
+                  },
+                  {
+                    "type": "u32",
+                    "value": 6
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success"
+      }
+    }
+  ]
+}
