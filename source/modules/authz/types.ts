@@ -22,11 +22,12 @@ export interface InvocationSpec {
 
 /**
  * What the entry for an actor looks like.
- *  - valid: signed correctly, expiration `expirationOffset` ledgers ahead.
+ *  - valid: signed correctly, expiration `expirationOffset` ledgers ahead (>= 1:
+ *    the simulation runs in the ledger after the latest, so offset 0 is already expired).
  *  - missing: no entry is supplied for the actor (recorded, not skipped silently).
  *  - invalid_signature: correct tree, corrupted signature.
  *  - foreign_signature: correct tree, signature made by another key.
- *  - expired: correctly signed, expiration `expirationOffset` ledgers BEHIND the simulation ledger.
+ *  - expired: correctly signed, expiration `expirationOffset` ledgers BEHIND the latest ledger (0 = equal to it, the exact edge, already expired).
  */
 export type AuthVariant =
 	'valid' | 'missing' | 'invalid_signature' | 'foreign_signature' | 'expired';

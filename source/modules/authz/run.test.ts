@@ -130,8 +130,12 @@ class FakeServer extends CampaignServer {
 		if (!mine)
 			return `HostError: Error(Auth, InvalidAction)\n\nEvent log (newest first):\n   0: [Diagnostic Event] contract:CX, topics:[error, Error(Auth, InvalidAction)], data:["Unauthorized function call for address", ${need}]`;
 		const cred = mine.credentials().address();
-		if (cred.signatureExpirationLedger() < this.ledger)
-			return `HostError: Error(Auth, InvalidInput)\n\nEvent log (newest first):\n   0: [Diagnostic Event] data:["signature has expired", ${need}, ${cred.signatureExpirationLedger()}, ${this.ledger}]`;
+		// Testnet-measured: the simulation runs in the ledger AFTER the latest one, and
+		// an entry whose expiration is below that ledger has expired. So expiration ==
+		// latest is already expired; expiration == latest + 1 is the last valid value.
+		const simulationLedger = this.ledger + 1;
+		if (cred.signatureExpirationLedger() < simulationLedger)
+			return `HostError: Error(Auth, InvalidInput)\n\nEvent log (newest first):\n   0: [Diagnostic Event] data:["signature has expired", ${need}, ${cred.signatureExpirationLedger()}, ${simulationLedger}]`;
 		const sig = Buffer.from(
 			cred
 				.signature()
@@ -249,6 +253,78 @@ const ephemeral = () => {
 		},
 	};
 };
+
+const call = {
+	contractId: VAULT,
+	function: 'set',
+	args: [{actor: 'A'}, {type: 'u32', value: 7}],
+};
+
+const boundaryMatrix = (
+	variant: 'valid' | 'expired',
+	expirationOffset: number,
+	expect: Record<string, unknown>,
+) =>
+	parseAuthzMatrix({
+		version: 1,
+		id: 'boundary',
+		actors: {A: {source: 'ephemeral'}},
+		cases: [
+			// Control: the same call, unexpired, so a rejection at the edge is attributable.
+			{
+				id: 'control',
+				call,
+				authorization: [{actor: 'A', variant: 'valid', expirationOffset: 5}],
+				expect: {outcome: 'success'},
+			},
+			{
+				id: 'edge',
+				call,
+				authorization: [{actor: 'A', variant, expirationOffset}],
+				expect,
+				control: 'control',
+			},
+		],
+	});
+
+const boundaryState = async (
+	variant: 'valid' | 'expired',
+	expirationOffset: number,
+	expect: Record<string, unknown>,
+) => {
+	const report = await runAuthzMatrix(
+		boundaryMatrix(variant, expirationOffset, expect),
+		{
+			server: new FakeServer('simulate-only'),
+			createEphemeral: ephemeral().create,
+		},
+	);
+	return report.cases.find(c => c.id === 'edge')!;
+};
+
+test('ED-4 boundary: expiration equal to the latest ledger (expired, offset 0) is rejected as signature_expired', async t => {
+	const c = await boundaryState('expired', 0, {
+		outcome: 'rejection',
+		stage: 'signature_expired',
+	});
+	t.is(c.observed.stage, 'signature_expired');
+	t.is(c.evaluation.state, 'expected_rejection');
+	t.true(c.evaluation.accepted);
+});
+
+test('ED-4 boundary: one ledger past the latest (valid, offset 1) is the last accepted value', async t => {
+	const c = await boundaryState('valid', 1, {outcome: 'success'});
+	t.is(c.observed.outcome, 'success');
+	t.is(c.evaluation.state, 'expected_success');
+});
+
+test('ED-4 boundary: expired offset 1 (one below the latest) stays expired', async t => {
+	const c = await boundaryState('expired', 1, {
+		outcome: 'rejection',
+		stage: 'signature_expired',
+	});
+	t.is(c.observed.stage, 'signature_expired');
+});
 
 test('honest fake: every case lands in its expected state and is accepted; mode is explicit enforce; source is a separate relay', async t => {
 	const server = new FakeServer('simulate-only');

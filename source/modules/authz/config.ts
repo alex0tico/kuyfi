@@ -373,6 +373,18 @@ export function parseAuthzMatrix(raw: unknown): AuthzMatrix {
 					problems.push(
 						`${aw}.expirationOffset must be a non-negative integer`,
 					);
+				// Measured on Testnet: an expiration equal to the latest ledger is already
+				// expired when simulated (the simulation runs in the next ledger). A
+				// non-expired variant with offset 0 would silently test expiry instead of
+				// what it claims, so it is refused; use variant "expired" for that edge.
+				if (
+					a['expirationOffset'] === 0 &&
+					a['variant'] !== 'expired' &&
+					a['variant'] !== 'missing'
+				)
+					problems.push(
+						`${aw}.expirationOffset 0 is already expired when simulated; use at least 1 (or variant "expired" to test that edge)`,
+					);
 				const account = parseAccount(a['account'], aw, problems);
 				const entry: AuthEntrySpec = {
 					actor: String(a['actor']),

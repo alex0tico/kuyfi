@@ -132,3 +132,25 @@ test('custom account spec: valid contract id required; unknown account keys reje
 		'pk',
 	);
 });
+
+test('ED-4 boundary: expirationOffset 0 is refused for a variant that must be unexpired, allowed for "expired"', t => {
+	const withEntry = (entry: Record<string, unknown>) => ({
+		...base(),
+		cases: [{...base().cases[0]!, authorization: [{actor: 'A', ...entry}]}],
+	});
+	for (const variant of ['valid', 'invalid_signature', 'foreign_signature']) {
+		const error = t.throws(
+			() => parseAuthzMatrix(withEntry({variant, expirationOffset: 0})),
+			{instanceOf: AuthzConfigError},
+			`variant ${variant}`,
+		);
+		t.regex(error!.message, /already expired when simulated/);
+	}
+
+	t.notThrows(() =>
+		parseAuthzMatrix(withEntry({variant: 'expired', expirationOffset: 0})),
+	);
+	t.notThrows(() =>
+		parseAuthzMatrix(withEntry({variant: 'valid', expirationOffset: 1})),
+	);
+});
