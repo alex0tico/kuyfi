@@ -1,9 +1,55 @@
 import {scValToNative, xdr} from '@stellar/stellar-sdk';
+import type {SuppliedNode} from './entries.js';
 import type {AuthzStage} from './types.js';
 
 export interface Classification {
 	stage: AuthzStage;
 	contractErrorCode?: number;
+	message?: string;
+}
+
+/**
+ * The host reports the same text whether a call has no authorization node or
+ * a node that does not match it, so the two are told apart by what was
+ * supplied: the call that failed is read from the diagnostics (contract and
+ * function that ran `require_auth`) and compared with the supplied tree.
+ */
+function classifyUnauthorized(
+	errorText: string,
+	supplied: SuppliedNode[] | undefined,
+): Classification {
+	const failing =
+		/contract:(C[A-Z2-7]{55}), topics:\[error, Error\(Auth, InvalidAction\)\], data:\["Unauthorized function call for address"/.exec(
+			errorText,
+		);
+	const contractId = failing?.[1];
+	const fn =
+		contractId === undefined
+			? undefined
+			: new RegExp(
+					`contract:${contractId}, topics:\\[log\\], data:\\["VM call trapped with HostError", (\\w+), Error\\(Auth, InvalidAction\\)\\]`,
+				).exec(errorText)?.[1];
+	if (supplied?.length === 0)
+		return {
+			stage: 'authorization_missing',
+			message: 'No authorization entry was supplied for the call.',
+		};
+	if (contractId === undefined || fn === undefined)
+		return {
+			stage: 'authorization_missing',
+			message:
+				'No authorization covers the call that required it (the failing contract and function could not be read from the diagnostics).',
+		};
+	const call = `${fn} on ${contractId}`;
+	if (supplied?.some(n => n.contractId === contractId && n.function === fn))
+		return {
+			stage: 'authorization_mismatch',
+			message: `An authorization node for ${call} was supplied, but it does not match the call that was made (different arguments).`,
+		};
+	return {
+		stage: 'authorization_missing',
+		message: `No authorization node was supplied for ${call}.`,
+	};
 }
 
 /**
@@ -14,7 +60,10 @@ export interface Classification {
  * VERSIONED here on purpose: the text is not a stable API. Order matters —
  * the most specific stages first. Nothing here knows about any fixture.
  */
-export function classifyRejection(errorText: string): Classification {
+export function classifyRejection(
+	errorText: string,
+	supplied?: SuppliedNode[],
+): Classification {
 	const firstLine = errorText.split('\n')[0] ?? '';
 	const within =
 		/failed account authentication with error[^\n]*Error\(Contract, #(\d+)\)/.exec(
@@ -62,7 +111,7 @@ export function classifyRejection(errorText: string): Classification {
 		errorText.includes('Unauthorized function call for address') &&
 		errorText.includes('Error(Auth, InvalidAction)')
 	)
-		return {stage: 'authorization_missing'};
+		return classifyUnauthorized(errorText, supplied);
 
 	if (
 		/^HostError: Error\(Contract, #\d+\)/.test(firstLine) &&

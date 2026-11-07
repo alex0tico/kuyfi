@@ -63,6 +63,7 @@ export type ActorSpec =
 export type AuthzStage =
 	| 'none'
 	| 'authorization_missing'
+	| 'authorization_mismatch'
 	| 'signature_invalid'
 	| 'signature_expired'
 	| 'nonce_reused'
@@ -122,6 +123,8 @@ export interface ObservedResult {
 	outcome: 'success' | 'rejection' | 'operational_error';
 	stage: AuthzStage;
 	contractErrorCode?: number;
+	/** Human-readable reason for the stage, when the classifier can state one. */
+	message?: string;
 	/** Full RPC error text (diagnostic events included); public data only. */
 	diagnostic?: string;
 	simulationLedger?: number;

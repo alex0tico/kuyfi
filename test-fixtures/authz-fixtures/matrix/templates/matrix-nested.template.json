@@ -64,7 +64,7 @@
     },
     {
       "id": "NA-2",
-      "description": "inner authorization omitted (root only)",
+      "description": "inner authorization omitted (root only): no node for execute",
       "call": {
         "contractId": "{{ROUTER_ID}}",
         "function": "forward",
@@ -105,7 +105,7 @@
     },
     {
       "id": "NA-3",
-      "description": "inner node signed for 6, call uses 5",
+      "description": "inner node signed for 6, call uses 5 (node exists for execute, arguments differ)",
       "call": {
         "contractId": "{{ROUTER_ID}}",
         "function": "forward",
@@ -155,7 +155,7 @@
       ],
       "expect": {
         "outcome": "rejection",
-        "stage": "authorization_missing"
+        "stage": "authorization_mismatch"
       },
       "control": "NA-1"
     },

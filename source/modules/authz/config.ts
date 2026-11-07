@@ -41,6 +41,7 @@ const VARIANTS = new Set<string>([
 const STAGES = new Set<string>([
 	'none',
 	'authorization_missing',
+	'authorization_mismatch',
 	'signature_invalid',
 	'signature_expired',
 	'nonce_reused',

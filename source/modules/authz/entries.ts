@@ -202,6 +202,26 @@ export function buildCustomAccountEntry(args: {
 	};
 }
 
+/** A node of a supplied authorization tree: which contract function it authorizes. */
+export interface SuppliedNode {
+	contractId: string;
+	function: string;
+}
+
+/** Flattens a supplied tree to the (contract, function) pairs it authorizes. */
+export function suppliedNodes(
+	inv: xdr.SorobanAuthorizedInvocation,
+): SuppliedNode[] {
+	const f = inv.function().contractFn();
+	return [
+		{
+			contractId: Address.fromScAddress(f.contractAddress()).toString(),
+			function: f.functionName().toString(),
+		},
+		...inv.subInvocations().flatMap(child => suppliedNodes(child)),
+	];
+}
+
 /** Human/JSON summary of a tree (function names and argument count only; no values). */
 export function summarizeTree(inv: xdr.SorobanAuthorizedInvocation): unknown {
 	const f = inv.function().contractFn();

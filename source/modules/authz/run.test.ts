@@ -566,6 +566,76 @@ test('nested trees are built from the matrix: the entry tree carries the child n
 	t.is(seen, 1);
 });
 
+test('NA-2 vs NA-3: the same RPC rejection is reported with distinct stages and messages', async t => {
+	const ROUTER = VAULT;
+	const EXEC = StrKey.encodeContract(Buffer.alloc(32, 12));
+	class InnerRejects extends FakeServer {
+		override async simulateTransaction() {
+			return cast<never>({
+				id: '1',
+				latestLedger: this.ledger,
+				events: [],
+				_parsed: true,
+				error: [
+					'HostError: Error(Auth, InvalidAction)',
+					'',
+					'Event log (newest first):',
+					`   0: [Failed Diagnostic Event (not emitted)] contract:${EXEC}, topics:[log], data:["VM call trapped with HostError", execute, Error(Auth, InvalidAction)]`,
+					`   1: [Failed Diagnostic Event (not emitted)] contract:${EXEC}, topics:[error, Error(Auth, InvalidAction)], data:["Unauthorized function call for address", GX]`,
+				].join('\n'),
+			});
+		}
+	}
+
+	const fwd = (n: number) => ({
+		contractId: ROUTER,
+		function: 'forward',
+		args: [{actor: 'A'}, {type: 'u32', value: n}],
+	});
+	const exe = (n: number) => ({
+		contractId: EXEC,
+		function: 'execute',
+		args: [{actor: 'A'}, {type: 'u32', value: n}],
+	});
+	const nested = (id: string, tree: object, stage: string) => ({
+		id,
+		call: fwd(5),
+		authorization: [{actor: 'A', variant: 'valid', tree}],
+		expect: {outcome: 'rejection', stage},
+	});
+	const m = parseAuthzMatrix({
+		version: 1,
+		id: 'na',
+		actors: {A: {source: 'ephemeral'}},
+		cases: [
+			nested('NA-2', fwd(5), 'authorization_missing'),
+			nested('NA-3', {...fwd(5), children: [exe(6)]}, 'authorization_mismatch'),
+		],
+	});
+	const report = await runAuthzMatrix(m, {
+		server: new InnerRejects('simulate-only'),
+		createEphemeral: ephemeral().create,
+	});
+	const [na2, na3] = report.cases;
+	t.is(na2!.observed.stage, 'authorization_missing');
+	t.is(na3!.observed.stage, 'authorization_mismatch');
+	t.not(na2!.observed.message, na3!.observed.message);
+	t.regex(
+		na2!.observed.message!,
+		/No authorization node was supplied for execute/,
+	);
+	t.regex(na3!.observed.message!, /does not match the call that was made/);
+	// Each case matches its own expected stage on its own, with no control needed to tell them apart.
+	t.is(
+		na2!.evaluation.reasons.some(r => r.includes('expected')),
+		false,
+	);
+	t.is(
+		na3!.evaluation.reasons.some(r => r.includes('expected')),
+		false,
+	);
+});
+
 test('custom account entries: the entry address is the account contract and the actor only signs', async t => {
 	const ACCOUNT = StrKey.encodeContract(Buffer.alloc(32, 13));
 	let seenAddress = '';

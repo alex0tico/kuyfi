@@ -1,4 +1,5 @@
 import test from 'ava';
+import {StrKey} from '@stellar/stellar-sdk';
 import {classifyRejection} from './classify.js';
 
 // Texts below are abridged from REAL Testnet responses recorded on 2026-10-21
@@ -19,7 +20,76 @@ test('missing authorization', t => {
 		'HostError: Error(Auth, InvalidAction)',
 		`contract:CD5Z, topics:[error, Error(Auth, InvalidAction)], data:["Unauthorized function call for address", ${A}]`,
 	);
-	t.deepEqual(classifyRejection(text), {stage: 'authorization_missing'});
+	const result = classifyRejection(text);
+	t.is(result.stage, 'authorization_missing');
+	t.regex(result.message!, /No authorization covers the call/);
+});
+
+// NA-2 / NA-3 on Testnet produced a byte-identical RPC text (the call to
+// Executor.execute is "Unauthorized function call"); only what was supplied
+// differs. Ids are synthetic; the log structure is the observed one.
+const ROUTER = StrKey.encodeContract(Buffer.alloc(32, 21));
+const EXECUTOR = StrKey.encodeContract(Buffer.alloc(32, 22));
+const innerUnauthorized = wrap(
+	'HostError: Error(Auth, InvalidAction)',
+	`contract:${ROUTER}, topics:[error, Error(Auth, InvalidAction)], data:"escalating error to VM trap from failed host function call: call"`,
+	`contract:${ROUTER}, topics:[error, Error(Auth, InvalidAction)], data:["contract call failed", execute, [${A}, 5]]`,
+	`contract:${EXECUTOR}, topics:[log], data:["VM call trapped with HostError", execute, Error(Auth, InvalidAction)]`,
+	`contract:${EXECUTOR}, topics:[error, Error(Auth, InvalidAction)], data:"escalating error to VM trap from failed host function call: require_auth"`,
+	`contract:${EXECUTOR}, topics:[error, Error(Auth, InvalidAction)], data:["Unauthorized function call for address", ${A}]`,
+);
+
+test('NA-2: no node for the failing call (root only) -> authorization_missing, naming the call', t => {
+	const r = classifyRejection(innerUnauthorized, [
+		{contractId: ROUTER, function: 'forward'},
+	]);
+	t.is(r.stage, 'authorization_missing');
+	t.is(
+		r.message,
+		`No authorization node was supplied for execute on ${EXECUTOR}.`,
+	);
+});
+
+test('NA-3: a node for the same contract and function exists but does not match -> authorization_mismatch', t => {
+	const r = classifyRejection(innerUnauthorized, [
+		{contractId: ROUTER, function: 'forward'},
+		{contractId: EXECUTOR, function: 'execute'},
+	]);
+	t.is(r.stage, 'authorization_mismatch');
+	t.is(
+		r.message,
+		`An authorization node for execute on ${EXECUTOR} was supplied, but it does not match the call that was made (different arguments).`,
+	);
+});
+
+test('NA-2 and NA-3 get different codes and messages from the same RPC text', t => {
+	const na2 = classifyRejection(innerUnauthorized, [
+		{contractId: ROUTER, function: 'forward'},
+	]);
+	const na3 = classifyRejection(innerUnauthorized, [
+		{contractId: ROUTER, function: 'forward'},
+		{contractId: EXECUTOR, function: 'execute'},
+	]);
+	t.not(na2.stage, na3.stage);
+	t.not(na2.message, na3.message);
+});
+
+test('a node for another function of the same contract does not count as a mismatch', t => {
+	const r = classifyRejection(innerUnauthorized, [
+		{contractId: EXECUTOR, function: 'other'},
+	]);
+	t.is(r.stage, 'authorization_missing');
+});
+
+test('ED-2: no entry supplied at all -> authorization_missing with its own message', t => {
+	const text = wrap(
+		'HostError: Error(Auth, InvalidAction)',
+		`contract:CD5Z, topics:[error, Error(Auth, InvalidAction)], data:["Unauthorized function call for address", ${A}]`,
+	);
+	t.deepEqual(classifyRejection(text, []), {
+		stage: 'authorization_missing',
+		message: 'No authorization entry was supplied for the call.',
+	});
 });
 
 test('invalid ed25519 signature (classic account)', t => {

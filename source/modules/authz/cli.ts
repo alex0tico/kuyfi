@@ -28,6 +28,7 @@ export function formatAuthzSummary(report: AuthzReport): string {
 					? ` on-chain=${o.onChain.status}@${String(o.onChain.ledger)}`
 					: ''),
 		);
+		if (o.message) lines.push(`             ! ${o.message}`);
 		for (const r of c.evaluation.reasons) lines.push(`             - ${r}`);
 	}
 

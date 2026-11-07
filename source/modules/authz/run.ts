@@ -21,7 +21,9 @@ import {
 	buildEd25519Entry,
 	buildInvocation,
 	summarizeTree,
+	suppliedNodes,
 } from './entries.js';
+import type {SuppliedNode} from './entries.js';
 import {resolveCommit} from './build_info.js';
 import {evaluateCase} from './evaluate.js';
 import type {
@@ -303,6 +305,7 @@ async function runCase(
 		const latestResponse = await server.getLatestLedger();
 		const latest = latestResponse.sequence;
 		const auth: xdr.SorobanAuthorizationEntry[] = [];
+		const supplied: SuppliedNode[] = [];
 		for (const spec of c.authorization) {
 			if (spec.variant === 'missing') {
 				entriesReport.push({
@@ -336,6 +339,7 @@ async function runCase(
 					})
 				: buildEd25519Entry(common);
 			auth.push(built.entry);
+			supplied.push(...suppliedNodes(built.entry.rootInvocation()));
 			entriesReport.push({
 				actor: spec.actor,
 				...(spec.account ? {accountContract: spec.account.contractId} : {}),
@@ -368,13 +372,14 @@ async function runCase(
 		const sim = await server.simulateTransaction(tx, undefined, 'enforce');
 		let result: ObservedResult;
 		if (SorobanRpc.Api.isSimulationError(sim)) {
-			const cls = classifyRejection(sim.error);
+			const cls = classifyRejection(sim.error, supplied);
 			result = {
 				outcome: 'rejection',
 				stage: cls.stage,
 				...(cls.contractErrorCode === undefined
 					? {}
 					: {contractErrorCode: cls.contractErrorCode}),
+				...(cls.message === undefined ? {} : {message: cls.message}),
 				diagnostic: sim.error,
 				simulationLedger: sim.latestLedger,
 				eventTopics: eventTopics(sim.events),
