@@ -2,6 +2,9 @@ import {readFile} from 'node:fs/promises';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {ContextConfigError, parseContextConfig} from './context_config.js';
 import type {ContextConfig} from './context_config.js';
+import {MAX_SEED} from '../seed.js';
+import {FAIL_ON_LEVELS} from '../gate.js';
+import type {FailOnLevel} from '../gate.js';
 
 export const VECTOR_FAMILIES = [
 	'math',
@@ -32,6 +35,16 @@ export interface CampaignConfig {
 	limits: CampaignLimits;
 	/** Free-text reference to the authorization record. Required for `broadcast`. */
 	authorizationRecord?: string;
+	/** Seed for the generated test data (`--seed` wins over this). */
+	seed?: number;
+	/** Exit 2 on a supported finding at or above this severity (`--fail-on` wins). */
+	failOn?: FailOnLevel;
+	/** Count hypotheses too for `failOn` (`--fail-on-include-hypotheses` wins). */
+	failOnIncludeHypotheses?: boolean;
+	/** Exit 3 when the run is incomplete (`--fail-on-incomplete` wins). */
+	failOnIncomplete?: boolean;
+	/** Execution time limit in seconds (`--timeout` wins); reaching it is incomplete. */
+	timeout?: number;
 }
 
 export class CampaignConfigError extends Error {
@@ -47,6 +60,11 @@ const TOP_KEYS = new Set([
 	'context',
 	'limits',
 	'authorizationRecord',
+	'seed',
+	'failOn',
+	'failOnIncludeHypotheses',
+	'failOnIncomplete',
+	'timeout',
 ]);
 const LIMIT_KEYS = new Set(['functions', 'families', 'maxVectors', 'mode']);
 
@@ -75,6 +93,29 @@ export function parseCampaignConfig(raw: unknown): CampaignConfig {
 			obj['authorizationRecord'].trim() === '')
 	)
 		problems.push('authorizationRecord must be a non-empty string');
+
+	if (
+		obj['seed'] !== undefined &&
+		(!Number.isInteger(obj['seed']) ||
+			(obj['seed'] as number) < 0 ||
+			(obj['seed'] as number) > MAX_SEED)
+	)
+		problems.push(`seed must be an integer from 0 to ${MAX_SEED}`);
+	if (
+		obj['failOn'] !== undefined &&
+		!(FAIL_ON_LEVELS as readonly unknown[]).includes(obj['failOn'])
+	)
+		problems.push(`failOn must be one of ${FAIL_ON_LEVELS.join(', ')}`);
+	for (const key of ['failOnIncludeHypotheses', 'failOnIncomplete'])
+		if (obj[key] !== undefined && typeof obj[key] !== 'boolean')
+			problems.push(`${key} must be true or false`);
+	if (
+		obj['timeout'] !== undefined &&
+		(typeof obj['timeout'] !== 'number' ||
+			!Number.isFinite(obj['timeout']) ||
+			obj['timeout'] <= 0)
+	)
+		problems.push('timeout must be a positive number of seconds');
 
 	let context: ContextConfig | undefined;
 	if (obj['context'] !== undefined) {
@@ -159,6 +200,19 @@ export function parseCampaignConfig(raw: unknown): CampaignConfig {
 		...(typeof obj['authorizationRecord'] === 'string'
 			? {authorizationRecord: obj['authorizationRecord']}
 			: {}),
+		...(obj['seed'] === undefined ? {} : {seed: obj['seed'] as number}),
+		...(obj['failOn'] === undefined
+			? {}
+			: {failOn: obj['failOn'] as FailOnLevel}),
+		...(obj['failOnIncludeHypotheses'] === undefined
+			? {}
+			: {failOnIncludeHypotheses: obj['failOnIncludeHypotheses'] as boolean}),
+		...(obj['failOnIncomplete'] === undefined
+			? {}
+			: {failOnIncomplete: obj['failOnIncomplete'] as boolean}),
+		...(obj['timeout'] === undefined
+			? {}
+			: {timeout: obj['timeout'] as number}),
 	};
 }
 

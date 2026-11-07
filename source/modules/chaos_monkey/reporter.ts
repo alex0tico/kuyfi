@@ -116,6 +116,8 @@ export interface ChaosReport {
 	contractId: string;
 	/** Seed that drove the generated test data; repeat the run with `--seed`. */
 	seed?: SeedInfo;
+	/** Present only when a time limit was set; `reached` = vector families were skipped. */
+	timeout?: {seconds: number; reached: boolean};
 	scannedAt: string;
 	network: 'testnet' | 'mainnet';
 	totalFunctions: number;

@@ -714,3 +714,19 @@ test('a report from a run without a seed has no seed field (older shape unchange
 	const report = buildSecurityReport(buildFixtureAuditRun());
 	t.false('seed' in report);
 });
+
+test('coverage.functionsWithoutParameters lists parameterless functions that were never invoked', t => {
+	const run = buildFixtureAuditRun();
+	run.scan.functions.push({name: 'ping', params: [], hasReturn: false});
+	const report = buildSecurityReport(run);
+	const invoked = new Set(
+		(run.chaos.invocations ?? []).map(i => i.functionName),
+	);
+	const expected = run.scan.functions
+		.filter(f => f.params.length === 0 && !invoked.has(f.name))
+		.map(f => f.name);
+	t.deepEqual(expected, ['ping']);
+	t.deepEqual(report.coverage!.functionsWithoutParameters, expected);
+	// A function with parameters is never listed there.
+	t.false(report.coverage!.functionsWithoutParameters.includes('deposit'));
+});

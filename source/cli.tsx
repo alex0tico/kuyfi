@@ -10,7 +10,9 @@ const cli = meow(
 	`
 	Usage
 	  $ kuyfi [CONTRACT_ID] [--json] [--pdf] [--config <file>] [--seed <number>]
-	  $ kuyfi authz <matrix.json> [--out <dir>]
+	                [--fail-on <level>] [--fail-on-include-hypotheses]
+	                [--fail-on-incomplete] [--timeout <seconds>]
+	  $ kuyfi authz <matrix.json> [--out <dir>] [--fail-on <level>] [--fail-on-incomplete]
 
 	Options
 	  --json    Also write a SecurityReport JSON file (kuyfi-report-<id>.json)
@@ -23,6 +25,22 @@ const cli = meow(
 	            cases. Without it a seed is generated, printed and saved in the
 	            report ("seed"), so the run can be repeated. Not used by authz.
 
+	  --fail-on <info|low|medium|high|critical>
+	            Exit 2 if at least one SUPPORTED finding has that severity or
+	            higher. Hypotheses and inconclusive findings do not count.
+	            Prints the counts by status and severity.
+	  --fail-on-include-hypotheses
+	            With --fail-on, hypotheses count too (inconclusive never do).
+	  --fail-on-incomplete
+	            Exit 3 if the run is incomplete: operational errors, vectors not
+	            evaluated, vector budget exhausted, time limit reached, functions
+	            without a single invocation, or inconclusive findings.
+	  --timeout <seconds>
+	            Execution time limit, checked before each vector family (one
+	            already running finishes). Reaching it counts as incomplete.
+	  The --config file may also set seed, failOn, failOnIncludeHypotheses,
+	  failOnIncomplete and timeout; a flag you pass always wins over the file.
+
 	  --out     (authz) Directory for the JSON evidence file (default: current directory)
 
 	Authorization-aware matrix
@@ -30,6 +48,16 @@ const cli = meow(
 	  simulation (relay account as source; actors authorize only through signed
 	  entries) and writes JSON evidence. simulate-only by default; sending
 	  transactions needs mode "broadcast" plus an authorizationRecord.
+
+	Exit codes (precedence 1 > 2 > 3 > 0)
+	  0  OK: nothing the gates were asked to catch
+	  1  tool error (bad input or configuration, scan/RPC failure, failed write)
+	  2  --fail-on fired
+	  3  --fail-on-incomplete fired (or the time limit was reached with it set)
+	  When a gate is set, the JSON report records which one fired ("gate").
+	  authz: cases that contradict their expectation are supported findings
+	  (unexpected acceptance = high, unexpected rejection = medium); cases that
+	  could not be judged make the run incomplete.
 
 	Examples
 	  $ kuyfi
@@ -56,18 +84,49 @@ const cli = meow(
 			config: {type: 'string'},
 			out: {type: 'string'},
 			seed: {type: 'number'},
+			failOn: {type: 'string'},
+			failOnIncludeHypotheses: {type: 'boolean'},
+			failOnIncomplete: {type: 'boolean'},
+			timeout: {type: 'number'},
 		},
 	},
 );
+
+// meow reports an absent boolean flag as `false`, which would silently override
+// the --config file; a flag only counts when it was actually typed.
+const flagGiven = (name: string) =>
+	process.argv.some(
+		a =>
+			a === `--${name}` || a === `--no-${name}` || a.startsWith(`--${name}=`),
+	);
+const failOnIncomplete = flagGiven('fail-on-incomplete')
+	? cli.flags.failOnIncomplete
+	: undefined;
+const failOnIncludeHypotheses = flagGiven('fail-on-include-hypotheses')
+	? cli.flags.failOnIncludeHypotheses
+	: undefined;
 
 async function main() {
 	const mode = selectCliMode(cli.input);
 
 	if (mode.kind === 'authz') {
-		if (cli.flags.seed !== undefined) {
-			console.error(
+		const notForAuthz: Array<[string, boolean]> = [
+			[
 				'--seed does not apply to kuyfi authz: authorization nonces are deliberately never seeded (a repeated nonce is rejected on-chain).',
-			);
+				cli.flags.seed !== undefined,
+			],
+			[
+				'--timeout does not apply to kuyfi authz.',
+				cli.flags.timeout !== undefined,
+			],
+			[
+				'--fail-on-include-hypotheses does not apply to kuyfi authz: a matrix has no hypotheses.',
+				failOnIncludeHypotheses !== undefined,
+			],
+		];
+		const refused = notForAuthz.find(([, given]) => given);
+		if (refused) {
+			console.error(refused[0]);
 			process.exitCode = 1;
 			return;
 		}
@@ -80,6 +139,8 @@ async function main() {
 
 		const result = await runAuthzCli(mode.file, {
 			outDir: cli.flags.out,
+			failOn: cli.flags.failOn,
+			failOnIncomplete,
 			onProgress(message: string) {
 				console.log(message);
 			},
@@ -107,6 +168,10 @@ async function main() {
 			writePdf: cli.flags.pdf,
 			configPath: cli.flags.config,
 			seedValue: cli.flags.seed,
+			failOn: cli.flags.failOn,
+			failOnIncludeHypotheses,
+			failOnIncomplete,
+			timeout: cli.flags.timeout,
 		});
 
 		if (result.errorOutput) {

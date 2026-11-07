@@ -22,6 +22,7 @@ import type {
 } from './chaos_monkey/index.js';
 import type {AuditRun} from './audit.js';
 import {auditProvenance} from './chaos_monkey/provenance.js';
+import type {GateResult} from './gate.js';
 import type {
 	InputProvenance,
 	ProvenanceAudit,
@@ -231,6 +232,8 @@ export interface SecurityReport {
 	/** Additive: what the run did NOT establish. Gaps are reported as gaps. */
 	coverage?: {
 		functionsWithZeroInvocations: string[];
+		/** Functions with no parameters that were never invoked: nothing to vary, so they are outside the incompleteness rule. */
+		functionsWithoutParameters: string[];
 		/** Vectors that failed operationally (not contract behaviour, not findings). */
 		operationalErrors: CoverageNote[];
 		/** Hypotheses that could not be evaluated by what was executed. */
@@ -239,6 +242,8 @@ export interface SecurityReport {
 	};
 	/** Additive: present only when a campaign configuration was used. */
 	campaign?: CampaignInfo;
+	/** Additive: present when --fail-on, --fail-on-incomplete or --timeout was set; records which gate fired. */
+	gate?: GateResult;
 }
 
 // ─── Transforms — each one is a pure projection, no re-classification ─────
@@ -451,6 +456,9 @@ function toCoverageBlock(
 		functionsWithZeroInvocations: scan.functions
 			.map(f => f.name)
 			.filter(n => !exercised.has(n)),
+		functionsWithoutParameters: scan.functions
+			.filter(f => f.params.length === 0 && !exercised.has(f.name))
+			.map(f => f.name),
 		operationalErrors: notes.filter(n => n.signal === 'OPERATIONAL_ERROR'),
 		notEvaluated: notes.filter(n => n.signal === 'NOT_EVALUATED'),
 		vectorBudgetExhausted: (chaos.campaign?.refusedByBudget ?? 0) > 0,
@@ -461,6 +469,8 @@ export interface BuildSecurityReportOptions {
 	/** Injectable for deterministic tests; production callers omit both. */
 	now?: Date;
 	reportId?: string;
+	/** The gate decision to record in the report. */
+	gate?: GateResult;
 }
 
 /**
@@ -503,6 +513,7 @@ export function buildSecurityReport(
 		provenance: toProvenanceBlock(chaos),
 		coverage: toCoverageBlock(scan, chaos),
 		...(chaos.campaign ? {campaign: chaos.campaign} : {}),
+		...(options.gate ? {gate: options.gate} : {}),
 	};
 }
 

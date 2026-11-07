@@ -7,7 +7,14 @@ import {
 import type {CampaignConfig} from './chaos_monkey/campaign.js';
 import {resolveSeed} from './seed.js';
 import type {SeedInfo} from './seed.js';
-import {runAudit, formatAuditSummary} from './audit.js';
+import {
+	evaluateGate,
+	formatGateSummary,
+	gateRequested,
+	mergeGateSettings,
+} from './gate.js';
+import type {ExitCode, GateResult} from './gate.js';
+import {runAudit, formatAuditSummary, auditGateInput} from './audit.js';
 import type {RunAuditOptions} from './audit.js';
 import {buildSecurityReport} from './security_report.js';
 import type {SecurityReport} from './security_report.js';
@@ -68,7 +75,8 @@ export function describeAuditError(error: unknown): string {
 }
 
 export interface HeadlessRunResult {
-	exitCode: 0 | 1;
+	/** 0 ok · 1 tool error · 2 --fail-on · 3 incomplete (precedence 1 > 2 > 3 > 0). */
+	exitCode: ExitCode;
 	output: string | null;
 	errorOutput: string | null;
 	/** Set only when --json was requested AND the file write succeeded. */
@@ -106,8 +114,13 @@ export async function runHeadlessAudit(
 		writePdf?: boolean;
 		writeFile?: typeof fsWriteFile;
 		renderPdf?: typeof renderSecurityReportPdf;
-		/** `--seed` value; absent: a seed is generated, shown and recorded. */
+		/** `--seed` value; absent: the config file's seed, else one is generated. */
 		seedValue?: number;
+		/** `--fail-on`, `--fail-on-include-hypotheses`, `--fail-on-incomplete`, `--timeout` as passed; they win over the config file. */
+		failOn?: string;
+		failOnIncludeHypotheses?: boolean;
+		failOnIncomplete?: boolean;
+		timeout?: number;
 		/** Path of a campaign configuration file (`--config`). */
 		configPath?: string;
 		/** Injection seam for tests. */
@@ -141,8 +154,18 @@ export async function runHeadlessAudit(
 	}
 
 	let seed: SeedInfo;
+	let gateSettings;
 	try {
-		seed = resolveSeed(options.seedValue);
+		seed = resolveSeed(options.seedValue ?? campaign?.seed);
+		gateSettings = mergeGateSettings(
+			{
+				failOn: options.failOn,
+				failOnIncludeHypotheses: options.failOnIncludeHypotheses,
+				failOnIncomplete: options.failOnIncomplete,
+				timeout: options.timeout,
+			},
+			campaign,
+		);
 	} catch (error) {
 		return {
 			exitCode: 1,
@@ -155,7 +178,14 @@ export async function runHeadlessAudit(
 
 	let auditRun;
 	try {
-		auditRun = await audit(contractId, {...options, campaign, seed});
+		auditRun = await audit(contractId, {
+			...options,
+			campaign,
+			seed,
+			...(gateSettings.timeoutSeconds === undefined
+				? {}
+				: {timeoutSeconds: gateSettings.timeoutSeconds}),
+		});
 	} catch (error) {
 		return {
 			exitCode: 1,
@@ -167,11 +197,20 @@ export async function runHeadlessAudit(
 	}
 
 	const {scan, chaos} = auditRun;
-	const summaryText = formatAuditSummary(scan, chaos);
+	// The gate is decided from the finished run alone, before any file is
+	// written; a failed write below still outranks it (exit 1).
+	const gate: GateResult = evaluateGate(
+		gateSettings,
+		auditGateInput(scan, chaos),
+	);
+	const summaryText = [
+		formatAuditSummary(scan, chaos),
+		...(gateRequested(gateSettings) ? formatGateSummary(gate) : []),
+	].join('\n');
 
 	if (!options.writeJson && !options.writePdf) {
 		return {
-			exitCode: 0,
+			exitCode: gate.exitCode,
 			output: summaryText,
 			errorOutput: null,
 			reportFilePath: null,
@@ -180,7 +219,9 @@ export async function runHeadlessAudit(
 	}
 
 	// ONE SecurityReport, shared by both formats — never rebuilt per format.
-	const securityReport: SecurityReport = buildSecurityReport(auditRun);
+	const securityReport: SecurityReport = buildSecurityReport(auditRun, {
+		...(gateRequested(gateSettings) ? {gate} : {}),
+	});
 	const outputLines = [summaryText];
 	let reportFilePath: string | null = null;
 	let pdfFilePath: string | null = null;
@@ -231,7 +272,7 @@ export async function runHeadlessAudit(
 	}
 
 	return {
-		exitCode: 0,
+		exitCode: gate.exitCode,
 		output: outputLines.join('\n\n'),
 		errorOutput: null,
 		reportFilePath,

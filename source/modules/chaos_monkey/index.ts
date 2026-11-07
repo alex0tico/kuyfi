@@ -71,9 +71,17 @@ export interface ChaosMonkeyOptions {
 	 * keypair). Absent: one is generated and recorded in the report.
 	 */
 	seed?: SeedInfo;
-	/** Test seams — production callers omit both. */
+	/**
+	 * Execution time limit. Checked before each vector family: once passed, no
+	 * further family starts (one already running finishes) and the report says
+	 * so, which counts as incomplete.
+	 */
+	timeoutSeconds?: number;
+	/** Test seams — production callers omit them. */
 	keypair?: Keypair;
 	server?: SorobanRpc.Server;
+	/** Milliseconds clock; tests inject one to cross the deadline without waiting. */
+	clock?: () => number;
 }
 
 /**
@@ -101,6 +109,17 @@ export async function runChaosMonkey(
 	options: ChaosMonkeyOptions,
 ): Promise<ChaosReport> {
 	const {contractId, functions, udtRegistry, onProgress, context} = options;
+
+	const clock = options.clock ?? (() => Date.now());
+	const deadline =
+		options.timeoutSeconds === undefined
+			? undefined
+			: clock() + options.timeoutSeconds * 1000;
+	let timeoutReached = false;
+	const pastDeadline = () => {
+		if (deadline !== undefined && clock() >= deadline) timeoutReached = true;
+		return timeoutReached;
+	};
 
 	const seed = options.seed ?? resolveSeed();
 	const rng = new Rng(seed.value);
@@ -150,6 +169,7 @@ export async function runChaosMonkey(
 	) => {
 		if (!isFamilyAllowed(limits, family)) return;
 		if (campaignServer?.budgetExhausted) return;
+		if (pastDeadline()) return;
 		try {
 			const results = await run();
 			const kept = results.filter(
@@ -322,7 +342,15 @@ export async function runChaosMonkey(
 			`CRITICAL: ${report.summary.critical} HIGH: ${report.summary.high}`,
 	);
 
-	return {...report, seed};
+	return {
+		...report,
+		seed,
+		...(options.timeoutSeconds === undefined
+			? {}
+			: {
+					timeout: {seconds: options.timeoutSeconds, reached: timeoutReached},
+				}),
+	};
 }
 
 function usedContextKeys(results: FuzzResult[]): string[] {

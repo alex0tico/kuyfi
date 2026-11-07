@@ -6,9 +6,19 @@ import {AuthzRunError, runAuthzMatrix} from './run.js';
 import type {AuthzReport} from './run.js';
 import {getToolVersion} from '../security_report.js';
 import {resolveCommit} from './build_info.js';
+import {
+	EXIT,
+	evaluateGate,
+	formatGateSummary,
+	gateRequested,
+	mergeGateSettings,
+} from '../gate.js';
+import type {ExitCode} from '../gate.js';
+import {authzGateInput} from './gate_input.js';
 
 export interface AuthzCliResult {
-	exitCode: 0 | 1;
+	/** 0 ok · 1 tool error · 2 --fail-on · 3 incomplete (precedence 1 > 2 > 3 > 0). */
+	exitCode: ExitCode;
 	output: string | null;
 	errorOutput: string | null;
 	reportFilePath: string | null;
@@ -53,6 +63,9 @@ export async function runAuthzCli(
 	file: string,
 	options: {
 		outDir?: string;
+		/** `--fail-on` / `--fail-on-incomplete` as passed. */
+		failOn?: string;
+		failOnIncomplete?: boolean;
 		writeFile?: typeof fsWriteFile;
 		load?: typeof loadAuthzMatrix;
 		run?: typeof runAuthzMatrix;
@@ -61,6 +74,22 @@ export async function runAuthzCli(
 		read?: (p: string, enc: 'utf8') => Promise<string>;
 	} = {},
 ): Promise<AuthzCliResult> {
+	// Invalid gate settings are a tool error before anything runs.
+	let gateSettings;
+	try {
+		gateSettings = mergeGateSettings({
+			failOn: options.failOn,
+			failOnIncomplete: options.failOnIncomplete,
+		});
+	} catch (error) {
+		return {
+			exitCode: EXIT.TOOL_ERROR,
+			output: null,
+			errorOutput: error instanceof Error ? error.message : String(error),
+			reportFilePath: null,
+		};
+	}
+
 	let report: AuthzReport;
 	let matrixId: string | undefined;
 	let matrixSha256: string | undefined;
@@ -140,11 +169,13 @@ export async function runAuthzCli(
 		}
 	}
 
+	const gate = evaluateGate(gateSettings, authzGateInput(report));
 	if (matrixSha256)
 		report = {
 			...report,
 			matrix: {file: path.basename(file), sha256: matrixSha256},
 		};
+	if (gateRequested(gateSettings)) report = {...report, gate};
 	const stamp = stampOf(report.generatedAt);
 	const target = path.join(
 		options.outDir ?? '.',
@@ -167,8 +198,8 @@ export async function runAuthzCli(
 	}
 
 	return {
-		exitCode: 0,
-		output: `${formatAuthzSummary(report)}\n\nJSON evidence written to: ${target}`,
+		exitCode: gate.exitCode,
+		output: `${formatAuthzSummary(report)}${gateRequested(gateSettings) ? '\n' + formatGateSummary(gate).join('\n') : ''}\n\nJSON evidence written to: ${target}`,
 		errorOutput: null,
 		reportFilePath: target,
 	};

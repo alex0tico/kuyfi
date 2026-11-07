@@ -115,3 +115,49 @@ test('CampaignServer in simulate-only refuses sendTransaction for any caller', a
 	});
 	t.is(s.blockedSends, 1);
 });
+
+test('config file accepts seed, failOn, failOnIncludeHypotheses, failOnIncomplete and timeout', t => {
+	const c = parseCampaignConfig({
+		version: 1,
+		seed: 42,
+		failOn: 'medium',
+		failOnIncludeHypotheses: true,
+		failOnIncomplete: true,
+		timeout: 90.5,
+	});
+	t.is(c.seed, 42);
+	t.is(c.failOn, 'medium');
+	t.true(c.failOnIncludeHypotheses);
+	t.true(c.failOnIncomplete);
+	t.is(c.timeout, 90.5);
+});
+
+test('config file: seed 0 is valid and the new keys stay absent when not given', t => {
+	t.is(parseCampaignConfig({version: 1, seed: 0}).seed, 0);
+	const c = parseCampaignConfig({version: 1});
+	for (const key of ['seed', 'failOn', 'failOnIncomplete', 'timeout'])
+		t.false(key in c, `${key} absent`);
+});
+
+test('config file: invalid seed, failOn, booleans and timeout are each reported', t => {
+	const error = t.throws(
+		() =>
+			parseCampaignConfig({
+				version: 1,
+				seed: -1,
+				failOn: 'severe',
+				failOnIncludeHypotheses: 'yes',
+				failOnIncomplete: 1,
+				timeout: 0,
+			}),
+		{instanceOf: CampaignConfigError},
+	);
+	for (const p of [
+		/seed must be an integer/,
+		/failOn must be one of/,
+		/failOnIncludeHypotheses must be true or false/,
+		/failOnIncomplete must be true or false/,
+		/timeout must be a positive number/,
+	])
+		t.regex(error!.message, p);
+});

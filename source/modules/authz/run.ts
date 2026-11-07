@@ -24,6 +24,7 @@ import {
 	suppliedNodes,
 } from './entries.js';
 import type {SuppliedNode} from './entries.js';
+import type {GateResult} from '../gate.js';
 import {resolveCommit} from './build_info.js';
 import {evaluateCase} from './evaluate.js';
 import type {
@@ -119,6 +120,8 @@ export interface AuthzReport {
 	/** Source (relay) and actors, public keys only. */
 	accounts: {relay: string; actors: Record<string, string>};
 	cases: AuthzCaseReport[];
+	/** Present when --fail-on or --fail-on-incomplete was set; records which gate fired. */
+	gate?: GateResult;
 	summary: {
 		total: number;
 		executed: number;
