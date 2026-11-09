@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `kuyfi-server`: paid HTTP endpoint `GET /scan/:contractId` for the OSINT Scanner, charged per scan with x402 on Stellar and priced in CLP through Local402. Chaos Monkey is not exposed over HTTP.
 
+## [0.2.0] - 2026-11-09
+
+### Added
+
+- Contextual configuration (`--config <file>`): `context.roles` and `context.knownValues` give the audit values it cannot invent, so it can get past semantic preconditions such as a stored-role check
+- Per-campaign limits in the configuration: `functions`, `families`, `maxVectors` and `mode` (`simulate-only` by default, or `broadcast`). Without an `authorizationRecord` a campaign is simulate-only, and a simulate-only campaign blocks every send at the network client
+- Provenance for every generated input and a per-vector outcome (blocked, accepted, signal) in the report
+- `--seed <number>`: the same seed on the same contract regenerates the same test data; without it a seed is generated, printed and saved in the report (`seed`)
+- Gates for CI: `--fail-on <info|low|medium|high|critical>`, `--fail-on-include-hypotheses`, `--fail-on-incomplete` and `--timeout <seconds>`; `seed`, `failOn`, `failOnIncludeHypotheses`, `failOnIncomplete` and `timeout` can also be set in the configuration file, and a flag always wins
+- Exit codes `0` (ok), `1` (tool error), `2` (`--fail-on` fired) and `3` (`--fail-on-incomplete` fired), with precedence 1 > 2 > 3 > 0; the report records the gate that fired (`gate`) and the coverage of the run
+- `kuyfi authz <matrix.json>`: builds, signs and simulates Soroban authorization entries in explicit enforcing mode (Ed25519, custom account and nested cases), with the relay account as transaction source, JSON evidence and a failure record when a run cannot complete; it accepts `--out`, `--fail-on` and `--fail-on-incomplete`
+- Reproducible Testnet fixtures for the authorization matrix (`npm run authz:testnet`)
+
+### Changed
+
+- JSON report fields added to `schemaVersion` 1.0.0 are additive (`seed`, `gate`, coverage, provenance); without the new flags the run, the output and the exit codes (`0` completed, `1` tool failure) are unchanged
+
 ## [0.1.0] - 2026-09-20
 
 ### Added
