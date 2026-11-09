@@ -1,9 +1,12 @@
-import {Networks, xdr} from '@stellar/stellar-sdk';
+import {Networks} from '@stellar/stellar-sdk';
 import type {Keypair} from '@stellar/stellar-sdk';
 import {rpc as SorobanRpc} from '@stellar/stellar-sdk';
 import {invokeContract} from './router.js';
 import {parseInvokeResult} from './result_parser.js';
-import {baseline} from './type_gen.js';
+import {buildBaselineInput} from './input_builder.js';
+import type {ContextConfig} from './context_config.js';
+import type {Rng} from '../seed.js';
+import type {TracedInput} from './provenance.js';
 import type {UdtRegistry} from './type_gen.js';
 import {isAdminFunctionByName, hasAddressTypeParam} from './fuzzer_access.js';
 import type {FuzzTarget, FuzzResult} from './fuzzer_math.js';
@@ -72,13 +75,18 @@ export async function fuzzCallOrderVectors(
 	keypair: Keypair,
 	server: SorobanRpc.Server,
 	registry: UdtRegistry,
+	context?: ContextConfig,
+	rng?: Rng,
 ): Promise<FuzzResult[]> {
 	const results: FuzzResult[] = [];
 
 	for (const {label, fn} of selectCallOrderTargets(functions)) {
-		const rawBaselines = fn.params.map(p => baseline(p.type, registry));
+		const rawBaselines = fn.params.map(p =>
+			buildBaselineInput(p, registry, context, rng),
+		);
 		if (rawBaselines.some(b => b === null)) continue; // unresolved param — can't build a valid call
-		const args = rawBaselines as xdr.ScVal[];
+		const traced = rawBaselines as TracedInput[];
+		const args = traced.map(t => t.val);
 
 		const target: FuzzTarget = {
 			contractId,
@@ -107,7 +115,12 @@ export async function fuzzCallOrderVectors(
 				target.isAdminFunction,
 				hasUnverifiedAddressArg,
 			);
-			results.push({target, vectorName, result: parsed});
+			results.push({
+				target,
+				vectorName,
+				result: parsed,
+				inputs: traced.map(t => t.provenance),
+			});
 		}
 	}
 

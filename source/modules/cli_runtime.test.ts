@@ -106,6 +106,68 @@ test('CASE H (continued) — a Chaos Monkey internal failure also propagates as 
 	t.regex(result.errorOutput!, /funding failed/);
 });
 
+test('--seed: the given seed reaches Chaos Monkey as is, not generated', async t => {
+	const contractId = `C${'E'.repeat(55)}`;
+	let seen: unknown;
+	const result = await runHeadlessAudit(contractId, {
+		seedValue: 42,
+		scan: async () => fakeScanResult(contractId),
+		chaos: async options => {
+			seen = options.seed;
+			return fakeChaosReport(contractId);
+		},
+	});
+	t.is(result.exitCode, 0);
+	t.deepEqual(seen, {value: 42, generated: false});
+});
+
+test('--seed absent: a seed is generated and handed to Chaos Monkey so the run can be repeated', async t => {
+	const contractId = `C${'F'.repeat(55)}`;
+	let seen: {value: number; generated: boolean} | undefined;
+	await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async options => {
+			seen = options.seed;
+			return fakeChaosReport(contractId);
+		},
+	});
+	t.true(seen!.generated);
+	t.true(Number.isInteger(seen!.value));
+});
+
+test('--seed invalid: tool failure before any scan or network activity', async t => {
+	const contractId = `C${'G'.repeat(55)}`;
+	const scans: string[] = [];
+	for (const bad of [-1, 1.5, Number.NaN, 2 ** 32]) {
+		const result = await runHeadlessAudit(contractId, {
+			seedValue: bad,
+			scan: async () => {
+				scans.push(contractId);
+				return fakeScanResult(contractId);
+			},
+		});
+		t.is(result.exitCode, 1, `${bad}`);
+		t.regex(result.errorOutput!, /Invalid --seed/);
+	}
+
+	t.deepEqual(scans, []);
+});
+
+test('the summary shows the seed so a generated one can be copied for the next run', async t => {
+	const contractId = `C${'H'.repeat(55)}`;
+	const result = await runHeadlessAudit(contractId, {
+		scan: async () => fakeScanResult(contractId),
+		chaos: async () => ({
+			...fakeChaosReport(contractId),
+			seed: {value: 777, generated: true},
+		}),
+	});
+	t.regex(
+		result.output!,
+		/Seed: 777 \(generated\) - repeat this run with --seed 777/,
+	);
+});
+
 // --- D2.3 — CASE O/P/Q/R: --json file output, via the writeFile injection seam (no real disk I/O) ---
 
 test('CASE Q — headless without --json behaves exactly as D2.2 (no file, no reportFilePath)', async t => {

@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20261021T144542Z-1522aecb",
+  "generatedAt": "2026-10-21T14:45:42.382Z",
+  "tool": {
+    "name": "kuyfi",
+    "version": "0.1.0"
+  },
+  "target": {
+    "contractId": "<CONTRACT_ID_S2_HOOK_CALLER>",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 957
+  },
+  "scan": {
+    "totalFunctions": 1,
+    "functions": [
+      {
+        "name": "call_hook",
+        "parameters": [
+          {
+            "name": "target",
+            "type": "Address"
+          }
+        ],
+        "hasReturn": true
+      }
+    ],
+    "udts": []
+  },
+  "execution": {
+    "vectorsExecuted": 3,
+    "broadcastTransactions": 1,
+    "transactionsWithHash": 1,
+    "verificationTransactions": [
+      {
+        "functionName": "call_hook",
+        "vectorName": "UNAUTHORIZED_ADDR_CALL",
+        "broadcasted": true,
+        "hash": "970146d203344296dad99b9125b1c055025517dafdd2e41624051f1c2dcbbffe",
+        "ledger": 5314071,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/970146d203344296dad99b9125b1c055025517dafdd2e41624051f1c2dcbbffe"
+      }
+    ]
+  },
+  "summary": {
+    "totalFindings": 1,
+    "bySeverity": {
+      "critical": 0,
+      "high": 1,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 0
+    },
+    "findingsBySignal": {
+      "POTENTIAL_VULN": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "KYF-001",
+      "functionName": "call_hook",
+      "vectorName": "UNAUTHORIZED_ADDR_CALL",
+      "signal": "POTENTIAL_VULN",
+      "severity": "HIGH",
+      "details": "UNAUTHORIZED_ADDR_CALL: access control bypass — call was NOT rejected on call_hook",
+      "evidence": {
+        "simulationFailed": false,
+        "transaction": {
+          "broadcasted": true,
+          "hash": "970146d203344296dad99b9125b1c055025517dafdd2e41624051f1c2dcbbffe",
+          "ledger": 5314071,
+          "explorerUrl": "https://stellar.expert/explorer/testnet/tx/970146d203344296dad99b9125b1c055025517dafdd2e41624051f1c2dcbbffe"
+        },
+        "trace": {
+          "rootCall": {
+            "kind": "fn_call",
+            "contractId": "d3eab0a200ef8e5237b2221efde9331ae454a1709fd48638eaf597552c6eb4ab",
+            "functionName": "call_hook"
+          },
+          "nestedCallCount": 1,
+          "involvedContractIds": [
+            "d3eab0a200ef8e5237b2221efde9331ae454a1709fd48638eaf597552c6eb4ab",
+            "663b960b7347ae63c2f25664f5641adb2285cd13130b2abed3626d3e32886ec6"
+          ],
+          "errors": [],
+          "hasAuthError": false,
+          "failureLocation": "UNKNOWN",
+          "malformed": false
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "audit": {
+      "definition": "denominator = every executed invocation (broadcast or simulated, including operational errors; excluding invocations refused by the vector budget); numerator = invocations with exactly one valid provenance entry per function parameter, entries matching the parameter order and each with param, rule, source, seeded, and configKey iff source is configured_context",
+      "invocations": 3,
+      "invocationsWithProvenance": 3,
+      "percent": 100,
+      "missing": []
+    },
+    "invocations": [
+      {
+        "functionName": "call_hook",
+        "vectorName": "target::RANDOM_ADDR_A",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "target",
+            "rule": "attack:RANDOM_ADDR_A",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "call_hook",
+        "vectorName": "target::RANDOM_ADDR_B",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "target",
+            "rule": "attack:RANDOM_ADDR_B",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "call_hook",
+        "vectorName": "UNAUTHORIZED_ADDR_CALL",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "target",
+            "rule": "baseline:context",
+            "source": "configured_context",
+            "configKey": "knownValues.target",
+            "seeded": false
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "functionsWithZeroInvocations": [],
+    "operationalErrors": [],
+    "notEvaluated": [],
+    "vectorBudgetExhausted": false
+  },
+  "campaign": {
+    "mode": "broadcast",
+    "refusedByBudget": 0,
+    "blockedSends": 0,
+    "functionsSkippedByLimit": [],
+    "contextKeysUsed": [
+      "knownValues.target"
+    ],
+    "contextKeysUnused": [],
+    "authorizationRecord": "project-owned fixture (context-fixtures/deployment.json); execution authorized by Alex, 2026-10-21"
+  }
+}

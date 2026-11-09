@@ -1,0 +1,57 @@
+{
+  "arm": "C",
+  "scenario": "S2",
+  "kind": "formal",
+  "run": 2,
+  "startedAt": "2026-10-21T14:45:08.989Z",
+  "exitCode": 0,
+  "code": {
+    "commit": "b87692a7d8266756b2851f294d1f6d992244814e",
+    "branch": "instawards-2/week-1",
+    "dirty": false
+  },
+  "target": "<CONTRACT_ID_S2_HOOK_CALLER>",
+  "wasmHash": "6e88e869944b0e2f5ee39db612a120b645b54f2d8bb974cfc2265ab09b22644d",
+  "preconditions": {
+    "pingTargetAnswer": 42,
+    "ok": true
+  },
+  "ledgerWindow": {
+    "startLedger": 5314064,
+    "endLedger": 5314066
+  },
+  "observable": "hook_ok",
+  "observableEvents": 1,
+  "observableTxHashes": [
+    "4db03f45ad26b9a07ddb2612a7ca578bca7049371a0d3c65152b1d56e8f49902"
+  ],
+  "report": {
+    "reportId": "kyf-20261021T144517Z-c1586fd8",
+    "tool": {
+      "name": "kuyfi",
+      "version": "0.1.0"
+    },
+    "vectors": 3,
+    "broadcast": 1,
+    "summary": {
+      "totalFindings": 1,
+      "bySeverity": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "info": 0,
+        "preconditionFail": 0
+      },
+      "findingsBySignal": {
+        "POTENTIAL_VULN": 1
+      }
+    },
+    "findings": [
+      "call_hook::UNAUTHORIZED_ADDR_CALL:POTENTIAL_VULN:HIGH"
+    ]
+  },
+  "observableEventsFirstPass": 1,
+  "recount": "getEvents.endLedger is exclusive (first pass missed the last ledger) and consecutive windows shared the boundary ledger (counted from startLedger + 1)",
+  "recountVersion": 2
+}

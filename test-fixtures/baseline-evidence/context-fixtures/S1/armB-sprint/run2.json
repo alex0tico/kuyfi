@@ -1,0 +1,348 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20261021T143904Z-5c5894b6",
+  "generatedAt": "2026-10-21T14:39:04.966Z",
+  "tool": {
+    "name": "kuyfi",
+    "version": "0.1.0"
+  },
+  "target": {
+    "contractId": "<CONTRACT_ID_S1>",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 2333
+  },
+  "scan": {
+    "totalFunctions": 4,
+    "functions": [
+      {
+        "name": "init",
+        "parameters": [
+          {
+            "name": "operator",
+            "type": "Address"
+          }
+        ],
+        "hasReturn": true
+      },
+      {
+        "name": "get_value",
+        "parameters": [],
+        "hasReturn": true
+      },
+      {
+        "name": "get_operator",
+        "parameters": [],
+        "hasReturn": true
+      },
+      {
+        "name": "privileged_set",
+        "parameters": [
+          {
+            "name": "caller",
+            "type": "Address"
+          },
+          {
+            "name": "value",
+            "type": "I128"
+          }
+        ],
+        "hasReturn": true
+      }
+    ],
+    "udts": [
+      {
+        "kind": "union",
+        "name": "Key",
+        "cases": [
+          {
+            "name": "Operator",
+            "valueTypes": []
+          },
+          {
+            "name": "Value",
+            "valueTypes": []
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "vectorsExecuted": 14,
+    "broadcastTransactions": 0,
+    "transactionsWithHash": 0,
+    "verificationTransactions": []
+  },
+  "summary": {
+    "totalFindings": 0,
+    "bySeverity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 0
+    },
+    "findingsBySignal": {}
+  },
+  "findings": [],
+  "provenance": {
+    "audit": {
+      "definition": "denominator = every executed invocation (broadcast or simulated, including operational errors; excluding invocations refused by the vector budget); numerator = invocations with exactly one valid provenance entry per function parameter, entries matching the parameter order and each with param, rule, source, seeded, and configKey iff source is configured_context",
+      "invocations": 14,
+      "invocationsWithProvenance": 14,
+      "percent": 100,
+      "missing": []
+    },
+    "invocations": [
+      {
+        "functionName": "init",
+        "vectorName": "operator::RANDOM_ADDR_A",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "operator",
+            "rule": "attack:RANDOM_ADDR_A",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "init",
+        "vectorName": "operator::RANDOM_ADDR_B",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "operator",
+            "rule": "attack:RANDOM_ADDR_B",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "init",
+        "vectorName": "UNAUTHORIZED_CALL",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "operator",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "init",
+        "vectorName": "REINIT_ATTACK",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "operator",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "caller::RANDOM_ADDR_A",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "attack:RANDOM_ADDR_A",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "caller::RANDOM_ADDR_B",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "attack:RANDOM_ADDR_B",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "value::ZERO",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:ZERO",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "value::ONE",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:ONE",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "value::NEG_ONE",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:NEG_ONE",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "value::MAX_I128",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:MAX_I128",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "value::MIN_I128",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:MIN_I128",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "privileged_set",
+        "vectorName": "UNAUTHORIZED_ADDR_CALL",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "caller",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "init",
+        "vectorName": "REINIT_SEQUENCE::CALL_1",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "operator",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "init",
+        "vectorName": "REINIT_SEQUENCE::CALL_2",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "operator",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "functionsWithZeroInvocations": [
+      "get_value",
+      "get_operator"
+    ],
+    "operationalErrors": [],
+    "notEvaluated": [],
+    "vectorBudgetExhausted": false
+  },
+  "campaign": {
+    "mode": "broadcast",
+    "refusedByBudget": 0,
+    "blockedSends": 0,
+    "functionsSkippedByLimit": [],
+    "contextKeysUsed": [],
+    "contextKeysUnused": [],
+    "authorizationRecord": "project-owned fixture (context-fixtures/deployment.json); execution authorized by Alex, 2026-10-21"
+  }
+}

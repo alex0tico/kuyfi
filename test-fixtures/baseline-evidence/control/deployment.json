@@ -1,0 +1,7 @@
+{
+  "network": "testnet",
+  "deployedAt": "2026-10-21T13:51:48.079Z",
+  "relay": "<ACCOUNT_5>",
+  "contractId": "<CONTRACT_ID_1>",
+  "wasmHash": "a57dffb8f6614aa63f5dc74286c7e11befc0fd454153587216309534d60ce901"
+}

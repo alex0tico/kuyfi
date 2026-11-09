@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "target": "<CONTRACT_ID_S1>",
+  "context": {
+    "roles": {
+      "caller": "<ACCOUNT_1>"
+    }
+  },
+  "limits": {
+    "mode": "broadcast"
+  },
+  "authorizationRecord": "project-owned fixture (context-fixtures/deployment.json); execution authorized by Alex, 2026-10-21"
+}

@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "target": "<CONTRACT_ID_1>",
+  "limits": {
+    "mode": "broadcast"
+  },
+  "authorizationRecord": "project-owned fixture (control/deployment.json); execution authorized by Alex, 2026-10-21"
+}

@@ -37,6 +37,7 @@
 		"dev": "tsc --watch",
 		"pretest": "npm run build",
 		"test": "prettier --check . && xo && ava",
+		"authz:testnet": "npm run build && node test-fixtures/authz-fixtures/run-testnet.mjs",
 		"start": "node dist/cli.js",
 		"serve": "node dist/server.js",
 		"prepack": "npm run build"
@@ -85,6 +86,10 @@
 		}
 	},
 	"xo": {
+		"ignores": [
+			"test-fixtures/**",
+			"docs-site/**"
+		],
 		"extends": "xo-react",
 		"prettier": true,
 		"semicolon": true,

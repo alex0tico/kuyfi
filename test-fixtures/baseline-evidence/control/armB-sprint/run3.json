@@ -1,0 +1,457 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20261021T150323Z-c481daf9",
+  "generatedAt": "2026-10-21T15:03:23.691Z",
+  "tool": {
+    "name": "kuyfi",
+    "version": "0.1.0"
+  },
+  "target": {
+    "contractId": "<CONTRACT_ID_1>",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 1700
+  },
+  "scan": {
+    "totalFunctions": 3,
+    "functions": [
+      {
+        "name": "get_value",
+        "parameters": [],
+        "hasReturn": true
+      },
+      {
+        "name": "set_admin_value",
+        "parameters": [
+          {
+            "name": "admin",
+            "type": "Address"
+          },
+          {
+            "name": "value",
+            "type": "I128"
+          }
+        ],
+        "hasReturn": false
+      },
+      {
+        "name": "secure_set_admin_value",
+        "parameters": [
+          {
+            "name": "admin",
+            "type": "Address"
+          },
+          {
+            "name": "value",
+            "type": "I128"
+          }
+        ],
+        "hasReturn": false
+      }
+    ],
+    "udts": []
+  },
+  "execution": {
+    "vectorsExecuted": 16,
+    "broadcastTransactions": 16,
+    "transactionsWithHash": 16,
+    "verificationTransactions": [
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_A",
+        "broadcasted": true,
+        "hash": "8e8414127d677cf3aea85c1d19ecc79fad421d3fb7780887bd7086914fc90919",
+        "ledger": 5314261,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/8e8414127d677cf3aea85c1d19ecc79fad421d3fb7780887bd7086914fc90919"
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_A",
+        "broadcasted": true,
+        "hash": "0667b6c7b134c2fb351873bc9daed214526a8e3ada4f67647cf0e6bc3d514e34",
+        "ledger": 5314272,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/0667b6c7b134c2fb351873bc9daed214526a8e3ada4f67647cf0e6bc3d514e34"
+      }
+    ]
+  },
+  "summary": {
+    "totalFindings": 1,
+    "bySeverity": {
+      "critical": 1,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 0
+    },
+    "findingsBySignal": {
+      "POTENTIAL_VULN": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "KYF-001",
+      "functionName": "set_admin_value",
+      "vectorName": "UNAUTHORIZED_CALL",
+      "signal": "POTENTIAL_VULN",
+      "severity": "CRITICAL",
+      "details": "UNAUTHORIZED_CALL: access control bypass — call was NOT rejected on set_admin_value",
+      "evidence": {
+        "simulationFailed": false,
+        "transaction": {
+          "broadcasted": true,
+          "hash": "07f076f9b8dfa1f0ddbf46857a674e99fde1f2d50218a9d7ed80bbf29eef2d73",
+          "ledger": 5314271,
+          "explorerUrl": "https://stellar.expert/explorer/testnet/tx/07f076f9b8dfa1f0ddbf46857a674e99fde1f2d50218a9d7ed80bbf29eef2d73"
+        },
+        "trace": {
+          "rootCall": {
+            "kind": "fn_call",
+            "contractId": "95c4b053c9a68070826daaeecf5b583fbcbb7de7c318f0ff7ecf67a64d040704",
+            "functionName": "set_admin_value"
+          },
+          "nestedCallCount": 0,
+          "involvedContractIds": [
+            "95c4b053c9a68070826daaeecf5b583fbcbb7de7c318f0ff7ecf67a64d040704"
+          ],
+          "errors": [],
+          "hasAuthError": false,
+          "failureLocation": "UNKNOWN",
+          "malformed": false
+        }
+      }
+    }
+  ],
+  "provenance": {
+    "audit": {
+      "definition": "denominator = every executed invocation (broadcast or simulated, including operational errors; excluding invocations refused by the vector budget); numerator = invocations with exactly one valid provenance entry per function parameter, entries matching the parameter order and each with param, rule, source, seeded, and configKey iff source is configured_context",
+      "invocations": 16,
+      "invocationsWithProvenance": 16,
+      "percent": 100,
+      "missing": []
+    },
+    "invocations": [
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_A",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "attack:RANDOM_ADDR_A",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_B",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "attack:RANDOM_ADDR_B",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "value::ZERO",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:ZERO",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "value::ONE",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:ONE",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "value::NEG_ONE",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:NEG_ONE",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "value::MAX_I128",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:MAX_I128",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "value::MIN_I128",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:MIN_I128",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "UNAUTHORIZED_CALL",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_A",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "attack:RANDOM_ADDR_A",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_B",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "attack:RANDOM_ADDR_B",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "value::ZERO",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:ZERO",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "value::ONE",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:ONE",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "value::NEG_ONE",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:NEG_ONE",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "value::MAX_I128",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:MAX_I128",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "value::MIN_I128",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "attack:MIN_I128",
+            "source": "type_boundary",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "UNAUTHORIZED_CALL",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "admin",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          },
+          {
+            "param": "value",
+            "rule": "baseline",
+            "source": "spec",
+            "seeded": false
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "functionsWithZeroInvocations": [
+      "get_value"
+    ],
+    "operationalErrors": [],
+    "notEvaluated": [],
+    "vectorBudgetExhausted": false
+  },
+  "campaign": {
+    "mode": "broadcast",
+    "refusedByBudget": 0,
+    "blockedSends": 0,
+    "functionsSkippedByLimit": [],
+    "contextKeysUsed": [],
+    "contextKeysUnused": [],
+    "authorizationRecord": "project-owned fixture (control/deployment.json); execution authorized by Alex, 2026-10-21"
+  }
+}

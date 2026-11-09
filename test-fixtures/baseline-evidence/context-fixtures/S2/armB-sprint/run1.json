@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20261021T144413Z-fabafa87",
+  "generatedAt": "2026-10-21T14:44:13.707Z",
+  "tool": {
+    "name": "kuyfi",
+    "version": "0.1.0"
+  },
+  "target": {
+    "contractId": "<CONTRACT_ID_S2_HOOK_CALLER>",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 957
+  },
+  "scan": {
+    "totalFunctions": 1,
+    "functions": [
+      {
+        "name": "call_hook",
+        "parameters": [
+          {
+            "name": "target",
+            "type": "Address"
+          }
+        ],
+        "hasReturn": true
+      }
+    ],
+    "udts": []
+  },
+  "execution": {
+    "vectorsExecuted": 3,
+    "broadcastTransactions": 0,
+    "transactionsWithHash": 0,
+    "verificationTransactions": []
+  },
+  "summary": {
+    "totalFindings": 0,
+    "bySeverity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 0
+    },
+    "findingsBySignal": {}
+  },
+  "findings": [],
+  "provenance": {
+    "audit": {
+      "definition": "denominator = every executed invocation (broadcast or simulated, including operational errors; excluding invocations refused by the vector budget); numerator = invocations with exactly one valid provenance entry per function parameter, entries matching the parameter order and each with param, rule, source, seeded, and configKey iff source is configured_context",
+      "invocations": 3,
+      "invocationsWithProvenance": 3,
+      "percent": 100,
+      "missing": []
+    },
+    "invocations": [
+      {
+        "functionName": "call_hook",
+        "vectorName": "target::RANDOM_ADDR_A",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "target",
+            "rule": "attack:RANDOM_ADDR_A",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "call_hook",
+        "vectorName": "target::RANDOM_ADDR_B",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "target",
+            "rule": "attack:RANDOM_ADDR_B",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      },
+      {
+        "functionName": "call_hook",
+        "vectorName": "UNAUTHORIZED_ADDR_CALL",
+        "mode": "broadcast",
+        "inputs": [
+          {
+            "param": "target",
+            "rule": "baseline",
+            "source": "test_data",
+            "seeded": false
+          }
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "functionsWithZeroInvocations": [],
+    "operationalErrors": [],
+    "notEvaluated": [],
+    "vectorBudgetExhausted": false
+  },
+  "campaign": {
+    "mode": "broadcast",
+    "refusedByBudget": 0,
+    "blockedSends": 0,
+    "functionsSkippedByLimit": [],
+    "contextKeysUsed": [],
+    "contextKeysUnused": [],
+    "authorizationRecord": "project-owned fixture (context-fixtures/deployment.json); execution authorized by Alex, 2026-10-21"
+  }
+}

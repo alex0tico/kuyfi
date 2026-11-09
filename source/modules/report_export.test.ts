@@ -274,6 +274,7 @@ test('CASE H — a report with a CRITICAL finding exports exactly like any other
 			functionName: 'admin_fn',
 			vectorName: 'v::CRIT',
 			signal: 'POTENTIAL_VULN',
+			status: 'hypothesis',
 			severity: 'CRITICAL',
 			details: 'x',
 			evidence: {

@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "id": "custom-account-{{RUN_ID}}",
+  "mode": "simulate-only",
+  "actors": {
+    "OWNER": {
+      "source": "env",
+      "secretEnv": "KUYFI_AUTHZ_OWNER_SECRET"
+    }
+  },
+  "cases": [
+    {
+      "id": "CA-1",
+      "description": "valid signature, basic context",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "valid",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "CA-2",
+      "description": "corrupted signature -> rejected INSIDE __check_auth",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "invalid_signature",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "check_auth_signature"
+      },
+      "control": "CA-1"
+    },
+    {
+      "id": "CA-3",
+      "description": "context allowed by policy; policy branch emits policy_ok",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 100
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "valid",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "success",
+        "eventTopic": "policy_ok"
+      }
+    },
+    {
+      "id": "CA-4",
+      "description": "amount above the policy limit (AmountExceeded = #12)",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 101
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "valid",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "check_auth_policy",
+        "contractErrorCode": 12
+      },
+      "control": "CA-3"
+    },
+    {
+      "id": "CA-4b",
+      "description": "function not allowed by the policy (#11) - exploratory",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "admin_set",
+        "args": [
+          {
+            "type": "address",
+            "value": "{{POLICY_ID}}"
+          },
+          {
+            "type": "u32",
+            "value": 1
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "OWNER",
+          "variant": "valid",
+          "account": {
+            "contractId": "{{POLICY_ID}}"
+          }
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "check_auth_policy",
+        "contractErrorCode": 11
+      },
+      "control": "CA-3"
+    }
+  ]
+}

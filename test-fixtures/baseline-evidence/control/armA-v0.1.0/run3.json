@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "1.0.0",
+  "reportId": "kyf-20261021T140433Z-94a4dcf2",
+  "generatedAt": "2026-10-21T14:04:33.947Z",
+  "tool": {
+    "name": "kuyfi",
+    "version": "0.1.0"
+  },
+  "target": {
+    "contractId": "<CONTRACT_ID_1>",
+    "network": "testnet",
+    "rpcUrl": "https://soroban-testnet.stellar.org",
+    "bytecodeSize": 1700
+  },
+  "scan": {
+    "totalFunctions": 3,
+    "functions": [
+      {
+        "name": "get_value",
+        "parameters": [],
+        "hasReturn": true
+      },
+      {
+        "name": "set_admin_value",
+        "parameters": [
+          {
+            "name": "admin",
+            "type": "Address"
+          },
+          {
+            "name": "value",
+            "type": "I128"
+          }
+        ],
+        "hasReturn": false
+      },
+      {
+        "name": "secure_set_admin_value",
+        "parameters": [
+          {
+            "name": "admin",
+            "type": "Address"
+          },
+          {
+            "name": "value",
+            "type": "I128"
+          }
+        ],
+        "hasReturn": false
+      }
+    ],
+    "udts": []
+  },
+  "execution": {
+    "vectorsExecuted": 16,
+    "broadcastTransactions": 15,
+    "transactionsWithHash": 16,
+    "verificationTransactions": [
+      {
+        "functionName": "set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_A",
+        "broadcasted": true,
+        "hash": "78dd8aa1e9a5206df02a742d94f78363edf8f7624a0c6648259f6c3c7aaf7da8",
+        "ledger": 5313555,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/78dd8aa1e9a5206df02a742d94f78363edf8f7624a0c6648259f6c3c7aaf7da8"
+      },
+      {
+        "functionName": "secure_set_admin_value",
+        "vectorName": "admin::RANDOM_ADDR_A",
+        "broadcasted": true,
+        "hash": "551e049a1748a5c0384e2416ce17dd5173b5efe1318d48c3a330bfa893dc1e1a",
+        "ledger": 5313566,
+        "explorerUrl": "https://stellar.expert/explorer/testnet/tx/551e049a1748a5c0384e2416ce17dd5173b5efe1318d48c3a330bfa893dc1e1a"
+      }
+    ]
+  },
+  "summary": {
+    "totalFindings": 2,
+    "bySeverity": {
+      "critical": 1,
+      "high": 0,
+      "medium": 1,
+      "low": 0,
+      "info": 0,
+      "preconditionFail": 0
+    },
+    "findingsBySignal": {
+      "POTENTIAL_VULN": 1,
+      "UNEXPECTED_ERROR": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "KYF-002",
+      "functionName": "set_admin_value",
+      "vectorName": "UNAUTHORIZED_CALL",
+      "signal": "POTENTIAL_VULN",
+      "severity": "CRITICAL",
+      "details": "UNAUTHORIZED_CALL: access control bypass — call was NOT rejected on set_admin_value",
+      "evidence": {
+        "simulationFailed": false,
+        "transaction": {
+          "broadcasted": true,
+          "hash": "91df556942c28552109d0bb6ecc7833a7e2d629497010961253be8e143e5ee5d",
+          "ledger": 5313563,
+          "explorerUrl": "https://stellar.expert/explorer/testnet/tx/91df556942c28552109d0bb6ecc7833a7e2d629497010961253be8e143e5ee5d"
+        },
+        "trace": {
+          "rootCall": {
+            "kind": "fn_call",
+            "contractId": "95c4b053c9a68070826daaeecf5b583fbcbb7de7c318f0ff7ecf67a64d040704",
+            "functionName": "set_admin_value"
+          },
+          "nestedCallCount": 0,
+          "involvedContractIds": [
+            "95c4b053c9a68070826daaeecf5b583fbcbb7de7c318f0ff7ecf67a64d040704"
+          ],
+          "errors": [],
+          "hasAuthError": false,
+          "failureLocation": "UNKNOWN",
+          "malformed": false
+        }
+      }
+    },
+    {
+      "id": "KYF-001",
+      "functionName": "set_admin_value",
+      "vectorName": "admin::RANDOM_ADDR_B",
+      "signal": "UNEXPECTED_ERROR",
+      "severity": "MEDIUM",
+      "details": "Unexpected failure (code: SEND_ERROR): Network rejected transaction before broadcast",
+      "evidence": {
+        "simulationFailed": false,
+        "transaction": {
+          "broadcasted": false,
+          "hash": "5b38af7ace8f7d489de5309be49a343040400bf2b61430927c68f42e84946e6a",
+          "ledger": null,
+          "explorerUrl": "https://stellar.expert/explorer/testnet/tx/5b38af7ace8f7d489de5309be49a343040400bf2b61430927c68f42e84946e6a"
+        },
+        "trace": {
+          "rootCall": null,
+          "nestedCallCount": 0,
+          "involvedContractIds": [],
+          "errors": [],
+          "hasAuthError": false,
+          "failureLocation": "UNKNOWN",
+          "malformed": false
+        }
+      }
+    }
+  ]
+}

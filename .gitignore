@@ -44,3 +44,6 @@ Kuyfi_GIF.mov
 general.cursorrules
 
 
+
+# authz fixture: sources and {{MARKER}} templates are tracked; run output
+# (evidence/, with real ids) is ignored by test-fixtures/authz-fixtures/.gitignore

@@ -1,0 +1,213 @@
+{
+  "version": 1,
+  "id": "ed25519-{{RUN_ID}}",
+  "mode": "simulate-only",
+  "actors": {
+    "A": {
+      "source": "ephemeral"
+    },
+    "B": {
+      "source": "ephemeral"
+    },
+    "ADM": {
+      "source": "env",
+      "secretEnv": "KUYFI_AUTHZ_ADMIN_SECRET"
+    }
+  },
+  "cases": [
+    {
+      "id": "ED-1",
+      "description": "valid authorization",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "valid"
+        }
+      ],
+      "expect": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "ED-2",
+      "description": "missing authorization (explicit enforce)",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "missing"
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "authorization_missing"
+      },
+      "control": "ED-1"
+    },
+    {
+      "id": "ED-3",
+      "description": "corrupted signature",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "invalid_signature"
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "signature_invalid"
+      },
+      "control": "ED-1"
+    },
+    {
+      "id": "ED-3b",
+      "description": "signature from another key",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "foreign_signature"
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "signature_invalid"
+      },
+      "control": "ED-1"
+    },
+    {
+      "id": "ED-4",
+      "description": "expired authorization",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "protected_set",
+        "args": [
+          {
+            "actor": "A"
+          },
+          {
+            "type": "u32",
+            "value": 7
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "A",
+          "variant": "expired",
+          "expirationOffset": 10
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "signature_expired"
+      },
+      "control": "ED-1"
+    },
+    {
+      "id": "C-ED5",
+      "description": "legitimate admin on admin_set",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "admin_set",
+        "args": [
+          {
+            "actor": "ADM"
+          },
+          {
+            "type": "u32",
+            "value": 1
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "ADM",
+          "variant": "valid"
+        }
+      ],
+      "expect": {
+        "outcome": "success"
+      }
+    },
+    {
+      "id": "ED-5",
+      "description": "valid signature, no permission (NotAdmin = #3)",
+      "call": {
+        "contractId": "{{VAULT_ID}}",
+        "function": "admin_set",
+        "args": [
+          {
+            "actor": "B"
+          },
+          {
+            "type": "u32",
+            "value": 1
+          }
+        ]
+      },
+      "authorization": [
+        {
+          "actor": "B",
+          "variant": "valid"
+        }
+      ],
+      "expect": {
+        "outcome": "rejection",
+        "stage": "contract_error",
+        "contractErrorCode": 3
+      },
+      "control": "C-ED5"
+    }
+  ]
+}
