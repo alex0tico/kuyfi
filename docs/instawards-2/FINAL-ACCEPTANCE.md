@@ -1,6 +1,6 @@
 # Instawards 2 — Final acceptance record (D1, D2, D3)
 
-Status date: 2026-11-09. Branch: `instawards-2-public` at `e852625`.
+Status date: 2026-11-09. Evidence branch: `instawards-2-public` (feature work at `e852625`, this record first published at `46e20fe`); merged into `main` by `5c850e4`.
 
 This document supersedes the status stated in [`D1-ACCEPTANCE.md`](D1-ACCEPTANCE.md) (2026-10-22/24), which listed D1 as not fully complete because of open items. It records, per deliverable and per criterion, what the evidence supports. Criteria come from the Instawards 2 application (acceptance text and "planned evidence of completion" for D1, D2 and D3).
 
@@ -12,9 +12,9 @@ This document supersedes the status stated in [`D1-ACCEPTANCE.md`](D1-ACCEPTANCE
 
 | Deliverable | Result |
 |---|---|
-| D1 — Contextual inputs and traceable campaigns | Complete except two parts: the manual audits on Contracts A/B/C have no public evidence, and the changes are on a public branch that is not merged into `main` |
+| D1 — Contextual inputs and traceable campaigns | Complete except one part: the manual audits on Contracts A/B/C have no public evidence. The changes are merged into `main` |
 | D2 — Authorization-aware test matrix | 12 of 12 cases supported by evidence; partial on external acceptance, public reproducibility of addresses and the recorded demo |
-| D3 — Developer workflow and CI integration | Features, tests and the public CI example complete; partial on external campaigns (3 of 5) and on the participant build |
+| D3 — Developer workflow and CI integration | Features, tests, the public CI example and the README documentation complete; documentation complete; partial on external campaigns (3 of 5) and on the participant build |
 
 Open items across all three deliverables are listed at the end.
 
@@ -32,7 +32,7 @@ Open items across all three deliverables are listed at the end.
 | 1.6 | Campaigns on three distinct real Testnet contracts, separate from our fixtures | partial | Public evidence: simulate-only campaigns run 2026-10-22 on Contracts A, B and C, aggregated in `test-fixtures/baseline-evidence/real-contracts-aggregate/aggregate.json` (A: 64 vectors, 40 accepted, 24 blocked by a generic host trap, 0 supported findings; B: 32 vectors, all 32 rejected by the contract's own input validation; C: 69 vectors, 55 blocked, 14 accepted, 0 findings). Coverage was limited: no business logic was reached on Contract B. **Gap:** the author also ran manual audits and campaigns on the three contracts afterwards; the author reports them as done, but they have no publishable evidence and are not reflected in the aggregate |
 | 1.7 | Authorization record per campaign (agreed functions, vector families, state-changing permission, limits); no record means simulate-only | complete (private) | Records `A-1`, `B-1`, `C-1` and the `authorizationRecord` in each local config and report; state-changing permission was not granted, so every campaign was simulate-only. The author states that the owner/contact, date window and contract versions exist; they are kept privately and cannot be checked from this repository. The earlier open item P1 in `D1-ACCEPTANCE.md` is closed on that basis |
 | 1.8 | Explicit classification of each blocked vector before the semantic condition | complete | Build `8e6851c`; `provenance.invocations[].outcome` and `signal`; per-category counts in the aggregate |
-| 1.9 | Planned evidence: merged changes | partial | The changes are published on `origin/instawards-2-public` (`e852625`) and are **not merged into `main`** (`git merge-base --is-ancestor` against `origin/main` fails) |
+| 1.9 | Planned evidence: merged changes | complete | `instawards-2-public` (last commit `46e20fe`) was merged into `main` by merge commit `5c850e4`. The only conflict, in `.env.example`, was resolved by keeping the required `LOCAL402_QUOTE_SECRET` from `main` and adding the authz fixtures block; the two commits that were only on `main` (`c046bc2`, `bd3c866`) are preserved |
 | 1.10 | Planned evidence: configuration examples, baseline and sprint JSON reports, comparison document | complete | `test-fixtures/baseline-evidence/` (configs, `run*.json`, `COMPARISON.md`) |
 | 1.11 | Planned evidence: contract and fixture identifiers with WASM hashes; authorization records | complete (private for third parties) | Recorded locally for Contracts A/B/C and not published; fixture contracts are rebuilt from `test-fixtures/` sources |
 
@@ -70,7 +70,7 @@ Known limitations, as stated in `D2-FINAL-RUN.md` §4: the ED-4 equality boundar
 | 3.6 | Public GitHub Actions example repository with instructions | complete | <https://github.com/alex0tico/kuyfi-ci-example> (public): workflow `.github/workflows/kuyfi.yml`, composite action, `kuyfi.config.json`, README with local instructions and the exit-code table. It installs Kuyfi from `instawards-2-public` by default |
 | 3.7 | A successful workflow run with a downloadable JSON artifact | complete | Run <https://github.com/alex0tico/kuyfi-ci-example/actions/runs/42660321215> (commit `16c61a1`, success). Job `clean-contract-passes` exits 0; the artifact `kuyfi-report-clean-contract` is downloadable |
 | 3.8 | A run where a gate trips | complete | Same run: job `vulnerable-contract-is-blocked` runs `--fail-on medium` on the contract built with `--features vulnerable`. The job asserts exit code 2 and is green only because it expects the block; the artifact `kuyfi-report-vulnerable-contract` is uploaded. In a real pipeline the exit 2 would fail the job |
-| 3.9 | Documentation | partial | `--help` documents the exit codes and precedence, and the example README documents usage. The main repository's README and docs pages do not yet describe `--fail-on`, `--fail-on-incomplete`, `--seed` or `--timeout`; they appear only in the working notes under `docs/instawards-2/` |
+| 3.9 | Documentation | complete | The flags `--config` (roles, knownValues, limits), `--seed`, `--fail-on`, `--fail-on-include-hypotheses`, `--fail-on-incomplete`, `--timeout` and the exit codes 0, 1, 2 and 3 are documented in the `README.md` of `main` (commit `858a537`, section "Campaign configuration, seed and CI gates"), with links to the CI example repository and the `mcp-prototype-v0.0.1` tag. `--help` and the example repository README document them too |
 | 3.10 | Five external developers each run one campaign with the sprint build and give documented feedback (date, build, report ID, target, feedback); report the actual number if fewer complete | partial | **3 of 5** completed; **2 pending**. Two of the three are cited publicly with the authors' authorisation: (1) Diego Poveda (Local402), GitHub issue <https://github.com/alex0tico/kuyfi-ci-example/issues/1>, opened 2026-11-09; (2) Pau Koh, Vice President of Stellar Chile, feedback given by chat (no public link). The third record is kept privately and cannot be checked from this repository. The full date/build/report ID/target fields are not reproduced here for any of the three |
 | 3.11 | A participant-usable build around day 21 | partial | Not evidenced in the repository: the branch has no tag, release or npm publication, and the CI example installs from the branch head. Whether participants used a pinned build is not recorded here |
 
@@ -79,8 +79,7 @@ Known limitations, as stated in `D2-FINAL-RUN.md` §4: the ED-4 equality boundar
 ## Open items
 
 1. **D1 — manual audits on Contracts A/B/C:** reported by the author, no publishable evidence. If they are to count, a sanitised aggregate (no identifiers, function names or transactions) must be added.
-2. **D1 — merge:** `instawards-2-public` is published but not merged into `main`.
-3. **D2 — external acceptance:** the written review (TA7 §3) is pending.
-4. **D2 — public reproducibility and demo:** deployed addresses are local only; no recorded demo is evidenced.
-5. **D3 — external campaigns:** 3 of 5 completed (two cited publicly, one private); 2 pending.
-6. **D3 — documentation and participant build:** the new flags are not yet in the main README or docs pages, and there is no pinned release for participants.
+2. **D2 — external acceptance:** the written review (TA7 §3) is pending.
+3. **D2 — public reproducibility and demo:** deployed addresses are local only; no recorded demo is evidenced.
+4. **D3 — external campaigns:** 3 of 5 completed (two cited publicly, one private); 2 pending.
+5. **D3 — participant build:** there is no tag or release pinning a build for participants.
