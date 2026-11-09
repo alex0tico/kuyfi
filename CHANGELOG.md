@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- `kuyfi-server`: paid HTTP endpoint `GET /scan/:contractId` for the OSINT Scanner, charged per scan with x402 on Stellar and priced in CLP through Local402. Chaos Monkey is not exposed over HTTP.
-
 ## [0.2.0] - 2026-11-09
 
 ### Added
@@ -23,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Exit codes `0` (ok), `1` (tool error), `2` (`--fail-on` fired) and `3` (`--fail-on-incomplete` fired), with precedence 1 > 2 > 3 > 0; the report records the gate that fired (`gate`) and the coverage of the run
 - `kuyfi authz <matrix.json>`: builds, signs and simulates Soroban authorization entries in explicit enforcing mode (Ed25519, custom account and nested cases), with the relay account as transaction source, JSON evidence and a failure record when a run cannot complete; it accepts `--out`, `--fail-on` and `--fail-on-incomplete`
 - Reproducible Testnet fixtures for the authorization matrix (`npm run authz:testnet`)
+- `kuyfi-server`: paid HTTP endpoint `GET /scan/:contractId` for the OSINT Scanner, charged per scan with x402 on Stellar and priced in CLP through Local402. Chaos Monkey is not exposed over HTTP.
 
 ### Changed
 
