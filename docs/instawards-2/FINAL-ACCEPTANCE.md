@@ -14,7 +14,7 @@ This document supersedes the status stated in [`D1-ACCEPTANCE.md`](D1-ACCEPTANCE
 |---|---|
 | D1 — Contextual inputs and traceable campaigns | Complete except one part: the manual audits on Contracts A/B/C have no public evidence. The changes are merged into `main` |
 | D2 — Authorization-aware test matrix | 12 of 12 cases supported by evidence; partial on external acceptance, public reproducibility of addresses and the recorded demo |
-| D3 — Developer workflow and CI integration | Features, tests, the public CI example and the README documentation complete; documentation complete; partial on external campaigns (3 of 5) |
+| D3 — Developer workflow and CI integration | Features, tests, the public CI example and the README documentation and the pinned `v0.2.0` build complete; partial on external campaigns (3 of 5) |
 
 Open items across all three deliverables are listed at the end.
 
