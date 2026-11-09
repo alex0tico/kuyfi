@@ -124,6 +124,59 @@ kuyfi <CONTRACT_ID> --pdf
 kuyfi <CONTRACT_ID> --json --pdf
 ```
 
+### Campaign configuration, seed and CI gates
+
+The headless CLI accepts these flags (`kuyfi --help` prints the same text):
+
+| Flag | What it does |
+| --- | --- |
+| `--config <file>` | Campaign configuration (JSON). Without it the audit runs exactly as before. See below. |
+| `--seed <number>` | Integer 0–4294967295 that drives every generated test datum (throwaway addresses, the ephemeral account). The same seed on the same contract regenerates the same cases. Without it a seed is generated, printed and saved in the report (`seed`). Not used by `kuyfi authz`: its nonces are deliberately never seeded. |
+| `--fail-on <info\|low\|medium\|high\|critical>` | Exit `2` if at least one _supported_ finding has that severity or higher. Hypotheses and inconclusive findings do not count. Prints the counts by status and severity. |
+| `--fail-on-include-hypotheses` | With `--fail-on`, hypotheses count too. Inconclusive findings never do. |
+| `--fail-on-incomplete` | Exit `3` if the run is incomplete: operational errors, vectors not evaluated, vector budget exhausted, time limit reached, attackable functions without a single invocation, or inconclusive findings. |
+| `--timeout <seconds>` | Execution time limit, checked before each vector family (one already running finishes). Reaching it counts as incomplete. |
+
+The `--config` file may also set `seed`, `failOn`, `failOnIncludeHypotheses`, `failOnIncomplete` and `timeout`. A flag you pass always wins over the file.
+
+**Exit codes**, with precedence 1 > 2 > 3 > 0:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | OK: nothing the gates were asked to catch |
+| `1` | Tool error: bad input or configuration, scan/RPC failure, failed write |
+| `2` | `--fail-on` fired |
+| `3` | `--fail-on-incomplete` fired (or the time limit was reached with it set) |
+
+When a gate is set, the JSON report records which one fired (`gate`). Defaults are unchanged: without these flags the exit code is `0` on a completed run and `1` on a tool failure.
+
+**Configuration file.** `context` gives the audit values it cannot invent: `roles` maps a role name to a Stellar address, and `knownValues` maps a parameter name to a typed value. `limits` bounds the campaign: `functions` (allow-list), `families` (vector families), `maxVectors`, and `mode` (`simulate-only`, the default, or `broadcast`). Without an `authorizationRecord`, a campaign is simulate-only. Every generated input records its provenance in the report.
+
+```json
+{
+  "version": 1,
+  "target": "<CONTRACT_ID>",
+  "context": {
+    "roles": {"caller": "<ACCOUNT>"},
+    "knownValues": {"amount": {"type": "u32", "value": 100}}
+  },
+  "limits": {"mode": "simulate-only", "maxVectors": 200},
+  "seed": 42,
+  "failOn": "high",
+  "failOnIncomplete": true,
+  "timeout": 600
+}
+```
+
+```bash
+kuyfi <CONTRACT_ID> --config kuyfi.config.json --json
+echo $?   # 0, 1, 2 or 3
+```
+
+`kuyfi authz <matrix.json>` runs the authorization-aware matrix in enforcing-mode simulation and accepts `--out`, `--fail-on` and `--fail-on-incomplete` (an unexpected acceptance is high, an unexpected rejection is medium, an unjudged case makes the run incomplete).
+
+**Use it in CI.** [kuyfi-ci-example](https://github.com/alex0tico/kuyfi-ci-example) is a public GitHub Actions example: one job passes with exit `0`, another trips `--fail-on` with exit `2`, and both upload the JSON report as an artifact. The earlier MCP prototype is kept at the tag [`mcp-prototype-v0.0.1`](https://github.com/alex0tico/kuyfi/tree/mcp-prototype-v0.0.1).
+
 ## OSINT Scanner
 
 Given only a Contract ID, the scanner:
