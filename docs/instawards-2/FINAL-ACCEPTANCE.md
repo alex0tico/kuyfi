@@ -14,7 +14,7 @@ This document supersedes the status stated in [`D1-ACCEPTANCE.md`](D1-ACCEPTANCE
 |---|---|
 | D1 — Contextual inputs and traceable campaigns | Complete except one part: the manual audits on Contracts A/B/C have no public evidence. The changes are merged into `main` |
 | D2 — Authorization-aware test matrix | 12 of 12 cases supported by evidence; partial on external acceptance, public reproducibility of addresses and the recorded demo |
-| D3 — Developer workflow and CI integration | Features, tests, the public CI example and the README documentation complete; documentation complete; partial on external campaigns (3 of 5) and on the participant build |
+| D3 — Developer workflow and CI integration | Features, tests, the public CI example and the README documentation complete; documentation complete; partial on external campaigns (3 of 5) |
 
 Open items across all three deliverables are listed at the end.
 
@@ -72,7 +72,7 @@ Known limitations, as stated in `D2-FINAL-RUN.md` §4: the ED-4 equality boundar
 | 3.8 | A run where a gate trips | complete | Same run: job `vulnerable-contract-is-blocked` runs `--fail-on medium` on the contract built with `--features vulnerable`. The job asserts exit code 2 and is green only because it expects the block; the artifact `kuyfi-report-vulnerable-contract` is uploaded. In a real pipeline the exit 2 would fail the job |
 | 3.9 | Documentation | complete | The flags `--config` (roles, knownValues, limits), `--seed`, `--fail-on`, `--fail-on-include-hypotheses`, `--fail-on-incomplete`, `--timeout` and the exit codes 0, 1, 2 and 3 are documented in the `README.md` of `main` (commit `858a537`, section "Campaign configuration, seed and CI gates"), with links to the CI example repository and the `mcp-prototype-v0.0.1` tag. `--help` and the example repository README document them too |
 | 3.10 | Five external developers each run one campaign with the sprint build and give documented feedback (date, build, report ID, target, feedback); report the actual number if fewer complete | partial | **3 of 5** completed; **2 pending**. Two of the three are cited publicly with the authors' authorisation: (1) Diego Poveda (Local402), GitHub issue <https://github.com/alex0tico/kuyfi-ci-example/issues/1>, opened 2026-11-09; (2) Pau Koh, Vice President of Stellar Chile, feedback given by chat (no public link). The third record is kept privately and cannot be checked from this repository. The full date/build/report ID/target fields are not reproduced here for any of the three |
-| 3.11 | A participant-usable build around day 21 | partial | Not evidenced in the repository: the branch has no tag, release or npm publication, and the CI example installs from the branch head. Whether participants used a pinned build is not recorded here |
+| 3.11 | A participant-usable build around day 21 | complete | Version `0.2.0` is pinned by the annotated tag `v0.2.0` on commit `ff51d4a` of `main` (package version, changelog entry, 366 tests passing) and the GitHub release <https://github.com/alex0tico/kuyfi/releases/tag/v0.2.0>. The build can be cloned and built from the tag. It is **not published on npm** yet. The tag was cut on 2026-11-09, after the day-21 target, so it pins the build for later users; it is not a record of which build the first participants ran. The CI example still installs from `instawards-2-public` by default |
 
 ---
 
@@ -82,4 +82,3 @@ Known limitations, as stated in `D2-FINAL-RUN.md` §4: the ED-4 equality boundar
 2. **D2 — external acceptance:** the written review (TA7 §3) is pending.
 3. **D2 — public reproducibility and demo:** deployed addresses are local only; no recorded demo is evidenced.
 4. **D3 — external campaigns:** 3 of 5 completed (two cited publicly, one private); 2 pending.
-5. **D3 — participant build:** there is no tag or release pinning a build for participants.
